@@ -101,6 +101,50 @@ exports.changePassword = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Change Username (Email)
+ * POST /api/auth/change-username
+ */
+exports.changeUsername = asyncHandler(async (req, res) => {
+  const { currentPassword, newEmail } = req.body;
+  const adminId = req.admin?.id;
+
+  if (!currentPassword || !newEmail) {
+    return res.status(400).json({
+      success: false,
+      message: "Current password and new username are required"
+    });
+  }
+  if (!adminId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+
+  try {
+    const result = await authService.changeEmail(adminId, currentPassword, newEmail);
+    return res.status(200).json({
+      success: true,
+      message: result.message,
+      token: result.token,
+      admin: result.admin
+    });
+  } catch (err) {
+    const msg = err.message || "Failed to change username";
+    if (msg === "Current password is incorrect") {
+      return res.status(401).json({ success: false, message: msg });
+    }
+    if (msg === "Invalid email format" ||
+        msg === "This username is already taken" ||
+        msg === "New username is the same as current username") {
+      return res.status(400).json({ success: false, message: msg });
+    }
+    if (msg === "Admin not found") {
+      return res.status(404).json({ success: false, message: msg });
+    }
+    console.error("Change username error:", msg);
+    return res.status(500).json({ success: false, message: "Failed to change username" });
+  }
+});
+
+/**
  * Get Current Admin Info
  * GET /api/auth/me
  */

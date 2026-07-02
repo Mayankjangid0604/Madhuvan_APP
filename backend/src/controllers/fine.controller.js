@@ -1,5 +1,5 @@
 // controllers/fine.controller.js
-const fineService = require("../services/fine.Service");
+const fineService = require("../services/fine.service");
 const asyncHandler = require("../utils/asyncHandler");
 
 // ============================================

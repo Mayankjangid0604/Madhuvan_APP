@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import './AppLoader.css';
+import './appLoader.css';
 
 const AppLoader = ({
   message = 'Loading...',

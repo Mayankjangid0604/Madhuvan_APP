@@ -248,6 +248,8 @@ exports.updateStudent = (id, data) => {
       (data.has_discount !== undefined && (data.has_discount ? 1 : 0) !== student.has_discount) ||
       (data.discount_type !== undefined && data.discount_type !== student.discount_type) ||
       (data.discount_value !== undefined && Number(data.discount_value) !== Number(student.discount_value)) ||
+      (data.discount_applicable !== undefined && data.discount_applicable !== student.discount_applicable) ||
+      (data.discount_months !== undefined && (data.discount_months || null) !== (student.discount_months || null)) ||
       (data.discount_on_full_month !== undefined && (data.discount_on_full_month ? 1 : 0) !== student.discount_on_full_month)
     );
 
@@ -267,6 +269,8 @@ exports.updateStudent = (id, data) => {
           const newDiscountType = data.discount_type !== undefined ? data.discount_type : student.discount_type;
           const newDiscountValue = data.discount_value !== undefined ? Number(data.discount_value) : Number(student.discount_value);
           const newDiscountOnFull = data.discount_on_full_month !== undefined ? (data.discount_on_full_month ? 1 : 0) : student.discount_on_full_month;
+          const newDiscountApplicable = data.discount_applicable !== undefined ? data.discount_applicable : student.discount_applicable;
+          const newDiscountMonths = data.discount_months !== undefined ? data.discount_months : student.discount_months;
 
           // NaN Safety
           if (isNaN(newMonthlyFee) || isNaN(newSecurityDeposit) || isNaN(newDiscountValue)) {
@@ -335,17 +339,31 @@ exports.updateStudent = (id, data) => {
             // Calculate discount for this record
             let discountAmount = 0;
             if (newHasDiscount && newDiscountValue > 0) {
-              const normalDiscountType = newDiscountType === 'percent' ? 'percentage' : (newDiscountType === 'amount' ? 'fixed' : newDiscountType);
-              const useFullMonth = (newDiscountOnFull === 1 || newDiscountOnFull === true);
+              // Respect discount_applicable: 'all_months' (or legacy 'complete') vs 'specific_months'
+              const normalDiscountApplicable = newDiscountApplicable === 'complete' ? 'all_months' : newDiscountApplicable;
+              const monthKey = `${feeParts.year}-${String(feeParts.month + 1).padStart(2, '0')}`;
 
-              if (normalDiscountType === 'percentage') {
-                const targetAmount = useFullMonth ? newMonthlyFee : newBaseAmount;
-                discountAmount = Math.round((targetAmount * newDiscountValue) / 100);
-              } else if (normalDiscountType === 'fixed') {
-                if (isProratedRecord && !useFullMonth && proratedInfo) {
-                   discountAmount = Math.round((newDiscountValue / proratedInfo.daysInMonth) * proratedInfo.remainingDays);
-                } else {
-                  discountAmount = newDiscountValue;
+              let shouldApply = false;
+              if (!normalDiscountApplicable || normalDiscountApplicable === 'all_months') {
+                shouldApply = true;
+              } else if (normalDiscountApplicable === 'specific_months' && newDiscountMonths) {
+                const allowedMonths = String(newDiscountMonths).split(',').map(m => m.trim());
+                shouldApply = allowedMonths.includes(monthKey);
+              }
+
+              if (shouldApply) {
+                const normalDiscountType = newDiscountType === 'percent' ? 'percentage' : (newDiscountType === 'amount' ? 'fixed' : newDiscountType);
+                const useFullMonth = (newDiscountOnFull === 1 || newDiscountOnFull === true);
+
+                if (normalDiscountType === 'percentage') {
+                  const targetAmount = useFullMonth ? newMonthlyFee : newBaseAmount;
+                  discountAmount = Math.round((targetAmount * newDiscountValue) / 100);
+                } else if (normalDiscountType === 'fixed') {
+                  if (isProratedRecord && !useFullMonth && proratedInfo) {
+                     discountAmount = Math.round((newDiscountValue / proratedInfo.daysInMonth) * proratedInfo.remainingDays);
+                  } else {
+                    discountAmount = newDiscountValue;
+                  }
                 }
               }
             }

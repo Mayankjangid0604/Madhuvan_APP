@@ -18,7 +18,7 @@ import {
   Check
 } from "lucide-react";
 import { roomAPI } from "../../services/api/room.api";
-import "./AllocateRoom.css";
+import "./allocateRoom.css";
 
 import ConfirmModal from "../../components/modals/ConfirmModal";
 

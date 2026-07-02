@@ -20,22 +20,31 @@ import {
   Plus,
   Trash2,
   FileText,
-  UploadCloud
+  UploadCloud,
+  User as UserIcon
 } from "lucide-react";
 import Button from "../../components/buttons/Button";
 import Card from "../../components/cards/Card";
 import ConfirmModal from "../../components/modals/ConfirmModal";
 import PromptModal from "../../components/modals/PromptModal";
 import axios from "axios";
+import { useAuth } from "../../contexts/AuthContext";
+import { authAPI } from "../../services/api/auth.api";
 import "./settings.css";
 
 const Settings = () => {
+  const { user, updateAuth } = useAuth();
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   // Modal States
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [usernameData, setUsernameData] = useState({
+    currentPassword: "",
+    newEmail: ""
+  });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showEmailTemplateModal, setShowEmailTemplateModal] = useState(false);
   const [showEmailConfigModal, setShowEmailConfigModal] = useState(false);
@@ -211,6 +220,7 @@ Thank you,
 
   useEffect(() => {
     // Close all modals on mount - prevents modal persistence bug
+    setShowUsernameModal(false);
     setShowPasswordModal(false);
     setShowEmailTemplateModal(false);
     setShowEmailConfigModal(false);
@@ -606,6 +616,44 @@ Thank you,
         }
       }
     });
+  };
+
+  // ==================== USERNAME HANDLER ====================
+
+  const handleChangeUsername = async () => {
+    const email = (usernameData.newEmail || "").trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!usernameData.currentPassword) {
+      showError("Current password is required");
+      return;
+    }
+    if (!email || !emailRegex.test(email)) {
+      showError("Please enter a valid email as your new username");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await authAPI.changeUsername({
+        currentPassword: usernameData.currentPassword,
+        newEmail: email
+      });
+      if (res.data?.success) {
+        if (res.data.token && updateAuth) {
+          updateAuth(res.data.token, res.data.admin?.email || email);
+        }
+        showSuccess("✓ Username changed successfully!");
+        setShowUsernameModal(false);
+        setUsernameData({ currentPassword: "", newEmail: "" });
+      } else {
+        showError(res.data?.message || "Failed to change username");
+      }
+    } catch (error) {
+      showError(error.response?.data?.message || "Failed to change username");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ==================== PASSWORD HANDLER ====================
@@ -1100,6 +1148,25 @@ Thank you,
           </div>
         </Card>
 
+        {/* Change Username */}
+        <Card>
+          <div className="card-icon" style={{ backgroundColor: '#0ea5e915' }}>
+            <UserIcon size={24} color="#0ea5e9" />
+          </div>
+          <h3>Change Username</h3>
+          <p>Update your admin login email</p>
+          <div className="info-box compact">
+            Current: <strong>{user?.email || 'admin@example.com'}</strong>
+          </div>
+          <div className="button-group">
+            <Button onClick={() => setShowUsernameModal(true)} variant="outline">
+              <UserIcon size={16} />
+              Change Username
+            </Button>
+          </div>
+          <small className="help-text">💡 You'll use this email to log in next time</small>
+        </Card>
+
         {/* Change Password */}
         <Card>
           <div className="card-icon" style={{ backgroundColor: '#ef444415' }}>
@@ -1292,6 +1359,79 @@ Thank you,
               </Button>
               <Button variant="success" onClick={handleSaveDriveConfig} loading={loading} disabled={loading}>
                 <Save size={16} /> Save Configuration
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Username Modal */}
+      {showUsernameModal && (
+        <div className="modal-overlay" onClick={() => setShowUsernameModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><UserIcon size={20} /> Change Username</h3>
+              <button className="close-btn" onClick={() => setShowUsernameModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body">
+              <div className="form-group">
+                <label>Current Username</label>
+                <input
+                  type="text"
+                  value={user?.email || ''}
+                  disabled
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>New Username (Email) *</label>
+                <input
+                  type="email"
+                  value={usernameData.newEmail}
+                  onChange={(e) => setUsernameData({ ...usernameData, newEmail: e.target.value })}
+                  placeholder="new-admin@example.com"
+                  className="form-input"
+                  autoComplete="username"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Current Password *</label>
+                <div className="password-input">
+                  <input
+                    type={showPassword.current ? "text" : "password"}
+                    value={usernameData.currentPassword}
+                    onChange={(e) => setUsernameData({ ...usernameData, currentPassword: e.target.value })}
+                    placeholder="Enter current password to confirm"
+                    className="form-input"
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    className="toggle-password"
+                    onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })}
+                  >
+                    {showPassword.current ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="info-box">
+                <strong>Note:</strong> After changing, use the new email to log in.
+                Your session will remain active with the new username.
+              </div>
+            </div>
+
+            <div className="modal-footer">
+              <Button variant="secondary" onClick={() => setShowUsernameModal(false)}>
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={handleChangeUsername} loading={loading} disabled={loading}>
+                <Save size={16} /> Change Username
               </Button>
             </div>
           </div>

@@ -31,7 +31,7 @@ import {
   Building2
 } from "lucide-react";
 import { printElement } from "../../utils/printUtil";
-import "./Ledger.css";
+import "./ledger.css";
 
 const Ledger = () => {
   const [entries, setEntries] = useState([]);
@@ -52,14 +52,23 @@ const Ledger = () => {
   // Date presets
   const [activePreset, setActivePreset] = useState('month');
 
+  // ✅ FIX: Format date as local YYYY-MM-DD (avoid UTC shift that pushes
+  // IST/local dates back by one day when using toISOString())
+  const toLocalDateStr = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
   // Get current month's date range
   const getCurrentMonthRange = () => {
     const today = new Date();
     const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     return {
-      from_date: startOfMonth.toISOString().split('T')[0],
-      to_date: endOfMonth.toISOString().split('T')[0]
+      from_date: toLocalDateStr(startOfMonth),
+      to_date: toLocalDateStr(endOfMonth)
     };
   };
 
@@ -114,7 +123,7 @@ const Ledger = () => {
       id: 'today',
       label: 'Today',
       getRange: () => {
-        const today = new Date().toISOString().split('T')[0];
+        const today = toLocalDateStr(new Date());
         return { from_date: today, to_date: today };
       }
     },
@@ -126,8 +135,8 @@ const Ledger = () => {
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay());
         return {
-          from_date: startOfWeek.toISOString().split('T')[0],
-          to_date: new Date().toISOString().split('T')[0]
+          from_date: toLocalDateStr(startOfWeek),
+          to_date: toLocalDateStr(new Date())
         };
       }
     },
@@ -144,8 +153,8 @@ const Ledger = () => {
         const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         const endOfLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
         return {
-          from_date: startOfLastMonth.toISOString().split('T')[0],
-          to_date: endOfLastMonth.toISOString().split('T')[0]
+          from_date: toLocalDateStr(startOfLastMonth),
+          to_date: toLocalDateStr(endOfLastMonth)
         };
       }
     },
@@ -156,7 +165,7 @@ const Ledger = () => {
         const today = new Date();
         return {
           from_date: `${today.getFullYear()}-01-01`,
-          to_date: new Date().toISOString().split('T')[0]
+          to_date: toLocalDateStr(new Date())
         };
       }
     }
@@ -169,6 +178,14 @@ const Ledger = () => {
 
     fetchLedger();
   }, []);
+
+  // Auto-refetch when preset filter changes
+  useEffect(() => {
+    if (!loading) {
+      fetchLedger();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.from_date, filters.to_date]);
 
   const fetchLedger = async (isRefresh = false) => {
     try {

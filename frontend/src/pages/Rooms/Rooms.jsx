@@ -31,7 +31,7 @@ import {
   EyeOff,
   Check
 } from "lucide-react";
-import "./Rooms.css";
+import "./rooms.css";
 
 // ===== CUSTOM CONFIRM MODAL COMPONENT =====
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, type = 'warning' }) => {

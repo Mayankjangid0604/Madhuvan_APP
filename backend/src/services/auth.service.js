@@ -87,8 +87,58 @@ exports.changePassword = async (adminId, currentPassword, newPassword) => {
 };
 
 /**
+ * Change Email (Username) Service
+ * @param {number} adminId
+ * @param {string} currentPassword
+ * @param {string} newEmail
+ * @returns {Promise<{message: string, admin: object, token: string}>}
+ */
+exports.changeEmail = async (adminId, currentPassword, newEmail) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!newEmail || !emailRegex.test(newEmail)) {
+    throw new Error("Invalid email format");
+  }
+  if (!currentPassword) {
+    throw new Error("Current password is required");
+  }
+
+  const normalizedEmail = newEmail.trim().toLowerCase();
+
+  const [rows] = query("SELECT id, email, password FROM admins WHERE id = ?", [adminId]);
+  const admin = Array.isArray(rows) ? rows[0] : rows;
+  if (!admin) throw new Error("Admin not found");
+
+  const isPasswordValid = await bcrypt.compare(currentPassword, admin.password);
+  if (!isPasswordValid) throw new Error("Current password is incorrect");
+
+  if (admin.email.toLowerCase() === normalizedEmail) {
+    throw new Error("New username is the same as current username");
+  }
+
+  const [existingRows] = query(
+    "SELECT id FROM admins WHERE LOWER(email) = ? AND id != ?",
+    [normalizedEmail, adminId]
+  );
+  const existing = Array.isArray(existingRows) ? existingRows[0] : existingRows;
+  if (existing) throw new Error("This username is already taken");
+
+  query(
+    "UPDATE admins SET email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+    [normalizedEmail, adminId]
+  );
+
+  const token = generateToken({ id: adminId, email: normalizedEmail });
+
+  return {
+    message: "Username changed successfully",
+    admin: { id: adminId, email: normalizedEmail },
+    token
+  };
+};
+
+/**
  * Get Admin Info Service
- * @param {number} adminId 
+ * @param {number} adminId
  * @returns {Promise<object>}
  */
 exports.getAdminInfo = async (adminId) => {

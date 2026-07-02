@@ -49,6 +49,14 @@ export const AuthProvider = ({ children }) => {
     navigate('/');
   }, [navigate]);
 
+  // ✅ Update stored credentials (used after username change)
+  const updateAuth = useCallback((token, email) => {
+    if (token) localStorage.setItem('token', token);
+    if (email) localStorage.setItem('adminEmail', email);
+    localStorage.setItem('isAuthenticated', 'true');
+    setUser({ email: email || localStorage.getItem('adminEmail'), token: token || localStorage.getItem('token') });
+  }, []);
+
   // ✅ Logout function
   const logout = useCallback(() => {
     localStorage.removeItem('token');
@@ -68,7 +76,8 @@ export const AuthProvider = ({ children }) => {
       logout,
       loading,
       isAuthenticated,
-      checkAuth
+      checkAuth,
+      updateAuth
     }}>
       {!loading && children}
     </AuthContext.Provider>

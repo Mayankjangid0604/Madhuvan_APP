@@ -18,7 +18,7 @@ import {
   Download
 } from "lucide-react";
 import { feeAPI } from "../../services/api/fee.api";
-import "./PenaltyFineHistory.css";
+import "./penaltyFineHistory.css";
 
 const PenaltyFineHistory = () => {
   const [records, setRecords] = useState([]);

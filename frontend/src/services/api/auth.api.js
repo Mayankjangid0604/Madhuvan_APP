@@ -18,6 +18,14 @@ export const authAPI = {
   },
 
   /**
+   * Change Username (email)
+   * @param {{currentPassword: string, newEmail: string}} data
+   */
+  changeUsername(data) {
+    return api.post("/auth/change-username", data);
+  },
+
+  /**
    * Get Current Admin Info
    */
   getCurrentAdmin() {

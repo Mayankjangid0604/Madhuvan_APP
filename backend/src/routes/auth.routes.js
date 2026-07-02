@@ -80,6 +80,12 @@ router.post("/login", authController.login);
 router.post("/change-password", authMiddleware, authController.changePassword);
 
 /**
+ * @route POST /api/auth/change-username
+ * @desc Change admin username (email)
+ */
+router.post("/change-username", authMiddleware, authController.changeUsername);
+
+/**
  * @route GET /api/auth/me
  * @desc Get current admin info
  */

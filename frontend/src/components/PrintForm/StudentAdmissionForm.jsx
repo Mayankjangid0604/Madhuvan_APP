@@ -1,6 +1,6 @@
 // src/components/PrintForm/StudentAdmissionForm.jsx
 import { forwardRef } from "react";
-import "./StudentAdmissionForm.css";
+import "./studentAdmissionForm.css";
 
 const StudentAdmissionForm = forwardRef(
   ({ hostelInfo, studentData, allocationData, feeData, rules = [] }, ref) => {

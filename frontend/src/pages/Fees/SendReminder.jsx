@@ -22,7 +22,7 @@ import {
   Square
 } from "lucide-react";
 import ConfirmModal from "../../components/modals/ConfirmModal";
-import "./SendReminder.css";
+import "./sendReminder.css";
 
 const SendReminder = () => {
   const [overdueStudents, setOverdueStudents] = useState([]);

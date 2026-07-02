@@ -26,7 +26,7 @@ import {
   Clock,
   ChevronRight
 } from "lucide-react";
-import "./Reports.css";
+import "./reports.css";
 
 const Reports = () => {
   const [dateRange, setDateRange] = useState({
