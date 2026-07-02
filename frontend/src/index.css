@@ -1,0 +1,309 @@
+/* ===== INDEX.CSS - CLEAN WHITE THEME ===== */
+
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* Light theme colors */
+  color-scheme: light;
+  color: #334155;
+  background-color: #f8fafc;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== Links ===== */
+a {
+  font-weight: 500;
+  color: #3b82f6;
+  text-decoration: inherit;
+}
+
+a:hover {
+  color: #2563eb;
+}
+
+/* ===== Body & Root Layout ===== */
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #f8fafc;
+  color: #334155;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #f8fafc;
+}
+
+/* ===== Typography ===== */
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+  color: #1e293b;
+}
+
+h2, h3, h4, h5, h6 {
+  color: #1e293b;
+}
+
+p {
+  color: #334155;
+}
+
+/* ===== Buttons ===== */
+button {
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+button:hover {
+  border-color: #3b82f6;
+  background-color: #f8fafc;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* ===== Form Elements - Global Fix ===== */
+input,
+select,
+textarea {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+  line-height: 1.4 !important;
+  padding: 10px 12px !important;
+  font-size: 14px !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  -webkit-text-fill-color: #111827 !important;
+  opacity: 1 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
+/* ===== Select Dropdowns - Enhanced Fix ===== */
+select {
+  display: block !important;
+  height: 42px !important;
+  line-height: 42px !important;
+  padding: 0 12px !important;
+  color: #111827 !important;
+  background-color: #ffffff !important;
+  -webkit-text-fill-color: #111827 !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23334155' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 20px;
+  padding-right: 36px !important;
+  box-sizing: border-box !important;
+  cursor: pointer;
+}
+
+select:active,
+select:focus {
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
+select option {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+  padding: 8px 12px;
+}
+
+select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f1f5f9 !important;
+}
+
+/* ===== Date Input Fix ===== */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  line-height: normal !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+}
+
+/* ===== Number Input Fix ===== */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ===== Checkbox & Radio Fix ===== */
+input[type="checkbox"],
+input[type="radio"] {
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  cursor: pointer;
+}
+
+/* ===== Scrollbar Styling ===== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ===== Selection Highlight ===== */
+::selection {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #1e293b;
+}
+
+/* ===== MODAL BODY LOCK FIX ===== */
+/* Default: body should always be interactive */
+body {
+  overflow: auto !important;
+  pointer-events: auto !important;
+  position: relative;
+}
+
+/* Only lock when modal is present */
+body.modal-open,
+body:has(.modal-overlay) {
+  overflow: hidden !important;
+}
+
+/* Ensure main content doesn't shift when scrollbar disappears */
+body.modal-open {
+  padding-right: var(--scrollbar-width, 0px);
+}
+
+/* When no modal overlay exists, force unlock */
+body:not(:has(.modal-overlay)) {
+  overflow: auto !important;
+  pointer-events: auto !important;
+  padding-right: 0 !important;
+}
+
+/* ===== SVG Icon Visibility Fix ===== */
+svg {
+  display: inline-block !important;
+  visibility: visible !important;
+  flex-shrink: 0;
+}
+
+/* ===== Autofill Fix (Chrome/Safari) ===== */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #111827 !important;
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  box-shadow: 0 0 0 30px white inset !important;
+  background-color: #ffffff !important;
+}
+
+/* ===== Disabled State ===== */
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background-color: #f1f5f9 !important;
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+}
+
+/* ===== Print Styles ===== */
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+  
+  button,
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ===== Responsive Typography ===== */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2em;
+  }
+  
+  body {
+    min-width: 100%;
+  }
+}
+
+/* ===== Focus Visible (Accessibility) ===== */
+*:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* ===== Reduced Motion (Accessibility) ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

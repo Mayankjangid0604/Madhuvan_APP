@@ -1,0 +1,60 @@
+{
+  "s": [
+    {
+      "student_id": 2,
+      "student_name": "qwer",
+      "monthly_fee": 15000,
+      "has_discount": 0,
+      "discount_type": null,
+      "discount_value": 0,
+      "discount_applicable": null
+    },
+    {
+      "student_id": 1,
+      "student_name": "qwer",
+      "monthly_fee": 15000,
+      "has_discount": 0,
+      "discount_type": null,
+      "discount_value": 0,
+      "discount_applicable": null
+    }
+  ],
+  "f": [
+    {
+      "fee_id": 10,
+      "student_id": 2,
+      "fee_type": "Monthly Rent",
+      "fee_amount": 15000,
+      "discount_amount": 0,
+      "final_amount": 15000,
+      "fee_status": "DUE"
+    },
+    {
+      "fee_id": 9,
+      "student_id": 1,
+      "fee_type": "Monthly Rent",
+      "fee_amount": 15000,
+      "discount_amount": 0,
+      "final_amount": 15000,
+      "fee_status": "DUE"
+    },
+    {
+      "fee_id": 5,
+      "student_id": 2,
+      "fee_type": "Monthly Rent",
+      "fee_amount": 14464,
+      "discount_amount": 0,
+      "final_amount": 14464,
+      "fee_status": "OVERDUE"
+    },
+    {
+      "fee_id": 4,
+      "student_id": 2,
+      "fee_type": "Security Deposit",
+      "fee_amount": 10000,
+      "discount_amount": 0,
+      "final_amount": 10000,
+      "fee_status": "OVERDUE"
+    }
+  ]
+}
