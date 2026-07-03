@@ -65,6 +65,7 @@ const INITIAL_FEE_DATA = {
   half_yearly_fee: "",
   yearly_fee: "",
   next_fee_date: "",
+  fee_start_date: "",
   security_deposit: "",
   has_discount: false,
   discount_type: "percentage",
@@ -275,6 +276,7 @@ const EditStudent = () => {
         half_yearly_fee: feeType === "half_yearly" ? student.monthly_fee || "" : "",
         yearly_fee: feeType === "yearly" ? student.monthly_fee || "" : "",
         next_fee_date: student.next_fee_due_date?.split('T')[0] || "",
+        fee_start_date: student.fee_start_month?.split('T')[0] || "",
         security_deposit: student.security_deposit || "",
         has_discount: student.has_discount === 1,
         discount_type: student.discount_type || "percentage",
@@ -507,6 +509,7 @@ const EditStudent = () => {
         fee_type_cycle: feeData.fee_type_cycle,
         monthly_fee: feeAmount,
         security_deposit: feeData.security_deposit || 0,
+        fee_start_month: feeData.fee_start_date || null,
         next_fee_due_date: feeData.fee_type_cycle === "half_yearly"
           ? feeData.next_fee_date
           : null,
@@ -1572,6 +1575,25 @@ const EditStudent = () => {
                     />
                   </div>
                   <small className="help-text">One-time refundable deposit</small>
+                </div>
+              </div>
+
+              <div className="fee-card">
+                <div className="fee-card-icon next-date">
+                  <Calendar size={24} />
+                </div>
+                <div className="fee-card-content">
+                  <label htmlFor="fee_start_date">Fee Start Date</label>
+                  <DateInput
+                    id="fee_start_date"
+                    value={feeData.fee_start_date}
+                    onChange={(val) => handleFeeDataChange('fee_start_date', val)}
+                    className="form-input"
+                    disabled={loading}
+                  />
+                  <small className="help-text">
+                    The month from which fees are calculated
+                  </small>
                 </div>
               </div>
             </div>

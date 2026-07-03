@@ -231,6 +231,42 @@ exports.giveMoneyToStudent = asyncHandler(async (req, res) => {
 });
 
 // ============================================
+// COLLECT FINE (receive payment for a pending fine)
+// ============================================
+exports.collectFine = asyncHandler(async (req, res) => {
+  const { record_type, record_id, payment_mode, reference_no, note } = req.body;
+
+  if (!record_type || !record_id) {
+    return res.status(400).json({
+      success: false,
+      message: "record_type and record_id are required"
+    });
+  }
+
+  try {
+    const result = fineService.collectFine({
+      record_type,
+      record_id,
+      payment_mode: payment_mode || 'CASH',
+      reference_no: reference_no || null,
+      note: note || null
+    });
+
+    return res.json({
+      success: true,
+      message: "Fine collected successfully",
+      data: result
+    });
+  } catch (err) {
+    console.error("Collect fine error:", err.message);
+    return res.status(400).json({
+      success: false,
+      message: err.message || "Failed to collect fine"
+    });
+  }
+});
+
+// ============================================
 // GET HISTORY
 // ============================================
 exports.getHistory = asyncHandler(async (req, res) => {

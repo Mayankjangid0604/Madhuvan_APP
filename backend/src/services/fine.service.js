@@ -435,4 +435,102 @@ exports.getHistory = (params = {}) => {
   return records;
 };
 
+// ============================================
+// COLLECT FINE (receive payment for a pending fine)
+// ============================================
+exports.collectFine = ({ record_type, record_id, payment_mode = 'CASH', reference_no = null, note = null }) => {
+  const type = String(record_type || '').toLowerCase();
+  let tableName, columnId;
+
+  if (type === 'fine' || type === 'pending_fines') {
+    tableName = 'pending_fines';
+    columnId = 'id';
+  } else if (type === 'property damage' || type === 'property_damage' || type === 'damage') {
+    tableName = 'property_damage_records';
+    columnId = 'id';
+  } else {
+    throw new Error(`Cannot collect record of type "${record_type}"`);
+  }
+
+  const record = db.db.prepare(`SELECT * FROM ${tableName} WHERE ${columnId} = ?`).get(record_id);
+  if (!record) throw new Error('Fine record not found');
+  if (record.status === 'COLLECTED') throw new Error('This fine has already been collected');
+  if (record.deducted_from_security) throw new Error('This fine was already deducted from security');
+
+  const amount = toNum(record.amount);
+  if (amount <= 0) throw new Error('Invalid fine amount');
+
+  const today = new Date().toISOString().split('T')[0];
+
+  // Mark this record as COLLECTED
+  db.db.prepare(`
+    UPDATE ${tableName}
+       SET status = 'COLLECTED'
+     WHERE ${columnId} = ?
+  `).run(record_id);
+
+  // If a linked student_fees entry exists for this fine, mark it PAID.
+  if (record.applied_to_fee_id) {
+    try {
+      db.db.prepare(`
+        UPDATE student_fees
+           SET paid_amount = COALESCE(paid_amount, 0) + ?,
+               fee_status = 'PAID',
+               payment_date = ?,
+               payment_mode = ?,
+               reference_no = COALESCE(?, reference_no)
+         WHERE fee_id = ?
+      `).run(amount, today, payment_mode, reference_no, record.applied_to_fee_id);
+    } catch (e) {
+      console.warn('Could not update linked student_fees entry:', e.message);
+    }
+  } else {
+    // Otherwise insert a new PAID student_fees row for the Fine so it shows in Fees page.
+    try {
+      db.db.prepare(`
+        INSERT INTO student_fees
+          (student_id, fee_type, fee_month, fee_amount, final_amount, paid_amount,
+           fee_status, fee_date, due_date, payment_date, payment_mode, reference_no,
+           fee_period_start, fee_period_end)
+        VALUES (?, 'Fine', date('now','start of month'), ?, ?, ?, 'PAID',
+                date('now'), date('now'), ?, ?, ?, date('now'), date('now'))
+      `).run(record.student_id, amount, amount, amount, today, payment_mode, reference_no);
+    } catch (e) {
+      console.warn('Could not insert Fine fee entry:', e.message);
+    }
+  }
+
+  // Add ledger income entry
+  try {
+    const ledgerService = require('./ledger.service');
+    const student = db.db.prepare('SELECT student_name, father_name FROM students WHERE student_id = ?').get(record.student_id);
+    const studentLabel = student ? `${student.student_name}${student.father_name ? ` D/O ${student.father_name}` : ''}` : `Student #${record.student_id}`;
+    const categoryLabel = tableName === 'pending_fines' ? 'Fine' : 'Property Damage';
+    const description = `${categoryLabel} collected - ${studentLabel}${note ? ` (${note})` : ''}`;
+
+    ledgerService.addManualEntry({
+      entry_date: today,
+      entry_type: 'income',
+      category: 'fine',
+      amount,
+      payment_mode: (payment_mode || 'cash').toLowerCase(),
+      reference_no,
+      description,
+      student_id: record.student_id
+    });
+  } catch (e) {
+    console.warn('Ledger entry for fine collection failed:', e.message);
+  }
+
+  return {
+    record_id,
+    record_type: tableName,
+    amount,
+    payment_mode,
+    reference_no,
+    status: 'COLLECTED',
+    student_id: record.student_id
+  };
+};
+
 module.exports = exports;

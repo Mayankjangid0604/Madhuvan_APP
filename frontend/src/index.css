@@ -85,6 +85,16 @@ button:focus-visible {
   outline-offset: 2px;
 }
 
+/* Remove spinner arrows on number inputs (prevents accidental scroll edits) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 /* ===== Form Elements - Global Fix ===== */
 input,
 select,

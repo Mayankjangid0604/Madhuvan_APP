@@ -180,7 +180,7 @@ const Members = () => {
       <div className="member-header">
         <div className="member-header-left">
           <h2>Members Management</h2>
-          <p>Manage staff members — Fee collected + Manual salary = Total salary</p>
+          <p>Manage staff members — Any fee they collect counts toward their salary</p>
         </div>
         <button className="btn btn-primary" onClick={handleAddMember}>{Icons.plus} Add Member</button>
       </div>
@@ -190,17 +190,13 @@ const Members = () => {
           <div className="stat-value">{stats.total}</div>
           <div className="stat-label">Total Members</div>
         </div>
-        <div className="stat-card collection">
-          <div className="stat-value">{formatCurrency(stats.totalFeeCollected)}</div>
-          <div className="stat-label">{Icons.collected} Fee Collected</div>
-        </div>
-        <div className="stat-card salary">
-          <div className="stat-value">{formatCurrency(stats.totalManualPaid)}</div>
-          <div className="stat-label">{Icons.salary} Manual Salary Paid</div>
-        </div>
         <div className="stat-card paid">
           <div className="stat-value">{formatCurrency(stats.totalSalaryEarned)}</div>
-          <div className="stat-label">{Icons.money} Total Earned (Fee + Salary)</div>
+          <div className="stat-label">{Icons.money} Total Salary Paid</div>
+        </div>
+        <div className="stat-card salary">
+          <div className="stat-value">{formatCurrency(stats.totalSalary)}</div>
+          <div className="stat-label">{Icons.salary} Monthly Salary Bill</div>
         </div>
         {stats.totalPendingAdvances > 0 && (
           <div className="stat-card carry-forward">
@@ -293,16 +289,12 @@ const Members = () => {
 
                 <div className="member-stats-row">
                   <div className="member-stat">
-                    <span className="stat-label">Fee Collected</span>
-                    <span className="stat-value collected">{formatCurrency(member.total_fee_collected || 0)}</span>
-                  </div>
-                  <div className="member-stat">
-                    <span className="stat-label">Manual Salary</span>
-                    <span className="stat-value salary">{formatCurrency(member.total_manual_paid || 0)}</span>
-                  </div>
-                  <div className="member-stat">
-                    <span className="stat-label">Total Earned</span>
+                    <span className="stat-label">Total Salary Paid</span>
                     <span className="stat-value salary" style={{ fontWeight: 800 }}>{formatCurrency(member.total_salary_earned || 0)}</span>
+                  </div>
+                  <div className="member-stat">
+                    <span className="stat-label">Monthly Salary</span>
+                    <span className="stat-value collected">{formatCurrency(member.salary || 0)}</span>
                   </div>
                 </div>
 

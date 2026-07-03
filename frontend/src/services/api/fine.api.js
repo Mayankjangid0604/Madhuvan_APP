@@ -20,7 +20,10 @@ export const fineAPI = {
   giveMoney: (data) => axiosInstance.post("/fine/give-money", data),
   
   // Get history
-  getHistory: (params = {}) => axiosInstance.get("/fine/history", { params })
+  getHistory: (params = {}) => axiosInstance.get("/fine/history", { params }),
+
+  // Collect payment for a pending fine or damage
+  collectFine: (data) => axiosInstance.post("/fine/collect", data)
 };
 
 export default fineAPI;

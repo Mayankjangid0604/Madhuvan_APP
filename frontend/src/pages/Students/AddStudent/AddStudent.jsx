@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";  // ✅ THIS WAS MISSING OR REMOVED
+import { useNavigate, useLocation } from "react-router-dom";  // ✅ THIS WAS MISSING OR REMOVED
+import { saveDraft, deleteDraft, getDraft } from "../../../utils/studentDrafts";
 import { useReactToPrint } from 'react-to-print';
 import {
   ArrowLeft,
@@ -45,7 +46,9 @@ import "./addStudent.css";
 
 const AddStudent = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
+  const [draftId, setDraftId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [availableRooms, setAvailableRooms] = useState([]);
@@ -164,7 +167,36 @@ const AddStudent = () => {
     resetForm();
     fetchAvailableRooms();
     fetchHostelInfo();
+
+    // Load draft if navigated with draftId
+    const stateDraftId = location.state?.draftId;
+    if (stateDraftId) {
+      const draft = getDraft(stateDraftId);
+      if (draft) {
+        setDraftId(stateDraftId);
+        if (draft.studentData) setStudentData(prev => ({ ...prev, ...draft.studentData }));
+        if (draft.allocationData) setAllocationData(prev => ({ ...prev, ...draft.allocationData }));
+        if (draft.feeData) setFeeData(prev => ({ ...prev, ...draft.feeData }));
+        if (typeof draft.currentStep === 'number') setCurrentStep(draft.currentStep);
+        setSuccessMessage("Draft loaded — continue where you left off");
+        setTimeout(() => setSuccessMessage(""), 3000);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleSaveDraft = () => {
+    const saved = saveDraft({
+      id: draftId,
+      currentStep,
+      studentData,
+      allocationData,
+      feeData
+    });
+    setDraftId(saved.id);
+    setSuccessMessage("✓ Draft saved. Find it under Drafts on the Students page.");
+    setTimeout(() => setSuccessMessage(""), 3500);
+  };
 
   // Set default next_fee_date when fee_type_cycle changes to half_yearly
   useEffect(() => {
@@ -177,6 +209,16 @@ const AddStudent = () => {
       }));
     }
   }, [feeData.fee_type_cycle, feeData.fee_start_date]);
+
+  // Keep allocation_start_date in sync with date_of_joining (they represent the same event)
+  useEffect(() => {
+    if (studentData.date_of_joining) {
+      setAllocationData(prev => ({
+        ...prev,
+        allocation_start_date: studentData.date_of_joining
+      }));
+    }
+  }, [studentData.date_of_joining]);
 
   const fetchAvailableRooms = async (showRefreshMessage = false) => {
     try {
@@ -396,22 +438,12 @@ const AddStudent = () => {
   };
 
   const handleNext = () => {
-    let isValid = false;
-
-    if (currentStep === 1) isValid = validateStep1();
-    else if (currentStep === 2) isValid = validateStep2();
-    else if (currentStep === 3) isValid = validateStep3();
-
-    if (isValid) {
-      setCurrentStep(currentStep + 1);
-      setErrors({});
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      const el = document.querySelector('.layout-content');
-      if (el) el.scrollTop = 0;
-    } else {
-      setErrorMessage("Please fix all validation errors before proceeding");
-      setTimeout(() => setErrorMessage(""), 4000);
-    }
+    // Allow free navigation between steps; only enforce validation on final submit.
+    setCurrentStep(currentStep + 1);
+    setErrors({});
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const el = document.querySelector('.layout-content');
+    if (el) el.scrollTop = 0;
   };
 
   const handlePrevious = () => {
@@ -453,13 +485,24 @@ const AddStudent = () => {
 
   // UPDATED: Handle submit with new fee structure
   const handleSubmit = async () => {
-    if (!allocationData.room_id || !allocationData.bed_id) {
+    // Validate ALL steps at final submit time (users can navigate freely between steps)
+    const step1Ok = validateStep1();
+    const step2Ok = validateStep2();
+    const step3Ok = validateStep3();
+
+    if (!step1Ok) {
+      setCurrentStep(1);
+      setErrorMessage("Please fill all required fields in Student Details");
+      return;
+    }
+    if (!step2Ok) {
+      setCurrentStep(2);
       setErrorMessage("Please allocate a room and bed before submitting");
       return;
     }
-
-    if (!validateStep3()) {
-      setErrorMessage("Please fill all required fields");
+    if (!step3Ok) {
+      setCurrentStep(3);
+      setErrorMessage("Please fill all required fields in Fee Setup");
       return;
     }
 
@@ -588,6 +631,12 @@ const AddStudent = () => {
           setErrorMessage(`Fee generation issue: ${feeError}`);
         } else {
           setSuccessMessage("✅ Student added successfully!");
+        }
+
+        // Remove draft if this was created from a draft
+        if (draftId) {
+          deleteDraft(draftId);
+          setDraftId(null);
         }
 
         // ✅ FIX: Navigate directly to students page instead of showing print modal
@@ -734,6 +783,10 @@ const AddStudent = () => {
               >
                 <RefreshCw size={16} />
                 Reset Form
+              </Button>
+              <Button variant="primary" onClick={handleSaveDraft}>
+                <Save size={16} />
+                Save as Draft
               </Button>
               <Button variant="secondary" onClick={() => navigate("/students")}>
                 <ArrowLeft size={16} />
@@ -1456,21 +1509,6 @@ const AddStudent = () => {
                           </div>
                         </div>
                       )}
-                    </div>
-                  </div>
-
-                  <div className="form-section-card glass-light allocation-date-section">
-                    <div className="section-card-header">
-                      <Calendar size={18} />
-                      <span>Allocation Date</span>
-                    </div>
-                    <div className="form-group">
-                      <label>Start Date <span className="required">*</span></label>
-                      <DateInput
-                        value={allocationData.allocation_start_date}
-                        onChange={(val) => setAllocationData({ ...allocationData, allocation_start_date: val })}
-                        className="form-input"
-                      />
                     </div>
                   </div>
 

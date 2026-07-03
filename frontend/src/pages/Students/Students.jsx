@@ -40,6 +40,8 @@ import axios from "axios";
 import { imageUrlToBase64 } from "../../utils/imageToBase64";
 import { getFileUrl } from "../../utils/imageSrc";
 import { printElement } from "../../utils/printUtil";
+import { loadDrafts, deleteDraft } from "../../utils/studentDrafts";
+import { FileText } from "lucide-react";
 import "./students.css";
 
 // ✅ Helper function to reset body styles
@@ -66,6 +68,8 @@ const Students = () => {
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [showDraftsModal, setShowDraftsModal] = useState(false);
+  const [drafts, setDrafts] = useState([]);
 
   // Modal States
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -809,6 +813,13 @@ const Students = () => {
           >
             <RefreshCw size={16} className={refreshing ? "spinning" : ""} />
             {refreshing ? "Refreshing..." : "Refresh"}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => { setDrafts(loadDrafts()); setShowDraftsModal(true); }}
+          >
+            <FileText size={16} />
+            Drafts{loadDrafts().length > 0 ? ` (${loadDrafts().length})` : ""}
           </Button>
           <Button variant="primary" onClick={() => navigate("/students/add")}>
             <UserPlus size={16} />
@@ -1727,6 +1738,93 @@ const Students = () => {
           onClose={handleCloseHardDeleteModal}
           onConfirm={confirmHardDelete}
         />
+      )}
+
+      {/* Drafts Modal */}
+      {showDraftsModal && (
+        <div className="modal-overlay" onClick={() => setShowDraftsModal(false)}>
+          <div
+            className="modal-content"
+            style={{ maxWidth: "620px", background: "#fff", padding: 0 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ margin: 0, fontSize: "18px", display: "flex", alignItems: "center", gap: "8px" }}>
+                <FileText size={20} /> Saved Drafts
+              </h3>
+              <button
+                onClick={() => setShowDraftsModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ maxHeight: "60vh", overflowY: "auto", padding: "16px 20px" }}>
+              {drafts.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 20px", color: "#64748b" }}>
+                  <FileText size={40} style={{ margin: "0 auto 8px", opacity: 0.5 }} />
+                  <p style={{ margin: 0 }}>No drafts saved yet.</p>
+                  <p style={{ fontSize: "13px", marginTop: "6px" }}>
+                    Click "Save as Draft" while adding a student to save progress.
+                  </p>
+                </div>
+              ) : (
+                drafts.map((d) => {
+                  const name = d.studentData?.student_name?.trim() || "(Unnamed student)";
+                  const father = d.studentData?.father_name || "";
+                  const updatedAt = d.updated_at ? new Date(d.updated_at).toLocaleString("en-IN") : "";
+                  return (
+                    <div
+                      key={d.id}
+                      style={{
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "10px",
+                        padding: "12px 14px",
+                        marginBottom: "10px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: "12px"
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontWeight: 600, color: "#1e293b" }}>{name}</div>
+                        {father && (
+                          <div style={{ fontSize: "12px", color: "#64748b" }}>Father: {father}</div>
+                        )}
+                        <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "4px" }}>
+                          Saved: {updatedAt} • Step {d.currentStep || 1}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => {
+                            setShowDraftsModal(false);
+                            navigate("/students/add", { state: { draftId: d.id } });
+                          }}
+                        >
+                          Continue
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => {
+                            const remaining = deleteDraft(d.id);
+                            setDrafts(remaining);
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

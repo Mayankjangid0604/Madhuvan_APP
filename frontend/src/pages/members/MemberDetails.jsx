@@ -156,10 +156,10 @@ const MemberDetails = ({ member, onClose, onEdit, onPaySalary, onDelete, showToa
             {Icons.user} Info
           </button>
           <button className={`tab ${activeTab === "salary" ? "active" : ""}`} onClick={() => setActiveTab("salary")}>
-            {Icons.money} Salary History
+            {Icons.money} Manual Salary Payments
           </button>
           <button className={`tab ${activeTab === "transactions" ? "active" : ""}`} onClick={() => setActiveTab("transactions")}>
-            📊 Fee Collections
+            📊 Fees Collected (counts as salary)
           </button>
         </div>
 
@@ -177,12 +177,8 @@ const MemberDetails = ({ member, onClose, onEdit, onPaySalary, onDelete, showToa
                 <div className="info-tab">
                   <div className="summary-grid">
                     <div className="summary-card highlight">
-                      <div className="summary-value">{formatCurrency(summary?.total_fee_collected)}</div>
-                      <div className="summary-label">Total Collected</div>
-                    </div>
-                    <div className="summary-card">
-                      <div className="summary-value">{formatCurrency(summary?.total_manual_paid)}</div>
-                      <div className="summary-label">Salary Paid</div>
+                      <div className="summary-value">{formatCurrency((summary?.total_fee_collected || 0) + (summary?.total_manual_paid || 0))}</div>
+                      <div className="summary-label">Total Salary Paid</div>
                     </div>
                     <div className="summary-card">
                       <div className="summary-value">{formatCurrency(member.salary || 0)}</div>
@@ -192,14 +188,12 @@ const MemberDetails = ({ member, onClose, onEdit, onPaySalary, onDelete, showToa
                       <div className="summary-value">{summary?.salary_payment_count || 0}</div>
                       <div className="summary-label">Salary Payments</div>
                     </div>
-                    {/* ── NEW: Remaining This Month ── */}
                     <div className="summary-card" style={{ borderTop: '3px solid #f59e0b', background: '#fffbeb' }}>
                       <div className="summary-value" style={{ color: summary?.remaining_this_month > 0 ? '#d97706' : '#16a34a' }}>
                         {formatCurrency(summary?.remaining_this_month)}
                       </div>
                       <div className="summary-label">Remaining This Month</div>
                     </div>
-                    {/* ── NEW: Total Remaining (cumulative carryforward) ── */}
                     {summary?.total_remaining_salary > 0 && (
                       <div className="summary-card" style={{ borderTop: '3px solid #ef4444', background: '#fef2f2' }}>
                         <div className="summary-value" style={{ color: '#dc2626' }}>
@@ -208,7 +202,6 @@ const MemberDetails = ({ member, onClose, onEdit, onPaySalary, onDelete, showToa
                         <div className="summary-label">Total Salary Pending</div>
                       </div>
                     )}
-                    {/* ── NEW: Advance Paid ── */}
                     {summary?.advance_paid > 0 && (
                       <div className="summary-card" style={{ borderTop: '3px solid #7c3aed', background: '#f5f3ff' }}>
                         <div className="summary-value" style={{ color: '#7c3aed' }}>
@@ -222,10 +215,24 @@ const MemberDetails = ({ member, onClose, onEdit, onPaySalary, onDelete, showToa
 
                   <div className="info-grid">
                     <div className="info-item">
+                      <div className="info-icon">{Icons.user}</div>
+                      <div className="info-content">
+                        <span className="info-label">Full Name</span>
+                        <span className="info-value">{member.name || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="info-item">
                       <div className="info-icon">{Icons.father}</div>
                       <div className="info-content">
                         <span className="info-label">Father's Name</span>
                         <span className="info-value">{member.father_name || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="info-item">
+                      <div className="info-icon">{Icons.phone}</div>
+                      <div className="info-content">
+                        <span className="info-label">Mobile</span>
+                        <span className="info-value">{member.mobile || 'N/A'}</span>
                       </div>
                     </div>
                     <div className="info-item">
@@ -238,10 +245,26 @@ const MemberDetails = ({ member, onClose, onEdit, onPaySalary, onDelete, showToa
                       </div>
                     </div>
                     <div className="info-item">
+                      <div className="info-icon">{Icons.calendar}</div>
+                      <div className="info-content">
+                        <span className="info-label">Date of Joining</span>
+                        <span className="info-value">
+                          {member.date_of_joining ? formatDate(member.date_of_joining) : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="info-item">
                       <div className="info-icon">{Icons.id}</div>
                       <div className="info-content">
                         <span className="info-label">{ID_TYPE_LABELS[member.id_type] || 'ID'}</span>
                         <span className="info-value">{member.id_number || 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="info-item" style={{ gridColumn: '1 / -1' }}>
+                      <div className="info-icon">🏠</div>
+                      <div className="info-content">
+                        <span className="info-label">Address</span>
+                        <span className="info-value">{member.address || 'N/A'}</span>
                       </div>
                     </div>
                     <div className="info-item">

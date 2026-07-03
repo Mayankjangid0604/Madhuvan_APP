@@ -68,6 +68,15 @@ router.post("/give-money", fineController.giveMoneyToStudent);
 
 /**
  * @swagger
+ * /api/fines/collect:
+ *   post:
+ *     summary: Collect payment for a pending fine or damage
+ *     tags: [Fines]
+ */
+router.post("/collect", fineController.collectFine);
+
+/**
+ * @swagger
  * /api/fines/history:
  *   get:
  *     summary: Get fine/damage history
