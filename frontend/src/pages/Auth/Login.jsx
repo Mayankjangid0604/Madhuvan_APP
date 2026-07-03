@@ -8,11 +8,12 @@ const Login = () => {
   const navigate = useNavigate();
   const { login: authLogin, isAuthenticated } = useAuth();
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => localStorage.getItem("rememberedEmail") || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem("rememberedEmail"));
 
   const demoEmail = "admin@example.com";
   const demoPassword = "admin123";
@@ -43,6 +44,12 @@ const Login = () => {
 
       if (response.data.success) {
         setSuccess("Login successful! Redirecting...");
+
+        if (rememberMe) {
+          localStorage.setItem("rememberedEmail", email.trim());
+        } else {
+          localStorage.removeItem("rememberedEmail");
+        }
 
         // ✅ FIX: Use AuthContext login — saves token, adminEmail, isAuthenticated, sets user, navigates
         setTimeout(() => {
@@ -149,6 +156,16 @@ const Login = () => {
               />
             </div>
           </div>
+
+          {/* Remember Me */}
+          <label className="remember-me">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+            />
+            <span>Remember me</span>
+          </label>
 
           {/* Action Button */}
           <button

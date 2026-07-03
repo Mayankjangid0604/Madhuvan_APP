@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { feeAPI } from "../../services/api/fee.api";
+import { settingsAPI } from "../../services/api/settings.api";
 import { getFileUrl } from "../../utils/imageSrc";
 import {
   ArrowLeft, User, IndianRupee, CheckCircle, AlertCircle, Clock,
@@ -9,6 +10,11 @@ import {
   Printer, Download, X
 } from "lucide-react";
 import FeeInvoiceModal from "../../components/fees/FeeInvoiceModal";
+import {
+  printInvoice,
+  printReceipt,
+  printAllInvoicesForFee
+} from "../../utils/feeDocuments";
 import "./FeeDetails.css";
 
 const FeeDetails = () => {
@@ -20,10 +26,41 @@ const FeeDetails = () => {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [expandedFees, setExpandedFees] = useState({});
   const [activeTab, setActiveTab] = useState("fees"); // 'fees' or 'transactions'
+  const [hostelInfo, setHostelInfo] = useState({});
 
   useEffect(() => {
     loadData();
+    settingsAPI.getHostelInfo().then((r) => {
+      if (r.data.success) setHostelInfo(r.data.data || {});
+    }).catch(() => {});
   }, [studentId]);
+
+  const handlePrintInvoice = (fee) => {
+    if (!data?.student) return;
+    const isOnline = data.student.payment_mode === 'online';
+    printAllInvoicesForFee({
+      hostel: hostelInfo,
+      student: data.student,
+      fee,
+      is_online_payment: isOnline
+    });
+  };
+
+  const handlePrintReceipt = (fee, payment) => {
+    if (!data?.student) return;
+    printReceipt({
+      hostel: hostelInfo,
+      student: data.student,
+      receipt_no: `RCPT-${data.student.student_id}-${payment?.payment_id || fee.fee_id}`,
+      payment_date: payment?.payment_date || fee.payment_date || new Date(),
+      amount_received: payment?.payment_amount || fee.paid_amount,
+      payment_mode: (payment?.payment_mode || fee.payment_mode || 'CASH').toUpperCase(),
+      reference_no: payment?.reference_no || fee.reference_no,
+      for_period_start: fee.fee_period_start || fee.fee_month,
+      for_period_end: fee.fee_period_end,
+      notes: fee.fee_type ? `Payment towards ${fee.fee_type}` : ""
+    });
+  };
 
   const loadData = async () => {
     try {
@@ -518,6 +555,58 @@ const FeeDetails = () => {
                               <span><Calendar size={12} /> Due: {formatDate(fee.due_date)}</span>
                               {fee.invoice_number && (
                                 <span><FileText size={12} /> Invoice: {fee.invoice_number}</span>
+                              )}
+                            </div>
+
+                            {/* Invoice / Receipt / Waiver actions */}
+                            <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                              {fee.fee_status !== 'PAID' && Number(fee.remaining || fee.final_amount) > 0 && (
+                                <button
+                                  className="fd-view-invoice-btn"
+                                  onClick={(e) => { e.stopPropagation(); handlePrintInvoice(fee); }}
+                                  style={{ background: '#1e40af', color: '#fff' }}
+                                >
+                                  <Printer size={14} /> Print Invoice
+                                </button>
+                              )}
+                              {Number(fee.paid_amount || 0) > 0 && (
+                                <button
+                                  className="fd-view-invoice-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const payments = getPaymentsForFee(fee.fee_id);
+                                    handlePrintReceipt(fee, payments[payments.length - 1]);
+                                  }}
+                                  style={{ background: '#059669', color: '#fff' }}
+                                >
+                                  <Receipt size={14} /> Print Receipt
+                                </button>
+                              )}
+                              {fee.fee_status !== 'PAID' && Number(fee.remaining || fee.final_amount) > 0 && (
+                                <button
+                                  className="fd-view-invoice-btn"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    const remaining = Number(fee.remaining || fee.final_amount);
+                                    const inputAmt = window.prompt(
+                                      `Enter waiver amount (max ₹${remaining}):`,
+                                      String(remaining)
+                                    );
+                                    if (!inputAmt) return;
+                                    const amt = Number(inputAmt);
+                                    if (!(amt > 0)) { alert("Enter a valid amount"); return; }
+                                    const reason = window.prompt("Reason for waiver:", "Concession") || "Concession";
+                                    try {
+                                      await feeAPI.applyWaiver({ fee_id: fee.fee_id, amount: amt, reason });
+                                      await loadData();
+                                    } catch (err) {
+                                      alert(err.response?.data?.message || "Failed to apply waiver");
+                                    }
+                                  }}
+                                  style={{ background: '#7c3aed', color: '#fff' }}
+                                >
+                                  <IndianRupee size={14} /> Grant Waiver
+                                </button>
                               )}
                             </div>
                           </div>

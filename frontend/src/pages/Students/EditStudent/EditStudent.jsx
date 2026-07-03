@@ -61,6 +61,7 @@ const INITIAL_STUDENT_DATA = {
 
 const INITIAL_FEE_DATA = {
   fee_type_cycle: "monthly",
+  payment_mode: "cash",
   monthly_fee: "",
   half_yearly_fee: "",
   yearly_fee: "",
@@ -272,6 +273,7 @@ const EditStudent = () => {
       const feeType = student.fee_type_cycle || "monthly";
       const newFeeData = {
         fee_type_cycle: feeType,
+        payment_mode: student.payment_mode === 'online' ? 'online' : 'cash',
         monthly_fee: feeType === "monthly" ? student.monthly_fee || "" : "",
         half_yearly_fee: feeType === "half_yearly" ? student.monthly_fee || "" : "",
         yearly_fee: feeType === "yearly" ? student.monthly_fee || "" : "",
@@ -507,6 +509,7 @@ const EditStudent = () => {
       const updateData = {
         ...studentData,
         fee_type_cycle: feeData.fee_type_cycle,
+        payment_mode: feeData.payment_mode || 'cash',
         monthly_fee: feeAmount,
         security_deposit: feeData.security_deposit || 0,
         fee_start_month: feeData.fee_start_date || null,
@@ -1380,6 +1383,54 @@ const EditStudent = () => {
               <div className="section-info">
                 <h3>Fee Configuration</h3>
                 <p>Fee cycle and payment details</p>
+              </div>
+            </div>
+
+            <div className="fee-type-section" style={{ marginBottom: 16 }}>
+              <label className="section-label">
+                💳 Payment Mode <span className="required">*</span>
+              </label>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <label style={{
+                  flex: 1, minWidth: 200,
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+                  border: `2px solid ${feeData.payment_mode === 'cash' ? '#6366f1' : '#e5e7eb'}`,
+                  borderRadius: 12, cursor: 'pointer',
+                  background: feeData.payment_mode === 'cash' ? 'rgba(99,102,241,0.08)' : 'transparent'
+                }}>
+                  <input
+                    type="radio"
+                    name="payment_mode_edit"
+                    value="cash"
+                    checked={feeData.payment_mode === 'cash'}
+                    onChange={() => handleFeeDataChange('payment_mode', 'cash')}
+                    disabled={loading}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 700 }}>💵 Cash</div>
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>Simple invoice</div>
+                  </div>
+                </label>
+                <label style={{
+                  flex: 1, minWidth: 200,
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
+                  border: `2px solid ${feeData.payment_mode === 'online' ? '#6366f1' : '#e5e7eb'}`,
+                  borderRadius: 12, cursor: 'pointer',
+                  background: feeData.payment_mode === 'online' ? 'rgba(99,102,241,0.08)' : 'transparent'
+                }}>
+                  <input
+                    type="radio"
+                    name="payment_mode_edit"
+                    value="online"
+                    checked={feeData.payment_mode === 'online'}
+                    onChange={() => handleFeeDataChange('payment_mode', 'online')}
+                    disabled={loading}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 700 }}>💳 Online</div>
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>GST split invoice</div>
+                  </div>
+                </label>
               </div>
             </div>
 

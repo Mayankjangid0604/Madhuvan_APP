@@ -64,6 +64,10 @@ export const feeAPI = {
     return api.get(`/fees/invoice/${invoiceNumber}/download`, {
       responseType: 'blob'
     });
+  },
+
+  applyWaiver(data) {
+    return api.post("/fees/apply-waiver", data);
   }
 };
 

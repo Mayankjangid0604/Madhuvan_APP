@@ -113,6 +113,17 @@ exports.exportStudentLedgerCSV = async (req, res, next) => {
   }
 };
 
+// GST REPORT (online-payment fee collections only)
+exports.exportGstReport = async (req, res, next) => {
+  try {
+    const { from_date, to_date } = req.query;
+    const data = await exportService.getGstReport({ from_date, to_date });
+    res.json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // CUSTOM REPORT
 exports.exportCustomReport = async (req, res, next) => {
   try {

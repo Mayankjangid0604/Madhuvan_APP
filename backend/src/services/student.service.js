@@ -63,8 +63,8 @@ exports.createStudentWithFees = (data) => {
         photo_url, monthly_fee, security_deposit, fee_start_month, fee_end_month, fee_term_months,
         has_discount, discount_type, discount_value, discount_applicable, discount_months,
         discount_on_full_month,
-        fee_type_cycle, next_fee_due_date, original_security_deposit
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        fee_type_cycle, next_fee_due_date, original_security_deposit, payment_mode
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       formDate, data.student_name, data.date_of_birth || null, data.student_mobile || null,
       data.father_email || null, data.mother_email || null, data.class_or_coaching || null,
@@ -77,7 +77,8 @@ exports.createStudentWithFees = (data) => {
       Number(data.fee_term_months) || 1, data.has_discount ? 1 : 0, data.discount_type || null,
       Number(data.discount_value) || 0, data.discount_applicable || null, data.discount_months || null,
       data.discount_on_full_month !== undefined ? (data.discount_on_full_month ? 1 : 0) : 1,
-      data.fee_type_cycle || 'monthly', data.next_fee_due_date || null, securityDeposit
+      data.fee_type_cycle || 'monthly', data.next_fee_due_date || null, securityDeposit,
+      (data.payment_mode === 'online' ? 'online' : 'cash')
     );
 
     const studentId = result.lastInsertRowid;
@@ -201,6 +202,7 @@ exports.updateStudent = (id, data) => {
         discount_on_full_month = ?,
         fee_type_cycle = ?,
         next_fee_due_date = ?, original_security_deposit = ?,
+        payment_mode = ?,
         updated_at = CURRENT_TIMESTAMP
       WHERE student_id = ?
     `).run(
@@ -239,6 +241,7 @@ exports.updateStudent = (id, data) => {
       data.fee_type_cycle !== undefined ? data.fee_type_cycle : student.fee_type_cycle,
       data.next_fee_due_date !== undefined ? data.next_fee_due_date : student.next_fee_due_date,
       data.original_security_deposit !== undefined ? Number(data.original_security_deposit) : student.original_security_deposit,
+      data.payment_mode !== undefined ? (data.payment_mode === 'online' ? 'online' : 'cash') : (student.payment_mode || 'cash'),
       id
     );
 

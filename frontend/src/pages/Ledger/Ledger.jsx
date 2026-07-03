@@ -31,6 +31,8 @@ import {
   Building2
 } from "lucide-react";
 import { printElement } from "../../utils/printUtil";
+import { printReceipt, printBill } from "../../utils/feeDocuments";
+import { settingsAPI } from "../../services/api/settings.api";
 import "./ledger.css";
 
 const Ledger = () => {
@@ -73,6 +75,30 @@ const Ledger = () => {
   };
 
   const [filters, setFilters] = useState(getCurrentMonthRange());
+  const [hostelInfo, setHostelInfo] = useState({});
+
+  useEffect(() => {
+    settingsAPI.getHostelInfo()
+      .then((r) => { if (r.data?.success) setHostelInfo(r.data.data || {}); })
+      .catch(() => {});
+  }, []);
+
+  const handlePrintLedgerRow = (row) => {
+    if (row.entry_type === 'income') {
+      printReceipt({
+        hostel: hostelInfo,
+        student: { student_name: row.description?.split(' - ')[0] || 'Received From', student_id: row.student_id || '-' },
+        receipt_no: `RCPT-LDG-${row.entry_id}`,
+        payment_date: row.entry_date,
+        amount_received: row.amount,
+        payment_mode: (row.payment_mode || 'CASH').toUpperCase(),
+        reference_no: row.reference_no,
+        notes: row.description
+      });
+    } else {
+      printBill({ hostel: hostelInfo, entry: row });
+    }
+  };
 
   // Initial state for manual entry
   const getInitialManualEntry = () => ({
@@ -928,13 +954,14 @@ const Ledger = () => {
                 <th className="debit-col">Debit</th>
                 <th className="credit-col">Credit</th>
                 <th className="balance-col">Balance</th>
+                <th>Print</th>
               </tr>
             </thead>
 
             <tbody>
               {filteredEntries.length === 0 ? (
                 <tr className="empty-row">
-                  <td colSpan="8">
+                  <td colSpan="9">
                     <div className="empty-state">
                       <Receipt size={48} />
                       <h4>No Entries Found</h4>
@@ -956,7 +983,7 @@ const Ledger = () => {
                   <Fragment key={monthYear}>
                     {/* Month Separator Row */}
                     <tr className="month-separator-row">
-                      <td colSpan="8">
+                      <td colSpan="9">
                         <div className="month-separator">
                           <Calendar size={14} />
                           <span>{monthYear}</span>
@@ -1024,6 +1051,21 @@ const Ledger = () => {
                             {formatCurrency(row.balance)}
                           </span>
                         </td>
+                        <td>
+                          <button
+                            title={row.entry_type === 'income' ? 'Print Receipt' : 'Print Bill'}
+                            onClick={() => handlePrintLedgerRow(row)}
+                            style={{
+                              background: row.entry_type === 'income' ? '#059669' : '#dc2626',
+                              color: '#fff', border: 'none', padding: '5px 10px',
+                              borderRadius: '6px', cursor: 'pointer',
+                              display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px'
+                            }}
+                          >
+                            <Printer size={12} />
+                            {row.entry_type === 'income' ? 'Receipt' : 'Bill'}
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </Fragment>
@@ -1050,6 +1092,7 @@ const Ledger = () => {
                       {formatCurrency(stats.currentBalance)}
                     </span>
                   </td>
+                  <td></td>
                 </tr>
               </tfoot>
             )}

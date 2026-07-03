@@ -26,6 +26,8 @@ import {
   Clock,
   ChevronRight
 } from "lucide-react";
+import { printElement } from "../../utils/printUtil";
+import axios from "axios";
 import "./reports.css";
 
 const Reports = () => {
@@ -62,6 +64,87 @@ const Reports = () => {
 
   const showToast = (type, message) => {
     setToast({ show: true, type, message });
+  };
+
+  const handleGstReport = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      const params = new URLSearchParams();
+      if (dateRange.from) params.set("from_date", dateRange.from);
+      if (dateRange.to) params.set("to_date", dateRange.to);
+      const url = `${import.meta.env.VITE_API_BASE_URL}/export/gst-report?${params.toString()}`;
+      const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.data.success) throw new Error(res.data.message || "Failed");
+      const { entries, totals, period } = res.data.data;
+      const fmt = (n) => new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(n || 0);
+      const rows = entries.map((e, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${new Date(e.payment_date).toLocaleDateString("en-IN")}</td>
+          <td>${e.student_name || ""}<br><small>${e.father_name || ""}</small></td>
+          <td>${e.reference_no || "-"}</td>
+          <td class="r">${fmt(e.accommodation.base)}</td>
+          <td class="r">${fmt(e.accommodation.cgst)}</td>
+          <td class="r">${fmt(e.accommodation.sgst)}</td>
+          <td class="r">${fmt(e.mess.base)}</td>
+          <td class="r">${fmt(e.mess.cgst)}</td>
+          <td class="r">${fmt(e.mess.sgst)}</td>
+          <td class="r"><strong>${fmt(e.grand_total)}</strong></td>
+        </tr>
+      `).join("");
+      const html = `
+        <div style="padding:20px">
+          <h1 style="margin:0 0 8px;color:#1e40af">GST-Ready Fee Collection Report</h1>
+          <p style="color:#64748b;margin-bottom:16px">
+            Period: <strong>${period.from || "All time"}</strong> to <strong>${period.to || "today"}</strong>
+            &nbsp;|&nbsp; Online-Payment Students Only
+          </p>
+          <table class="rpt">
+            <thead>
+              <tr>
+                <th>#</th><th>Date</th><th>Student</th><th>Ref</th>
+                <th class="r">Accom. Base</th><th class="r">Accom. CGST</th><th class="r">Accom. SGST</th>
+                <th class="r">Mess Base</th><th class="r">Mess CGST</th><th class="r">Mess SGST</th>
+                <th class="r">Grand Total</th>
+              </tr>
+            </thead>
+            <tbody>${rows || `<tr><td colspan="11" style="text-align:center;padding:16px;color:#94a3b8">No online-payment collections in this period</td></tr>`}</tbody>
+            <tfoot>
+              <tr style="background:#1e3a8a;color:#fff">
+                <td colspan="4"><strong>TOTALS</strong></td>
+                <td class="r"><strong>${fmt(totals.accommodation_base)}</strong></td>
+                <td class="r"><strong>${fmt(totals.accommodation_cgst)}</strong></td>
+                <td class="r"><strong>${fmt(totals.accommodation_sgst)}</strong></td>
+                <td class="r"><strong>${fmt(totals.mess_base)}</strong></td>
+                <td class="r"><strong>${fmt(totals.mess_cgst)}</strong></td>
+                <td class="r"><strong>${fmt(totals.mess_sgst)}</strong></td>
+                <td class="r"><strong>${fmt(totals.grand_total)}</strong></td>
+              </tr>
+            </tfoot>
+          </table>
+          <div style="margin-top:20px;padding:14px;background:#f1f5f9;border-radius:8px;font-size:12px;color:#475569">
+            <p style="margin:0"><strong>Accommodation:</strong> Base + CGST(2.5%) + SGST(2.5%) — GST-inclusive back-calculation.</p>
+            <p style="margin:4px 0 0"><strong>Mess:</strong> Base ₹5,000 + CGST(2.5%) + SGST(2.5%) added on top.</p>
+          </div>
+        </div>
+      `;
+      const styles = `
+        @page { size: A4 landscape; margin: 12mm; }
+        body { font-family: Arial, sans-serif; color: #1e293b; font-size: 11px; }
+        .rpt { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .rpt th, .rpt td { border: 1px solid #cbd5e1; padding: 6px 8px; }
+        .rpt th { background: #1e40af; color: #fff; font-size: 10px; text-align: left; }
+        .r { text-align: right; font-variant-numeric: tabular-nums; }
+      `;
+      printElement(html, "GST Report", styles);
+      showToast("success", "GST report generated");
+    } catch (err) {
+      console.error(err);
+      showToast("error", err.response?.data?.message || err.message || "Failed to generate GST report");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Date presets
@@ -408,9 +491,24 @@ const Reports = () => {
             <p>Generate comprehensive reports and export data in Excel format</p>
           </div>
         </div>
-        <div className="header-badge">
-          <Sparkles size={16} />
-          <span>4 Report Types</span>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            onClick={handleGstReport}
+            disabled={loading}
+            style={{
+              background: 'linear-gradient(135deg, #059669, #10b981)',
+              color: '#fff', border: 'none', padding: '10px 16px',
+              borderRadius: '8px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: '8px'
+            }}
+          >
+            <FileText size={16} />
+            {loading ? 'Generating...' : 'GST Report'}
+          </button>
+          <div className="header-badge">
+            <Sparkles size={16} />
+            <span>4 Report Types</span>
+          </div>
         </div>
       </div>
 

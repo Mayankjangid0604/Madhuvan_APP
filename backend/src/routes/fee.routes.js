@@ -292,5 +292,6 @@ router.get("/:id", feeController.getFeeById);
  *         description: Fee created
  */
 router.post("/", feeController.createFee);
+router.post("/apply-waiver", feeController.applyWaiver);
 
 module.exports = router;

@@ -29,11 +29,14 @@ import ConfirmModal from "../../components/modals/ConfirmModal";
 import PromptModal from "../../components/modals/PromptModal";
 import axios from "axios";
 import { useAuth } from "../../contexts/AuthContext";
+import { useTheme } from "../../contexts/ThemeContext";
 import { authAPI } from "../../services/api/auth.api";
+import { Moon, Sun } from "lucide-react";
 import "./settings.css";
 
 const Settings = () => {
   const { user, updateAuth } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -1146,6 +1149,29 @@ Thank you,
               Template
             </Button>
           </div>
+        </Card>
+
+        {/* Theme */}
+        <Card>
+          <div className="card-icon" style={{ backgroundColor: theme === 'dark' ? '#1e293b30' : '#fde68a30' }}>
+            {theme === 'dark' ? <Moon size={24} color="#cbd5e1" /> : <Sun size={24} color="#f59e0b" />}
+          </div>
+          <h3>Appearance</h3>
+          <p>Switch between light and dark theme</p>
+          <div className="status-badge" style={{
+            backgroundColor: theme === 'dark' ? '#1e293b' : '#fef3c7',
+            color: theme === 'dark' ? '#e2e8f0' : '#92400e'
+          }}>
+            {theme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
+            Currently: {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
+          </div>
+          <div className="button-group">
+            <Button onClick={toggleTheme} variant="outline">
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
+            </Button>
+          </div>
+          <small className="help-text">💡 Preference is saved on this device</small>
         </Card>
 
         {/* Change Username */}

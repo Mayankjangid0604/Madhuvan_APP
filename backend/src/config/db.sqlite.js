@@ -1311,6 +1311,10 @@ function runMigrations() {
   safeAddColumn('students', 'next_fee_due_date', 'DATE');
   safeAddColumn('students', 'original_security_deposit', 'REAL');
   safeAddColumn('students', 'discount_on_full_month', 'INTEGER DEFAULT 1');
+  safeAddColumn('students', 'payment_mode', "TEXT DEFAULT 'cash'");
+  safeAddColumn('students', 'previous_student_id', 'INTEGER');
+  safeAddColumn('students', 'closed_reason', 'TEXT');
+  safeAddColumn('students', 'closed_at', 'DATETIME');
 
   // 2. STUDENT_FEES Table Critical Columns
   safeAddColumn('student_fees', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');

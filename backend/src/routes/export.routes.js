@@ -175,4 +175,15 @@ router.post("/occupancy/excel", exportController.exportOccupancyExcel);
  */
 router.post("/custom", exportController.exportCustomReport);
 
+/**
+ * @swagger
+ * /api/export/gst-report:
+ *   get:
+ *     summary: GST-ready summary of online-payment fee collections
+ *     tags: [Export]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get("/gst-report", exportController.exportGstReport);
+
 module.exports = router;

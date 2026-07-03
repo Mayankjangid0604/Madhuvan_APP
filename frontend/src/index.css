@@ -116,6 +116,110 @@ textarea::placeholder {
   -webkit-text-fill-color: #94a3b8 !important;
 }
 
+/* ============ DARK MODE ============ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  color: #e5e7eb;
+  background-color: #0f172a;
+}
+:root[data-theme="dark"] body,
+:root[data-theme="dark"] html,
+:root[data-theme="dark"] #root {
+  background-color: #0f172a;
+  color: #e5e7eb;
+}
+:root[data-theme="dark"] h1,
+:root[data-theme="dark"] h2,
+:root[data-theme="dark"] h3,
+:root[data-theme="dark"] h4,
+:root[data-theme="dark"] h5,
+:root[data-theme="dark"] h6,
+:root[data-theme="dark"] p,
+:root[data-theme="dark"] span,
+:root[data-theme="dark"] label,
+:root[data-theme="dark"] li,
+:root[data-theme="dark"] td,
+:root[data-theme="dark"] th,
+:root[data-theme="dark"] .stat-label,
+:root[data-theme="dark"] .info-label,
+:root[data-theme="dark"] .setting-label,
+:root[data-theme="dark"] .help-text,
+:root[data-theme="dark"] .subtitle {
+  color: #e5e7eb;
+}
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea {
+  color: #f1f5f9 !important;
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  -webkit-text-fill-color: #f1f5f9 !important;
+}
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder {
+  color: #94a3b8 !important;
+  -webkit-text-fill-color: #94a3b8 !important;
+}
+:root[data-theme="dark"] button {
+  background-color: #1e293b;
+  color: #f1f5f9;
+  border-color: #334155;
+}
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .glass-card,
+:root[data-theme="dark"] .fine-form-card,
+:root[data-theme="dark"] .history-container,
+:root[data-theme="dark"] .students-table-container,
+:root[data-theme="dark"] .fee-card,
+:root[data-theme="dark"] .modal-content,
+:root[data-theme="dark"] .modal-container,
+:root[data-theme="dark"] .table-container,
+:root[data-theme="dark"] .form-section-card,
+:root[data-theme="dark"] .member-card,
+:root[data-theme="dark"] .settings-info,
+:root[data-theme="dark"] .filters-section {
+  background-color: #1e293b !important;
+  color: #e5e7eb;
+  border-color: #334155 !important;
+}
+:root[data-theme="dark"] .students-table,
+:root[data-theme="dark"] .data-table,
+:root[data-theme="dark"] .fine-table,
+:root[data-theme="dark"] .ledger-table,
+:root[data-theme="dark"] .print-table {
+  color: #e5e7eb;
+}
+:root[data-theme="dark"] .students-table th,
+:root[data-theme="dark"] .data-table th,
+:root[data-theme="dark"] .fine-table th,
+:root[data-theme="dark"] .ledger-table th {
+  background-color: #0f172a !important;
+  color: #cbd5e1 !important;
+  border-color: #334155 !important;
+}
+:root[data-theme="dark"] .students-table tr,
+:root[data-theme="dark"] .data-table tr,
+:root[data-theme="dark"] .fine-table tr,
+:root[data-theme="dark"] .ledger-table tr {
+  border-color: #334155;
+}
+:root[data-theme="dark"] .students-table tbody tr:hover,
+:root[data-theme="dark"] .data-table tbody tr:hover {
+  background-color: #263449 !important;
+}
+:root[data-theme="dark"] .search-box,
+:root[data-theme="dark"] .search-wrapper,
+:root[data-theme="dark"] .filter-btn,
+:root[data-theme="dark"] .preset-btn {
+  background-color: #0f172a;
+  color: #e5e7eb;
+  border-color: #334155;
+}
+:root[data-theme="dark"] a {
+  color: #60a5fa;
+}
+
 input:focus,
 select:focus,
 textarea:focus {

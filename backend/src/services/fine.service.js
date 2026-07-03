@@ -469,8 +469,10 @@ exports.collectFine = ({ record_type, record_id, payment_mode = 'CASH', referenc
      WHERE ${columnId} = ?
   `).run(record_id);
 
-  // If a linked student_fees entry exists for this fine, mark it PAID.
-  if (record.applied_to_fee_id) {
+  // Determine the target fee row (existing linked fee OR new Fine row we just insert)
+  let targetFeeId = record.applied_to_fee_id;
+
+  if (targetFeeId) {
     try {
       db.db.prepare(`
         UPDATE student_fees
@@ -480,23 +482,46 @@ exports.collectFine = ({ record_type, record_id, payment_mode = 'CASH', referenc
                payment_mode = ?,
                reference_no = COALESCE(?, reference_no)
          WHERE fee_id = ?
-      `).run(amount, today, payment_mode, reference_no, record.applied_to_fee_id);
+      `).run(amount, today, payment_mode, reference_no, targetFeeId);
     } catch (e) {
       console.warn('Could not update linked student_fees entry:', e.message);
     }
   } else {
-    // Otherwise insert a new PAID student_fees row for the Fine so it shows in Fees page.
     try {
-      db.db.prepare(`
+      const insertRes = db.db.prepare(`
         INSERT INTO student_fees
           (student_id, fee_type, fee_month, fee_amount, final_amount, paid_amount,
            fee_status, fee_date, due_date, payment_date, payment_mode, reference_no,
            fee_period_start, fee_period_end)
-        VALUES (?, 'Fine', date('now','start of month'), ?, ?, ?, 'PAID',
+        VALUES (?, ?, date('now','start of month'), ?, ?, ?, 'PAID',
                 date('now'), date('now'), ?, ?, ?, date('now'), date('now'))
-      `).run(record.student_id, amount, amount, amount, today, payment_mode, reference_no);
+      `).run(
+        record.student_id,
+        tableName === 'pending_fines' ? 'Fine' : 'Property Damage',
+        amount, amount, amount, today, payment_mode, reference_no
+      );
+      targetFeeId = insertRes.lastInsertRowid;
+
+      // Link the fine record back to the created fee row for later reference.
+      try {
+        db.db.prepare(`UPDATE ${tableName} SET applied_to_fee_id = ? WHERE ${columnId} = ?`)
+          .run(targetFeeId, record_id);
+      } catch (_) { /* column may not exist on all tables; not fatal */ }
     } catch (e) {
       console.warn('Could not insert Fine fee entry:', e.message);
+    }
+  }
+
+  // Also insert a payment row so the receipt/history shows the payment.
+  if (targetFeeId) {
+    try {
+      db.db.prepare(`
+        INSERT INTO fee_payments
+          (student_id, fee_id, payment_amount, payment_date, payment_mode, reference_no, received_by)
+        VALUES (?, ?, ?, ?, ?, ?, 'Admin')
+      `).run(record.student_id, targetFeeId, amount, today, payment_mode, reference_no);
+    } catch (e) {
+      console.warn('Could not insert fee_payments row:', e.message);
     }
   }
 

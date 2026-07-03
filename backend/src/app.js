@@ -380,6 +380,14 @@ setTimeout(() => {
     console.warn("   ⚠️ Cleanup cron:", err.message);
   }
 
+  try {
+    const { startNinetyDayReadmitCron } = require("./cron/ninetyDayReadmit.cron");
+    startNinetyDayReadmitCron();
+    console.log("   ✅ 90-day re-admission cron started");
+  } catch (err) {
+    console.warn("   ⚠️ 90-day cron:", err.message);
+  }
+
 }, 3000);
 
 // ============================================

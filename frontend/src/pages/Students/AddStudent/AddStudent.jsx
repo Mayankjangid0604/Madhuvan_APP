@@ -96,6 +96,7 @@ const AddStudent = () => {
   // Step 3: Fee Setup - UPDATED with fee_type_cycle
   const [feeData, setFeeData] = useState({
     fee_type_cycle: "monthly", // NEW: monthly, half_yearly, yearly
+    payment_mode: "cash", // NEW: cash or online (affects invoice format)
     monthly_fee: "",           // For monthly cycle
     half_yearly_fee: "",       // For half-yearly cycle
     yearly_fee: "",            // For yearly cycle
@@ -549,8 +550,9 @@ const AddStudent = () => {
         address_line3: studentData.address_line3,
         photo_url: null,
 
-        // NEW: Fee type cycle
+        // NEW: Fee type cycle + payment mode
         fee_type_cycle: feeData.fee_type_cycle,
+        payment_mode: feeData.payment_mode || 'cash',
         monthly_fee: feeAmount, // Store the applicable fee amount
         security_deposit: Number(feeData.security_deposit || 0),
         fee_start_month: feeData.fee_start_date,
@@ -737,6 +739,7 @@ const AddStudent = () => {
 
     setFeeData({
       fee_type_cycle: "monthly",
+      payment_mode: "cash",
       monthly_fee: "",
       half_yearly_fee: "",
       yearly_fee: "",
@@ -1556,6 +1559,54 @@ const AddStudent = () => {
                 <IndianRupee size={24} />
                 Fee Configuration
               </h3>
+
+              {/* NEW: Payment Mode Selection */}
+              <div className="form-section-card glass-light">
+                <div className="section-card-header">
+                  <CreditCard size={18} />
+                  <span>Payment Mode <span className="required">*</span></span>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                  <label style={{
+                    flex: 1, minWidth: 200,
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px',
+                    border: `2px solid ${feeData.payment_mode === 'cash' ? '#6366f1' : '#e5e7eb'}`,
+                    borderRadius: 12, cursor: 'pointer',
+                    background: feeData.payment_mode === 'cash' ? 'rgba(99,102,241,0.08)' : 'transparent'
+                  }}>
+                    <input
+                      type="radio"
+                      name="payment_mode"
+                      value="cash"
+                      checked={feeData.payment_mode === 'cash'}
+                      onChange={() => setFeeData({ ...feeData, payment_mode: 'cash' })}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 700 }}>💵 Cash</div>
+                      <div style={{ fontSize: 12, opacity: 0.7 }}>Simple invoices, no GST split</div>
+                    </div>
+                  </label>
+                  <label style={{
+                    flex: 1, minWidth: 200,
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px',
+                    border: `2px solid ${feeData.payment_mode === 'online' ? '#6366f1' : '#e5e7eb'}`,
+                    borderRadius: 12, cursor: 'pointer',
+                    background: feeData.payment_mode === 'online' ? 'rgba(99,102,241,0.08)' : 'transparent'
+                  }}>
+                    <input
+                      type="radio"
+                      name="payment_mode"
+                      value="online"
+                      checked={feeData.payment_mode === 'online'}
+                      onChange={() => setFeeData({ ...feeData, payment_mode: 'online' })}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 700 }}>💳 Online</div>
+                      <div style={{ fontSize: 12, opacity: 0.7 }}>Splits Accommodation + Mess (₹5000) with 2.5% CGST + 2.5% SGST</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
 
               {/* NEW: Fee Type Selection */}
               <div className="form-section-card glass-light fee-type-section">

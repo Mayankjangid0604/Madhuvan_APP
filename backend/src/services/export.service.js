@@ -421,6 +421,96 @@ exports.getCustomReport = async (config) => {
   }
 };
 
+// 🔥 GST REPORT — online-payment fee collections only
+exports.getGstReport = async ({ from_date, to_date } = {}) => {
+  // Fetch payments for students marked payment_mode='online'
+  let sql = `
+    SELECT
+      fp.payment_id,
+      fp.payment_date,
+      fp.payment_amount,
+      fp.payment_mode as tx_mode,
+      fp.reference_no,
+      s.student_id,
+      s.student_name,
+      s.father_name,
+      s.payment_mode,
+      sf.fee_type,
+      sf.fee_month
+    FROM fee_payments fp
+    JOIN students s ON s.student_id = fp.student_id
+    LEFT JOIN student_fees sf ON sf.fee_id = fp.fee_id
+    WHERE s.payment_mode = 'online'
+  `;
+  const params = [];
+  if (from_date) { sql += ' AND fp.payment_date >= ?'; params.push(from_date); }
+  if (to_date) { sql += ' AND fp.payment_date <= ?'; params.push(to_date); }
+  sql += ' ORDER BY fp.payment_date ASC';
+
+  const [rows] = await db.query(sql, params);
+
+  const MESS_BASE = 5000;
+  const MESS_CGST = MESS_BASE * 0.025;
+  const MESS_SGST = MESS_BASE * 0.025;
+  const MESS_TOTAL = MESS_BASE + MESS_CGST + MESS_SGST;
+
+  const entries = [];
+  const totals = {
+    accommodation_base: 0, accommodation_cgst: 0, accommodation_sgst: 0,
+    mess_base: 0, mess_cgst: 0, mess_sgst: 0,
+    grand_total: 0
+  };
+
+  for (const r of rows) {
+    const amt = Number(r.payment_amount) || 0;
+    let messBase = 0, messCgst = 0, messSgst = 0;
+    let accBase = 0, accCgst = 0, accSgst = 0;
+    if (amt <= MESS_TOTAL) {
+      const b = amt / 1.05;
+      messBase = b; messCgst = b * 0.025; messSgst = b * 0.025;
+    } else {
+      messBase = MESS_BASE; messCgst = MESS_CGST; messSgst = MESS_SGST;
+      const accTotal = amt - MESS_TOTAL;
+      accBase = accTotal / 1.05;
+      accCgst = accBase * 0.025;
+      accSgst = accBase * 0.025;
+    }
+    entries.push({
+      payment_id: r.payment_id,
+      payment_date: r.payment_date,
+      student_id: r.student_id,
+      student_name: r.student_name,
+      father_name: r.father_name,
+      fee_type: r.fee_type,
+      reference_no: r.reference_no,
+      accommodation: {
+        base: Math.round(accBase * 100) / 100,
+        cgst: Math.round(accCgst * 100) / 100,
+        sgst: Math.round(accSgst * 100) / 100,
+        total: Math.round((accBase + accCgst + accSgst) * 100) / 100
+      },
+      mess: {
+        base: Math.round(messBase * 100) / 100,
+        cgst: Math.round(messCgst * 100) / 100,
+        sgst: Math.round(messSgst * 100) / 100,
+        total: Math.round((messBase + messCgst + messSgst) * 100) / 100
+      },
+      grand_total: amt
+    });
+    totals.accommodation_base += accBase;
+    totals.accommodation_cgst += accCgst;
+    totals.accommodation_sgst += accSgst;
+    totals.mess_base += messBase;
+    totals.mess_cgst += messCgst;
+    totals.mess_sgst += messSgst;
+    totals.grand_total += amt;
+  }
+
+  Object.keys(totals).forEach(k => { totals[k] = Math.round(totals[k] * 100) / 100; });
+
+  return { period: { from: from_date || null, to: to_date || null }, entries, totals };
+};
+
 // 🔥 STUDENT LEDGER (FIXED FOR SQLITE)
 exports.getStudentLedgerCSV = async (studentId) => {
   const query = `

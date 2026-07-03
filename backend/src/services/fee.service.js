@@ -1112,4 +1112,58 @@ exports.getAllFeesComprehensive = () => {
   });
 };
 
+// ============================================
+// APPLY WAIVER / CONCESSION on a specific fee
+// ============================================
+exports.applyWaiver = ({ fee_id, amount, reason }) => {
+  const wAmount = Number(amount) || 0;
+  if (!fee_id || wAmount <= 0) throw new Error("fee_id and positive amount are required");
+  const fee = db.db.prepare("SELECT * FROM student_fees WHERE fee_id = ?").get(fee_id);
+  if (!fee) throw new Error("Fee not found");
+  if (fee.fee_status === 'PAID') throw new Error("This fee is already fully paid");
+
+  const totalDue = Number(fee.final_amount || 0)
+    + Number(fee.previous_dues || 0)
+    + Number(fee.penalty_amount || 0)
+    + Number(fee.fine_amount || 0)
+    + Number(fee.property_damage_amount || 0)
+    + Number(fee.money_given_amount || 0)
+    - Number(fee.advance_used || 0);
+  const alreadyPaid = Number(fee.paid_amount || 0);
+  const remaining = Math.max(0, totalDue - alreadyPaid);
+  if (wAmount > remaining) throw new Error(`Waiver ₹${wAmount} exceeds remaining ₹${remaining}`);
+
+  const newDiscount = Number(fee.discount_amount || 0) + wAmount;
+  const newFinal = Math.max(0, Number(fee.final_amount || 0) - wAmount);
+  const newStatus = (newFinal <= alreadyPaid) ? 'PAID' : fee.fee_status;
+
+  db.db.prepare(`
+    UPDATE student_fees
+       SET discount_amount = ?,
+           final_amount = ?,
+           fee_status = ?,
+           updated_at = CURRENT_TIMESTAMP
+     WHERE fee_id = ?
+  `).run(newDiscount, newFinal, newStatus, fee_id);
+
+  try {
+    const ledgerService = require('./ledger.service');
+    const student = db.db.prepare("SELECT student_name FROM students WHERE student_id = ?").get(fee.student_id);
+    ledgerService.addManualEntry({
+      entry_date: new Date().toISOString().split('T')[0],
+      entry_type: 'expense',
+      category: 'refund',
+      amount: wAmount,
+      payment_mode: 'adjustment',
+      reference_no: `WAIVER-F${fee_id}`,
+      description: `Fee waiver granted to ${student?.student_name || `student #${fee.student_id}`}: ${reason || 'concession'}`,
+      student_id: fee.student_id
+    });
+  } catch (e) {
+    console.warn('Ledger entry for waiver failed:', e.message);
+  }
+
+  return { fee_id, waiver_amount: wAmount, new_final: newFinal, new_status: newStatus };
+};
+
 module.exports = exports;

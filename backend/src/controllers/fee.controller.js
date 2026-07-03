@@ -653,4 +653,18 @@ exports.downloadInvoice = asyncHandler(async (req, res) => {
   }
 });
 
+// APPLY WAIVER / CONCESSION
+exports.applyWaiver = asyncHandler(async (req, res) => {
+  const { fee_id, amount, reason } = req.body;
+  if (!fee_id || !amount) {
+    return res.status(400).json({ success: false, message: "fee_id and amount are required" });
+  }
+  try {
+    const result = feeService.applyWaiver({ fee_id, amount, reason });
+    return res.json({ success: true, message: "Waiver applied", data: result });
+  } catch (err) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = exports;
