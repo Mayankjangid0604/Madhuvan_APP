@@ -29,53 +29,27 @@ const escapeHtml = (str) =>
   );
 
 /**
- * splitInvoicesForFee({ total_amount, fee_type_cycle, period_start })
- * Returns an array of invoices. Each invoice covers at most 3 months and ≤ ₹60,000.
- *   - monthly cycle: 1 invoice
- *   - half_yearly (₹120k / 6 months): 2 invoices of ₹60k each covering 3 months
- *   - yearly (₹240k / 12 months): 4 invoices of ₹60k each covering 3 months
- * For any other amount, we still split so each invoice ≤ ₹60k and ≤ 3 months.
+ * One invoice per fee — no splitting for half-yearly / yearly cycles.
+ * Kept as a helper (single-element array) so existing callers stay simple.
  */
 export const splitInvoicesForFee = ({ total_amount, fee_type_cycle, period_start }) => {
   const total = Number(total_amount) || 0;
   const cycle = (fee_type_cycle || "monthly").toLowerCase();
-
-  let numInvoices = 1;
-  let monthsPerInvoice = 1;
-  if (cycle === "half_yearly") {
-    numInvoices = 2;
-    monthsPerInvoice = 3;
-  } else if (cycle === "yearly") {
-    numInvoices = 4;
-    monthsPerInvoice = 3;
-  }
-
-  // If any single split invoice would still exceed 60k, split further to keep ≤ 60k.
-  let perInvoice = total / numInvoices;
-  if (perInvoice > 60000) {
-    numInvoices = Math.ceil(total / 60000);
-    monthsPerInvoice = Math.max(1, Math.round(12 / numInvoices));
-    perInvoice = total / numInvoices;
-  }
+  const months = cycle === "half_yearly" ? 6 : cycle === "yearly" ? 12 : 1;
 
   const start = period_start ? new Date(period_start) : new Date();
-  const invoices = [];
-  for (let i = 0; i < numInvoices; i++) {
-    const invStart = new Date(start.getFullYear(), start.getMonth() + i * monthsPerInvoice, 1);
-    const invEnd = new Date(
-      start.getFullYear(),
-      start.getMonth() + (i + 1) * monthsPerInvoice,
-      0
-    );
-    invoices.push({
-      index: i + 1,
-      total: numInvoices,
-      amount: Math.round(perInvoice * 100) / 100,
+  const invStart = new Date(start.getFullYear(), start.getMonth(), 1);
+  const invEnd = new Date(start.getFullYear(), start.getMonth() + months, 0);
+
+  return [
+    {
+      index: 1,
+      total: 1,
+      amount: Math.round(total * 100) / 100,
       period_start: invStart.toISOString().split("T")[0],
       period_end: invEnd.toISOString().split("T")[0],
-    });
-  }
-  return invoices;
+    },
+  ];
 };
 
 /**
@@ -182,10 +156,7 @@ export const buildInvoiceHTML = ({
   const hostelEmail = escapeHtml(hostel.email || "");
   const hostelGstin = escapeHtml(hostel.gstin || "");
 
-  const splitBadge =
-    split_index && split_total > 1
-      ? `<span class="badge split">Part ${split_index} of ${split_total}</span>`
-      : "";
+  const splitBadge = "";
 
   let itemsRows = "";
   if (is_online_payment) {
