@@ -421,9 +421,14 @@ exports.getCustomReport = async (config) => {
   }
 };
 
-// 🔥 GST REPORT — online-payment fee collections only
+// 🔥 GST REPORT — only for ONLINE-mode payments.
+// Rule: Mess portion (₹5,000/mo) always attracts 2.5% CGST + 2.5% SGST.
+// Accommodation portion is GST-exempt UNLESS the student is exiting < 90 days —
+// that case is handled at final-invoice time, not in this recurring report.
 exports.getGstReport = async ({ from_date, to_date } = {}) => {
-  // Fetch payments for students marked payment_mode='online'
+  const onlineModes = ['UPI', 'BANK', 'ONLINE', 'CARD', 'NET_BANKING', 'upi', 'bank', 'online', 'card', 'net_banking'];
+  const placeholders = onlineModes.map(() => '?').join(',');
+
   let sql = `
     SELECT
       fp.payment_id,
@@ -435,14 +440,16 @@ exports.getGstReport = async ({ from_date, to_date } = {}) => {
       s.student_name,
       s.father_name,
       s.payment_mode,
+      s.date_of_joining,
       sf.fee_type,
       sf.fee_month
     FROM fee_payments fp
     JOIN students s ON s.student_id = fp.student_id
     LEFT JOIN student_fees sf ON sf.fee_id = fp.fee_id
     WHERE s.payment_mode = 'online'
+      AND fp.payment_mode IN (${placeholders})
   `;
-  const params = [];
+  const params = [...onlineModes];
   if (from_date) { sql += ' AND fp.payment_date >= ?'; params.push(from_date); }
   if (to_date) { sql += ' AND fp.payment_date <= ?'; params.push(to_date); }
   sql += ' ORDER BY fp.payment_date ASC';
@@ -456,7 +463,7 @@ exports.getGstReport = async ({ from_date, to_date } = {}) => {
 
   const entries = [];
   const totals = {
-    accommodation_base: 0, accommodation_cgst: 0, accommodation_sgst: 0,
+    accommodation_base: 0,
     mess_base: 0, mess_cgst: 0, mess_sgst: 0,
     grand_total: 0
   };
@@ -464,16 +471,13 @@ exports.getGstReport = async ({ from_date, to_date } = {}) => {
   for (const r of rows) {
     const amt = Number(r.payment_amount) || 0;
     let messBase = 0, messCgst = 0, messSgst = 0;
-    let accBase = 0, accCgst = 0, accSgst = 0;
+    let accBase = 0;
     if (amt <= MESS_TOTAL) {
       const b = amt / 1.05;
       messBase = b; messCgst = b * 0.025; messSgst = b * 0.025;
     } else {
       messBase = MESS_BASE; messCgst = MESS_CGST; messSgst = MESS_SGST;
-      const accTotal = amt - MESS_TOTAL;
-      accBase = accTotal / 1.05;
-      accCgst = accBase * 0.025;
-      accSgst = accBase * 0.025;
+      accBase = amt - MESS_TOTAL;
     }
     entries.push({
       payment_id: r.payment_id,
@@ -485,9 +489,9 @@ exports.getGstReport = async ({ from_date, to_date } = {}) => {
       reference_no: r.reference_no,
       accommodation: {
         base: Math.round(accBase * 100) / 100,
-        cgst: Math.round(accCgst * 100) / 100,
-        sgst: Math.round(accSgst * 100) / 100,
-        total: Math.round((accBase + accCgst + accSgst) * 100) / 100
+        cgst: 0,
+        sgst: 0,
+        total: Math.round(accBase * 100) / 100
       },
       mess: {
         base: Math.round(messBase * 100) / 100,
@@ -498,14 +502,13 @@ exports.getGstReport = async ({ from_date, to_date } = {}) => {
       grand_total: amt
     });
     totals.accommodation_base += accBase;
-    totals.accommodation_cgst += accCgst;
-    totals.accommodation_sgst += accSgst;
     totals.mess_base += messBase;
     totals.mess_cgst += messCgst;
     totals.mess_sgst += messSgst;
     totals.grand_total += amt;
   }
-
+  totals.accommodation_cgst = 0;
+  totals.accommodation_sgst = 0;
   Object.keys(totals).forEach(k => { totals[k] = Math.round(totals[k] * 100) / 100; });
 
   return { period: { from: from_date || null, to: to_date || null }, entries, totals };

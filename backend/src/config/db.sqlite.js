@@ -1312,6 +1312,30 @@ function runMigrations() {
   safeAddColumn('students', 'original_security_deposit', 'REAL');
   safeAddColumn('students', 'discount_on_full_month', 'INTEGER DEFAULT 1');
   safeAddColumn('students', 'payment_mode', "TEXT DEFAULT 'cash'");
+  safeAddColumn('students', 'gender', "TEXT DEFAULT 'Female'");
+
+  // One-time migration for existing rows: default payment mode = cash, gender = Female.
+  try {
+    db.prepare(`UPDATE students SET payment_mode = 'cash' WHERE payment_mode IS NULL OR payment_mode = ''`).run();
+    db.prepare(`UPDATE students SET gender = 'Female' WHERE gender IS NULL OR gender = ''`).run();
+  } catch (e) {
+    console.warn('Existing-student migration skipped:', e.message);
+  }
+
+  // (hostel_info is stored as a JSON row in `settings` — no schema change needed for gstin)
+
+  // Document counters (invoice / receipt / bill numbers)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS doc_counters (
+        doc_type TEXT PRIMARY KEY,
+        year INTEGER NOT NULL,
+        counter INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+  } catch (e) {
+    console.warn('doc_counters table creation skipped:', e.message);
+  }
 
   // 2. STUDENT_FEES Table Critical Columns
   safeAddColumn('student_fees', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');

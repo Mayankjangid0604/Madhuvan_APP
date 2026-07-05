@@ -219,6 +219,48 @@ textarea::placeholder {
 :root[data-theme="dark"] a {
   color: #60a5fa;
 }
+:root[data-theme="dark"] .students-page,
+:root[data-theme="dark"] .fine-page,
+:root[data-theme="dark"] .ledger-page,
+:root[data-theme="dark"] .reports-page,
+:root[data-theme="dark"] .settings-page,
+:root[data-theme="dark"] .member-page,
+:root[data-theme="dark"] .add-student-container,
+:root[data-theme="dark"] .fd-container,
+:root[data-theme="dark"] .dashboard-page {
+  background-color: #0b1120 !important;
+  color: #e5e7eb;
+}
+:root[data-theme="dark"] .modal-overlay {
+  background-color: rgba(2, 6, 23, 0.75) !important;
+}
+:root[data-theme="dark"] .search-input,
+:root[data-theme="dark"] .form-input,
+:root[data-theme="dark"] .type-select,
+:root[data-theme="dark"] .date-input {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #334155 !important;
+}
+:root[data-theme="dark"] .btn,
+:root[data-theme="dark"] .btn-secondary,
+:root[data-theme="dark"] .btn-outline {
+  background-color: #1e293b;
+  color: #e5e7eb;
+  border-color: #334155;
+}
+:root[data-theme="dark"] .btn-primary {
+  background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
+  color: #fff !important;
+}
+:root[data-theme="dark"] .stat-value,
+:root[data-theme="dark"] .stat-label {
+  color: #e5e7eb;
+}
+:root[data-theme="dark"] input[type="checkbox"],
+:root[data-theme="dark"] input[type="radio"] {
+  accent-color: #6366f1;
+}
 
 input:focus,
 select:focus,

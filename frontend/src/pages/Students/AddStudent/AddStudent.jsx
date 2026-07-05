@@ -63,6 +63,7 @@ const AddStudent = () => {
   const [studentData, setStudentData] = useState({
     form_date: new Date().toISOString().split('T')[0],
     student_name: "",
+    gender: "Female",
     date_of_birth: "",
     student_mobile: "",
     father_email: "",
@@ -425,15 +426,6 @@ const AddStudent = () => {
       }
     }
 
-    if (feeData.has_discount) {
-      if (!feeData.discount_value || parseFloat(feeData.discount_value) <= 0) {
-        newErrors.discount_value = "Discount value is required";
-      }
-      if (feeData.discount_type === 'percent' && parseFloat(feeData.discount_value) > 100) {
-        newErrors.discount_value = "Percentage cannot exceed 100%";
-      }
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -529,6 +521,7 @@ const AddStudent = () => {
       const studentPayload = {
         form_date: studentData.form_date,
         student_name: studentData.student_name,
+        gender: studentData.gender || 'Female',
         date_of_birth: studentData.date_of_birth,
         student_mobile: studentData.student_mobile,
         father_email: studentData.father_email || null,
@@ -708,6 +701,7 @@ const AddStudent = () => {
     setStudentData({
       form_date: new Date().toISOString().split('T')[0],
       student_name: "",
+      gender: "Female",
       date_of_birth: "",
       student_mobile: "",
       father_email: "",
@@ -923,6 +917,34 @@ const AddStudent = () => {
                         {errors.date_of_birth}
                       </span>
                     )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>
+                      <User size={14} />
+                      Gender <span className="required">*</span>
+                    </label>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      {['Female', 'Male', 'Other'].map(g => (
+                        <label key={g} style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                          padding: '10px 14px',
+                          border: `2px solid ${studentData.gender === g ? '#6366f1' : '#e5e7eb'}`,
+                          borderRadius: 10, cursor: 'pointer',
+                          background: studentData.gender === g ? 'rgba(99,102,241,0.08)' : 'transparent',
+                          fontWeight: studentData.gender === g ? 700 : 500
+                        }}>
+                          <input
+                            type="radio"
+                            name="gender"
+                            value={g}
+                            checked={studentData.gender === g}
+                            onChange={() => setStudentData({ ...studentData, gender: g })}
+                          />
+                          {g}
+                        </label>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="form-group">
@@ -1880,112 +1902,6 @@ const AddStudent = () => {
                 </div>
               </div>
 
-              {/* Discount Section */}
-              <div className="discount-section glass-light">
-                <label className="discount-toggle">
-                  <input
-                    type="checkbox"
-                    checked={feeData.has_discount}
-                    onChange={(e) => setFeeData({ ...feeData, has_discount: e.target.checked })}
-                  />
-                  <div className="toggle-content">
-                    <Percent size={18} />
-                    <span>Apply Discount</span>
-                  </div>
-                </label>
-
-                {feeData.has_discount && (
-                  <div className="discount-options">
-                    <div className="form-grid">
-                      <div className="form-group">
-                        <label>Discount Type</label>
-                        <select
-                          value={feeData.discount_type}
-                          onChange={(e) => setFeeData({ ...feeData, discount_type: e.target.value })}
-                          className="form-input"
-                        >
-                          <option value="percentage">Percentage (%)</option>
-                          <option value="fixed">Fixed Amount (₹)</option>
-                        </select>
-                      </div>
-
-                      <div className="form-group">
-                        <label>Discount Value <span className="required">*</span></label>
-                        <div className="input-with-icon">
-                          {feeData.discount_type === 'percentage' ? (
-                            <Percent size={16} className="input-icon" />
-                          ) : (
-                            <IndianRupee size={16} className="input-icon" />
-                          )}
-                          <input
-                            type="number"
-                            value={feeData.discount_value}
-                            onChange={(e) => setFeeData({ ...feeData, discount_value: e.target.value })}
-                            className={`form-input ${errors.discount_value ? 'error' : ''}`}
-                            placeholder={feeData.discount_type === 'percentage' ? 'e.g., 10' : 'e.g., 500'}
-                          />
-                        </div>
-                        {errors.discount_value && (
-                          <span className="error-text">
-                            <AlertCircle size={12} />
-                            {errors.discount_value}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="form-group">
-                        <label>Apply Discount To</label>
-                        <select
-                          value={feeData.discount_applicable}
-                          onChange={(e) => setFeeData({ ...feeData, discount_applicable: e.target.value })}
-                          className="form-input"
-                        >
-                          <option value="all_months">All Fees (Every Month)</option>
-                          <option value="specific_months">First Period Only</option>
-                        </select>
-                      </div>
-
-                      <div className="form-group">
-                        <label>Discount Calculation</label>
-                        <select
-                          value={feeData.discount_on_full_month ? "full" : "prorated"}
-                          onChange={(e) => setFeeData({ ...feeData, discount_on_full_month: e.target.value === "full" })}
-                          className="form-input"
-                        >
-                          <option value="full">Apply on FULL Month Fee</option>
-                          <option value="prorated">Apply on PRORATED Amount</option>
-                        </select>
-                        <span className="help-text">
-                          {feeData.discount_on_full_month 
-                            ? "Discount will be calculated on the original monthly fee." 
-                            : "Discount will be calculated on the mid-month joining amount."}
-                        </span>
-                      </div>
-                    </div>
-
-                    {feeData.discount_value && (
-                      <div className="discount-preview">
-                        <div className="discount-preview-item">
-                          <span>Original {getFeeCycleLabel()} Fee:</span>
-                          <span>₹ {getApplicableFeeAmount().toLocaleString('en-IN')}</span>
-                        </div>
-                        <div className="discount-preview-item discount">
-                          <span>Discount ({feeData.discount_type === 'percent' ? `${feeData.discount_value}%` : `₹${feeData.discount_value}`})
-                          </span>
-                          <span className="discount-value">
-                            - ₹ {(getApplicableFeeAmount() - getDiscountedFee()).toLocaleString('en-IN')}
-                          </span>
-                        </div>
-                        <div className="discount-preview-item total">
-                          <span>Discounted Fee:</span>
-                          <span>₹ {getDiscountedFee().toLocaleString('en-IN')}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
               {/* Remarks */}
               <div className="form-section-card glass-light">
                 <div className="section-card-header">
@@ -2015,24 +1931,6 @@ const AddStudent = () => {
                     <span>₹ {getApplicableFeeAmount().toLocaleString('en-IN')}</span>
                   </div>
 
-                  {feeData.has_discount && feeData.discount_value && (
-                    <div className="fee-row discount">
-                      <span>
-                        Discount ({feeData.discount_type === 'percent' ? `${feeData.discount_value}%` : `₹${feeData.discount_value}`})
-                      </span>
-                      <span className="discount-value">
-                        - ₹ {(getApplicableFeeAmount() - getDiscountedFee()).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  )}
-
-                  {feeData.has_discount && feeData.discount_value && (
-                    <div className="fee-row">
-                      <span>Discounted {getFeeCycleLabel()} Fee</span>
-                      <span>₹ {getDiscountedFee().toLocaleString('en-IN')}</span>
-                    </div>
-                  )}
-
                   {Number(feeData.security_deposit) > 0 && (
                     <div className="fee-row">
                       <span>Security Deposit (One-time)</span>
@@ -2042,7 +1940,7 @@ const AddStudent = () => {
 
                   <div className="fee-row total">
                     <span>First Payment Total</span>
-                    <span>₹ {(getDiscountedFee() + Number(feeData.security_deposit || 0)).toLocaleString('en-IN')}</span>
+                    <span>₹ {(getApplicableFeeAmount() + Number(feeData.security_deposit || 0)).toLocaleString('en-IN')}</span>
                   </div>
 
                   {/* Fee Schedule Info */}
@@ -2101,11 +1999,8 @@ const AddStudent = () => {
                       Fee Details                    </h5>
                     <p><strong>Billing Cycle:</strong> {getFeeCycleLabel()}</p>
                     <p><strong>{getFeeCycleLabel()} Fee:</strong> ₹ {getApplicableFeeAmount().toLocaleString('en-IN')}</p>
-                    {feeData.has_discount && (
-                      <p><strong>After Discount:</strong> ₹ {getDiscountedFee().toLocaleString('en-IN')}</p>
-                    )}
                     <p><strong>Security:</strong> ₹ {Number(feeData.security_deposit || 0).toLocaleString('en-IN')}</p>
-                    <p><strong>First Payment:</strong> ₹ {(getDiscountedFee() + Number(feeData.security_deposit || 0)).toLocaleString('en-IN')}</p>
+                    <p><strong>First Payment:</strong> ₹ {(getApplicableFeeAmount() + Number(feeData.security_deposit || 0)).toLocaleString('en-IN')}</p>
                     {feeData.fee_type_cycle === "half_yearly" && feeData.next_fee_date && (
                       <p><strong>Next Due:</strong> {formatDateDisplay(feeData.next_fee_date)}</p>
                     )}

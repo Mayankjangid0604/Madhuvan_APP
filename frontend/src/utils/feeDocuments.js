@@ -53,34 +53,52 @@ export const splitInvoicesForFee = ({ total_amount, fee_type_cycle, period_start
 };
 
 /**
- * gstSplitFromOnlineInvoice(invoice_amount)
- * Splits an online-payment invoice amount into Accommodation + Mess parts.
- *   - Mess = ₹5000 + 2.5% CGST + 2.5% SGST (i.e. mess base 5000, taxes on top)
- *   - Accommodation = remaining amount (GST inclusive; back-calculated)
- * If invoice_amount < mess total, all of it becomes mess-taxed portion.
+ * gstSplitFromOnlineInvoice(invoice_amount, opts)
+ * GST rules (only for ONLINE payments):
+ *   - Mess portion: ₹5,000 base + 2.5% CGST + 2.5% SGST (always taxed for online).
+ *   - Accommodation portion: remainder. GST only applies if the student is
+ *     exiting/checking-out before completing 90 days at the hostel. Otherwise
+ *     accommodation is GST-exempt.
+ * opts:
+ *   - apply_accommodation_gst: boolean (default false)
+ *     Set to true only when generating the final invoice for an early-exit
+ *     (stay < 90 days).
  */
-export const gstSplitFromOnlineInvoice = (invoice_amount) => {
+export const gstSplitFromOnlineInvoice = (invoice_amount, opts = {}) => {
   const total = Number(invoice_amount) || 0;
+  const applyAccomGst = !!opts.apply_accommodation_gst;
+
   const messBase = 5000;
   const messCgst = messBase * 0.025;
   const messSgst = messBase * 0.025;
   const messTotal = messBase + messCgst + messSgst; // 5250
 
+  // If total ≤ mess portion, treat whole thing as mess-only (rare).
   if (total <= messTotal) {
-    // Whole thing lumped as mess-only (edge case)
     const t = total / 1.05;
     return {
       accommodation: { base: 0, cgst: 0, sgst: 0, total: 0 },
-      mess: { base: Math.round(t * 100) / 100, cgst: Math.round(t * 0.025 * 100) / 100, sgst: Math.round(t * 0.025 * 100) / 100, total },
+      mess: {
+        base: Math.round(t * 100) / 100,
+        cgst: Math.round(t * 0.025 * 100) / 100,
+        sgst: Math.round(t * 0.025 * 100) / 100,
+        total,
+      },
       grand_total: total,
     };
   }
 
   const accomTotal = total - messTotal;
-  // Accommodation is GST inclusive: base * 1.05 = accomTotal
-  const accomBase = accomTotal / 1.05;
-  const accomCgst = accomBase * 0.025;
-  const accomSgst = accomBase * 0.025;
+  let accomBase = accomTotal;
+  let accomCgst = 0;
+  let accomSgst = 0;
+
+  if (applyAccomGst) {
+    // Accommodation GST-inclusive back-calc when applied.
+    accomBase = accomTotal / 1.05;
+    accomCgst = accomBase * 0.025;
+    accomSgst = accomBase * 0.025;
+  }
 
   return {
     accommodation: {
@@ -147,6 +165,7 @@ export const buildInvoiceHTML = ({
   amount,
   fee_type = "Hostel Fee",
   is_online_payment = false,
+  apply_accommodation_gst = false, // true only when student is exiting < 90 days
   split_index,
   split_total,
 }) => {
@@ -160,7 +179,9 @@ export const buildInvoiceHTML = ({
 
   let itemsRows = "";
   if (is_online_payment) {
-    const parts = gstSplitFromOnlineInvoice(amount);
+    const parts = gstSplitFromOnlineInvoice(amount, {
+      apply_accommodation_gst
+    });
     itemsRows = `
       <tr>
         <td>Accommodation Fee<br><small style="color:#64748b">SAC 996311 (GST-inclusive)</small></td>
@@ -481,8 +502,15 @@ export const printVoucher = (params) => {
   printElement(html, `Voucher-${params.voucher_no || "New"}`, baseStyles);
 };
 
-// Print all invoices for a fee (auto-split for half-yearly/yearly)
-export const printAllInvoicesForFee = ({ hostel, student, fee, is_online_payment }) => {
+// Print all invoices for a fee (single invoice per fee now)
+export const printAllInvoicesForFee = ({
+  hostel,
+  student,
+  fee,
+  is_online_payment,
+  apply_accommodation_gst = false,
+  invoice_no,
+}) => {
   const invoices = splitInvoicesForFee({
     total_amount: fee.final_amount || fee.fee_amount,
     fee_type_cycle: student.fee_type_cycle,
@@ -493,17 +521,18 @@ export const printAllInvoicesForFee = ({ hostel, student, fee, is_online_payment
       buildInvoiceHTML({
         hostel,
         student,
-        invoice_no: `INV-${student.student_id}-${fee.fee_id}-${inv.index}`,
+        invoice_no: invoice_no || `INV-${student.student_id}-${fee.fee_id}`,
         invoice_date: new Date().toISOString().split("T")[0],
         period_start: inv.period_start,
         period_end: inv.period_end,
         amount: inv.amount,
         fee_type: fee.fee_type || "Hostel Fee",
         is_online_payment,
+        apply_accommodation_gst,
         split_index: inv.index,
         split_total: inv.total,
       })
     )
     .join('<div style="page-break-after: always"></div>');
-  printElement(merged, `Invoices-${student.student_name}`, baseStyles);
+  printElement(merged, `Invoice-${student.student_name}`, baseStyles);
 };

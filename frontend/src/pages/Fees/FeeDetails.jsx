@@ -35,23 +35,37 @@ const FeeDetails = () => {
     }).catch(() => {});
   }, [studentId]);
 
-  const handlePrintInvoice = (fee) => {
+  const fetchDocNumber = async (type) => {
+    try {
+      const token = localStorage.getItem("token");
+      const url = `${import.meta.env.VITE_API_BASE_URL}/doc-number/next?type=${type}`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json();
+      return j.data?.number;
+    } catch { return null; }
+  };
+
+  const handlePrintInvoice = async (fee) => {
     if (!data?.student) return;
     const isOnline = data.student.payment_mode === 'online';
+    const invoice_no = (await fetchDocNumber("invoice")) || `INV-${data.student.student_id}-${fee.fee_id}`;
     printAllInvoicesForFee({
       hostel: hostelInfo,
       student: data.student,
       fee,
-      is_online_payment: isOnline
+      is_online_payment: isOnline,
+      apply_accommodation_gst: false, // recurring invoices don't tax accommodation
+      invoice_no
     });
   };
 
-  const handlePrintReceipt = (fee, payment) => {
+  const handlePrintReceipt = async (fee, payment) => {
     if (!data?.student) return;
+    const receipt_no = (await fetchDocNumber("receipt")) || `RCPT-${data.student.student_id}-${payment?.payment_id || fee.fee_id}`;
     printReceipt({
       hostel: hostelInfo,
       student: data.student,
-      receipt_no: `RCPT-${data.student.student_id}-${payment?.payment_id || fee.fee_id}`,
+      receipt_no,
       payment_date: payment?.payment_date || fee.payment_date || new Date(),
       amount_received: payment?.payment_amount || fee.paid_amount,
       payment_mode: (payment?.payment_mode || fee.payment_mode || 'CASH').toUpperCase(),
@@ -441,15 +455,11 @@ const FeeDetails = () => {
                   const statusConfig = getStatusConfig(fee.fee_status);
                   const StatusIcon = statusConfig.icon;
                   const feePayments = getPaymentsForFee(fee.fee_id);
-                  const isExpanded = expandedFees[fee.fee_id];
 
                   return (
                     <div key={fee.fee_id} className={`fd-fee-card fd-fee-${statusConfig.color}`}>
-                      {/* Fee Header */}
-                      <div
-                        className="fd-fee-header"
-                        onClick={() => toggleFeeExpand(fee.fee_id)}
-                      >
+                      {/* Fee Header (no longer collapsible) */}
+                      <div className="fd-fee-header">
                         <div className="fd-fee-left">
                           <div className="fd-fee-month-badge">
                             {formatMonth(fee.fee_month, fee.fee_type)}
@@ -474,14 +484,11 @@ const FeeDetails = () => {
                           <div className="fd-fee-amount">
                             {formatCurrency(fee.final_amount)}
                           </div>
-                          <button className="fd-expand-btn">
-                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                          </button>
                         </div>
                       </div>
 
-                      {/* Fee Details (Expanded) */}
-                      {isExpanded && (
+                      {/* Fee Details — always shown */}
+                      {true && (
                         <div className="fd-fee-body">
                           {/* Fee Breakdown */}
                           <div className="fd-fee-breakdown">
@@ -582,25 +589,32 @@ const FeeDetails = () => {
                                   <Receipt size={14} /> Print Receipt
                                 </button>
                               )}
-                              {fee.fee_status !== 'PAID' && Number(fee.remaining || fee.final_amount) > 0 && (
+                              {fee.fee_status !== 'PAID'
+                                && Number(fee.remaining || fee.final_amount) > 0
+                                && /rent|monthly|half|yearly|accommodation|hostel/i.test(fee.fee_type || "") && (
                                 <button
                                   className="fd-view-invoice-btn"
                                   onClick={async (e) => {
                                     e.stopPropagation();
                                     const remaining = Number(fee.remaining || fee.final_amount);
                                     const inputAmt = window.prompt(
-                                      `Enter waiver amount (max ₹${remaining}):`,
+                                      `Enter waiver amount for accommodation (max ₹${remaining}):`,
                                       String(remaining)
                                     );
-                                    if (!inputAmt) return;
+                                    if (inputAmt === null) return;
                                     const amt = Number(inputAmt);
-                                    if (!(amt > 0)) { alert("Enter a valid amount"); return; }
+                                    if (!(amt > 0)) { alert("Enter a valid amount greater than 0"); return; }
                                     const reason = window.prompt("Reason for waiver:", "Concession") || "Concession";
                                     try {
-                                      await feeAPI.applyWaiver({ fee_id: fee.fee_id, amount: amt, reason });
-                                      await loadData();
+                                      const res = await feeAPI.applyWaiver({ fee_id: fee.fee_id, amount: amt, reason });
+                                      if (res.data?.success) {
+                                        alert(`Waiver of ₹${amt} applied successfully.`);
+                                        await loadData();
+                                      } else {
+                                        alert(res.data?.message || "Waiver could not be applied");
+                                      }
                                     } catch (err) {
-                                      alert(err.response?.data?.message || "Failed to apply waiver");
+                                      alert(err.response?.data?.message || err.message || "Failed to apply waiver");
                                     }
                                   }}
                                   style={{ background: '#7c3aed', color: '#fff' }}
@@ -619,34 +633,9 @@ const FeeDetails = () => {
                             </h5>
 
                             {feePayments.length === 0 ? (
-                              <div className="fd-no-payments" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                  <AlertCircle size={16} />
-                                  <span>No payments received yet</span>
-                                </div>
-                                {statusConfig.label !== "Paid" && (
-                                  <button
-                                    style={{
-                                      background: '#3b82f6', color: 'white', border: 'none', padding: '6px 14px',
-                                      borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer',
-                                      display: 'flex', alignItems: 'center', gap: '6px'
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      navigate('/fees', { 
-                                        state: { 
-                                          autoPay: true, 
-                                          studentId: student.student_id, 
-                                          feeType: fee.fee_type,
-                                          feeId: fee.fee_id,
-                                          amountToPay: fee.remaining
-                                        } 
-                                      });
-                                    }}
-                                  >
-                                    <CreditCard size={14} /> Receive Fee
-                                  </button>
-                                )}
+                              <div className="fd-no-payments" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <AlertCircle size={16} />
+                                <span>No payments received yet</span>
                               </div>
                             ) : (
                               <div className="fd-payments-list">
@@ -674,16 +663,6 @@ const FeeDetails = () => {
                                         )}
                                       </div>
                                     </div>
-                                    <button
-                                      className="fd-view-invoice-btn"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        openInvoice(payment, fee);
-                                      }}
-                                    >
-                                      <Eye size={14} />
-                                      View Invoice
-                                    </button>
                                   </div>
                                 ))}
                               </div>
@@ -716,7 +695,6 @@ const FeeDetails = () => {
                   <span className="fd-th-amount">Amount</span>
                   <span className="fd-th-mode">Mode</span>
                   <span className="fd-th-received">Received By</span>
-                  <span className="fd-th-action">Action</span>
                 </div>
 
                 {allTransactions.map((payment, index) => {
@@ -756,17 +734,6 @@ const FeeDetails = () => {
 
                       <div className="fd-tx-received">
                         {payment.received_by || 'ADMIN'}
-                      </div>
-
-                      <div className="fd-tx-action">
-                        <button
-                          className="fd-invoice-btn"
-                          onClick={() => openInvoice(payment, relatedFee)}
-                          title="View Invoice"
-                        >
-                          <Eye size={16} />
-                          <span>Invoice</span>
-                        </button>
                       </div>
                     </div>
                   );

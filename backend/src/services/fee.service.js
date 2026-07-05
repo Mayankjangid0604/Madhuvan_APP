@@ -1053,15 +1053,26 @@ exports.applyPenaltiesToOverdueFees = exports.applyPenalties;
 
 // ============================================
 // GET ALL FEES COMPREHENSIVE - FIXED VERSION
+// Active students AND checked-out students that still have unpaid fees.
+// (Once every fee of a checked-out student is fully paid, they drop off the list.)
 // ============================================
 exports.getAllFeesComprehensive = () => {
   const students = db.db.prepare(`
-    SELECT DISTINCT s.student_id, s.student_name, s.father_name, s.student_mobile, s.photo_url, r.room_no, b.bed_no
+    SELECT DISTINCT s.student_id, s.student_name, s.father_name, s.student_mobile, s.photo_url,
+                    s.status, s.date_of_leaving,
+                    r.room_no, b.bed_no
     FROM students s
     LEFT JOIN room_allocation a ON a.student_id = s.student_id AND a.allocation_status = 'active'
     LEFT JOIN rooms r ON a.room_id = r.room_id
     LEFT JOIN beds b ON a.bed_id = b.bed_id
-    WHERE s.status = 'active' AND s.date_of_leaving IS NULL
+    WHERE
+      (s.status = 'active' AND s.date_of_leaving IS NULL)
+      OR EXISTS (
+        SELECT 1 FROM student_fees sf
+        WHERE sf.student_id = s.student_id
+          AND sf.fee_status != 'PAID'
+          AND COALESCE(sf.final_amount, 0) > COALESCE(sf.paid_amount, 0)
+      )
   `).all();
 
   return students.map(student => {
@@ -1114,13 +1125,30 @@ exports.getAllFeesComprehensive = () => {
 
 // ============================================
 // APPLY WAIVER / CONCESSION on a specific fee
+// Only allowed on accommodation-type fees (Monthly / Half-Yearly / Yearly Rent).
+// Cannot waive Mess, Security Deposit, Fine, Property Damage, or Money Given.
 // ============================================
 exports.applyWaiver = ({ fee_id, amount, reason }) => {
   const wAmount = Number(amount) || 0;
-  if (!fee_id || wAmount <= 0) throw new Error("fee_id and positive amount are required");
+  if (!fee_id || wAmount <= 0) {
+    throw new Error("fee_id and positive amount are required");
+  }
+
   const fee = db.db.prepare("SELECT * FROM student_fees WHERE fee_id = ?").get(fee_id);
-  if (!fee) throw new Error("Fee not found");
+  if (!fee) throw new Error(`Fee #${fee_id} not found`);
   if (fee.fee_status === 'PAID') throw new Error("This fee is already fully paid");
+
+  const type = String(fee.fee_type || "").toLowerCase();
+  const isAccommodation =
+    type.includes("rent") ||
+    type === "monthly" ||
+    type === "half-yearly" ||
+    type === "yearly" ||
+    type === "accommodation" ||
+    type === "hostel fee";
+  if (!isAccommodation) {
+    throw new Error(`Waivers can only be granted on accommodation fees. This fee is "${fee.fee_type}".`);
+  }
 
   const totalDue = Number(fee.final_amount || 0)
     + Number(fee.previous_dues || 0)
@@ -1131,10 +1159,13 @@ exports.applyWaiver = ({ fee_id, amount, reason }) => {
     - Number(fee.advance_used || 0);
   const alreadyPaid = Number(fee.paid_amount || 0);
   const remaining = Math.max(0, totalDue - alreadyPaid);
-  if (wAmount > remaining) throw new Error(`Waiver ₹${wAmount} exceeds remaining ₹${remaining}`);
+  if (wAmount > remaining) {
+    throw new Error(`Waiver ₹${wAmount} exceeds the remaining balance ₹${remaining}`);
+  }
 
+  const currentFinal = Number(fee.final_amount || 0);
   const newDiscount = Number(fee.discount_amount || 0) + wAmount;
-  const newFinal = Math.max(0, Number(fee.final_amount || 0) - wAmount);
+  const newFinal = Math.max(0, currentFinal - wAmount);
   const newStatus = (newFinal <= alreadyPaid) ? 'PAID' : fee.fee_status;
 
   db.db.prepare(`

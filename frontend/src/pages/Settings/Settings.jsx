@@ -92,6 +92,7 @@ const Settings = () => {
     phone: "",
     email: "",
     website: "",
+    gstin: "",
     logo_left: "",
     logo_right: ""
   });
@@ -2157,15 +2158,30 @@ Thank you,
                 </div>
               </div>
 
-              <div className="form-group">
-                <label>Website</label>
-                <input
-                  type="url"
-                  value={hostelInfo.website}
-                  onChange={(e) => setHostelInfo({ ...hostelInfo, website: e.target.value })}
-                  placeholder="https://yourhostel.com"
-                  className="form-input"
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Website</label>
+                  <input
+                    type="url"
+                    value={hostelInfo.website}
+                    onChange={(e) => setHostelInfo({ ...hostelInfo, website: e.target.value })}
+                    placeholder="https://yourhostel.com"
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>GST Number (GSTIN)</label>
+                  <input
+                    type="text"
+                    value={hostelInfo.gstin || ''}
+                    onChange={(e) => setHostelInfo({ ...hostelInfo, gstin: e.target.value.toUpperCase() })}
+                    placeholder="22AAAAA0000A1Z5"
+                    className="form-input"
+                    maxLength={15}
+                  />
+                  <p className="help-text">Shown on tax invoices generated for online-payment students.</p>
+                </div>
               </div>
 
               <div className="form-group">

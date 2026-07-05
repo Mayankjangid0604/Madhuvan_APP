@@ -83,12 +83,23 @@ const Ledger = () => {
       .catch(() => {});
   }, []);
 
-  const handlePrintLedgerRow = (row) => {
+  const fetchLedgerDocNumber = async (type) => {
+    try {
+      const token = localStorage.getItem("token");
+      const url = `${import.meta.env.VITE_API_BASE_URL}/doc-number/next?type=${type}`;
+      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      const j = await r.json();
+      return j.data?.number;
+    } catch { return null; }
+  };
+
+  const handlePrintLedgerRow = async (row) => {
     if (row.entry_type === 'income') {
+      const receipt_no = (await fetchLedgerDocNumber("receipt")) || `RCPT-LDG-${row.entry_id}`;
       printReceipt({
         hostel: hostelInfo,
         student: { student_name: row.description?.split(' - ')[0] || 'Received From', student_id: row.student_id || '-' },
-        receipt_no: `RCPT-LDG-${row.entry_id}`,
+        receipt_no,
         payment_date: row.entry_date,
         amount_received: row.amount,
         payment_mode: (row.payment_mode || 'CASH').toUpperCase(),
@@ -96,7 +107,8 @@ const Ledger = () => {
         notes: row.description
       });
     } else {
-      printBill({ hostel: hostelInfo, entry: row });
+      const bill_no = (await fetchLedgerDocNumber("bill")) || `BILL-LDG-${row.entry_id}`;
+      printBill({ hostel: hostelInfo, entry: { ...row, entry_id: bill_no } });
     }
   };
 
@@ -743,10 +755,13 @@ const Ledger = () => {
           </button>
           <button
             className="btn btn-primary"
-            onClick={() => setShowManualModal(true)}
+            onClick={() => {
+              setManualEntry({ ...getInitialManualEntry(), entry_type: 'expense' });
+              setShowManualModal(true);
+            }}
           >
             <Plus size={18} />
-            <span>Add Entry</span>
+            <span>Add Expense</span>
           </button>
         </div>
       </div>
@@ -1253,8 +1268,8 @@ const Ledger = () => {
                   <Plus size={20} />
                 </div>
                 <div>
-                  <h3>Add Manual Entry</h3>
-                  <p>Record a new transaction</p>
+                  <h3>{manualEntry.entry_type === 'income' ? 'Add Income Entry' : 'Add Expense (Bill)'}</h3>
+                  <p>{manualEntry.entry_type === 'income' ? 'Record income received' : 'Enter expense as if writing a shop bill'}</p>
                 </div>
               </div>
               <button
@@ -1267,26 +1282,34 @@ const Ledger = () => {
             </div>
 
             <div className="modal-body">
-              {/* Entry Type Selection */}
-              <div className="entry-type-selector">
-                <button
-                  className={`type-option ${manualEntry.entry_type === 'expense' ? 'active expense' : ''}`}
-                  onClick={() => setManualEntry({ ...manualEntry, entry_type: 'expense' })}
-                  disabled={modalLoading}
-                >
-                  <TrendingDown size={20} />
-                  <span>Expense</span>
-                  <small>Debit Entry</small>
-                </button>
-                <button
-                  className={`type-option ${manualEntry.entry_type === 'income' ? 'active income' : ''}`}
-                  onClick={() => setManualEntry({ ...manualEntry, entry_type: 'income' })}
-                  disabled={modalLoading}
-                >
-                  <TrendingUp size={20} />
-                  <span>Income</span>
-                  <small>Credit Entry</small>
-                </button>
+              {/* Bill-style summary card */}
+              <div style={{
+                background: 'linear-gradient(135deg, #fef3c7, #fef9c3)',
+                border: '2px dashed #d97706',
+                borderRadius: 12,
+                padding: '14px 16px',
+                marginBottom: 16,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#92400e', fontWeight: 700 }}>
+                    Bill / Voucher
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: '#78350f' }}>
+                    {manualEntry.description || 'New Expense'}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#92400e' }}>
+                    {manualEntry.entry_date || 'Today'} · {manualEntry.category || 'Uncategorised'}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 11, color: '#92400e' }}>Amount</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: '#78350f' }}>
+                    ₹ {Number(manualEntry.amount || 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
               </div>
 
               <div className="form-row">
