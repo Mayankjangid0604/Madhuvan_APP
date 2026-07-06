@@ -1337,6 +1337,36 @@ function runMigrations() {
     console.warn('doc_counters table creation skipped:', e.message);
   }
 
+  // Branches (multi-branch support)
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS branches (
+        branch_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        branch_name TEXT NOT NULL,
+        branch_code TEXT,
+        address TEXT,
+        phone TEXT,
+        email TEXT,
+        gstin TEXT,
+        is_default INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    // Seed the default branch if empty
+    const cnt = db.prepare('SELECT COUNT(*) as c FROM branches').get().c;
+    if (cnt === 0) {
+      db.prepare(`
+        INSERT INTO branches (branch_name, branch_code, is_default, is_active)
+        VALUES ('Main Branch', 'MAIN', 1, 1)
+      `).run();
+    }
+  } catch (e) {
+    console.warn('branches table setup skipped:', e.message);
+  }
+  safeAddColumn('students', 'branch_id', 'INTEGER');
+  safeAddColumn('ledger_entries', 'branch_id', 'INTEGER');
+
   // 2. STUDENT_FEES Table Critical Columns
   safeAddColumn('student_fees', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
   safeAddColumn('student_fees', 'discount_amount', 'REAL DEFAULT 0');

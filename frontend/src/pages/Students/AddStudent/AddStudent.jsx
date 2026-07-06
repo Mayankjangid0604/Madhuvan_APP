@@ -1943,6 +1943,35 @@ const AddStudent = () => {
                     <span>₹ {(getApplicableFeeAmount() + Number(feeData.security_deposit || 0)).toLocaleString('en-IN')}</span>
                   </div>
 
+                  {/* Fee split into Accommodation + Mess (₹5000/mo) */}
+                  {(() => {
+                    const cycle = feeData.fee_type_cycle;
+                    const months = cycle === "half_yearly" ? 6 : cycle === "yearly" ? 12 : 1;
+                    const messTotal = 5000 * months;
+                    const total = getApplicableFeeAmount();
+                    const accommodation = Math.max(0, total - messTotal);
+                    const messShown = Math.min(total, messTotal);
+                    return (
+                      <div style={{
+                        marginTop: 8, padding: 10,
+                        border: "1px dashed #94a3b8", borderRadius: 8,
+                        background: "rgba(255,255,255,0.03)"
+                      }}>
+                        <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6, letterSpacing: 0.5 }}>
+                          AUTO-SPLIT (₹5,000 per month reserved for mess)
+                        </div>
+                        <div className="fee-row">
+                          <span>Accommodation Fee</span>
+                          <span>₹ {accommodation.toLocaleString('en-IN')}</span>
+                        </div>
+                        <div className="fee-row">
+                          <span>Mess Fee ({months} × ₹5,000)</span>
+                          <span>₹ {messShown.toLocaleString('en-IN')}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Fee Schedule Info */}
                   <div className="fee-schedule-info">
                     <div className="schedule-item">

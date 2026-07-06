@@ -544,7 +544,7 @@ const ReceiveFee = () => {
                   <button
                     className="pay-btn pay-btn-all"
                     style={{ width: '100%', background: 'linear-gradient(135deg, #1e40af, #2563eb)', color: '#fff', border: 'none', borderRadius: '10px', padding: '12px 16px', fontWeight: 700, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-                    onClick={(e) => { e.stopPropagation(); navigate(`/fees/${student.student_id}`); }}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/fees/student/${student.student_id}`); }}
                   >
                     <Receipt size={16} />
                     <span>View Fee History</span>

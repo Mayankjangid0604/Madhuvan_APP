@@ -8,19 +8,50 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // ✅ Check auth function
+  // ✅ Check auth function with 24h Remember-Me grace period
   const checkAuth = useCallback(() => {
     const token = localStorage.getItem('token');
     const email = localStorage.getItem('adminEmail');
     const isAuth = localStorage.getItem('isAuthenticated') === 'true';
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+    const lastActiveAt = Number(localStorage.getItem('lastActiveAt') || 0);
+    const now = Date.now();
+    const idleMs = now - lastActiveAt;
+    const IDLE_GRACE = 24 * 60 * 60 * 1000; // 24 hours
 
     if (token && isAuth && email) {
-      setUser({ email, token });
+      // If remember-me is on and we're within the grace window, restore session.
+      // If remember-me is on but idle > 24h, require re-login.
+      // If remember-me is off, session persists for the browser session anyway.
+      if (rememberMe && idleMs > IDLE_GRACE) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('isAuthenticated');
+        setUser(null);
+      } else {
+        setUser({ email, token });
+        localStorage.setItem('lastActiveAt', String(now));
+      }
     } else {
       setUser(null);
     }
     setLoading(false);
   }, []);
+
+  // Refresh lastActiveAt as the user interacts with the app.
+  useEffect(() => {
+    if (!user) return;
+    const bump = () => localStorage.setItem('lastActiveAt', String(Date.now()));
+    window.addEventListener('mousemove', bump, { passive: true });
+    window.addEventListener('keydown', bump, { passive: true });
+    window.addEventListener('click', bump, { passive: true });
+    const interval = setInterval(bump, 60_000);
+    return () => {
+      window.removeEventListener('mousemove', bump);
+      window.removeEventListener('keydown', bump);
+      window.removeEventListener('click', bump);
+      clearInterval(interval);
+    };
+  }, [user]);
 
   useEffect(() => {
     checkAuth();
@@ -41,10 +72,12 @@ export const AuthProvider = ({ children }) => {
   }, [checkAuth]);
 
   // ✅ Login function
-  const login = useCallback((token, email) => {
+  const login = useCallback((token, email, rememberMe = false) => {
     localStorage.setItem('token', token);
     localStorage.setItem('adminEmail', email);
     localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
+    localStorage.setItem('lastActiveAt', String(Date.now()));
     setUser({ email, token });
     navigate('/');
   }, [navigate]);

@@ -120,6 +120,66 @@ Thank you,
 {hostel_name}`
   });
 
+  const [invoiceEmailTemplate, setInvoiceEmailTemplate] = useState({
+    subject: "Invoice #{invoice_number} - {student_name}",
+    body: `Dear {father_name},
+
+Please find attached the invoice for {student_name} for the period {period}.
+
+Amount Payable: ₹{fee_amount}
+Due Date: {due_date}
+
+Kindly make the payment on or before the due date.
+
+Regards,
+{hostel_name}`
+  });
+
+  const [receiptEmailTemplate, setReceiptEmailTemplate] = useState({
+    subject: "Payment Receipt #{receipt_number} - {student_name}",
+    body: `Dear {father_name},
+
+We have received your payment of ₹{amount_paid} for {student_name}.
+
+Receipt No: {receipt_number}
+Payment Date: {payment_date}
+For Period: {period}
+
+Please retain this receipt for your records.
+
+Thank you,
+{hostel_name}`
+  });
+
+  const [showInvoiceEmailModal, setShowInvoiceEmailModal] = useState(false);
+  const [showReceiptEmailModal, setShowReceiptEmailModal] = useState(false);
+  const [showBranchesModal, setShowBranchesModal] = useState(false);
+  const [branches, setBranches] = useState([]);
+  const [branchForm, setBranchForm] = useState({ branch_name: "", branch_code: "", address: "", phone: "", email: "", gstin: "" });
+
+  const loadBranches = async () => {
+    try {
+      const r = await axios.get(`${API_URL}/branches`, { headers: getAuthHeaders() });
+      setBranches(r.data?.data || []);
+    } catch (err) { console.log("branches load skipped:", err.message); }
+  };
+  const handleAddBranch = async () => {
+    if (!branchForm.branch_name.trim()) return showError("Branch name is required");
+    try {
+      await axios.post(`${API_URL}/branches`, branchForm, { headers: getAuthHeaders() });
+      showSuccess("✓ Branch added");
+      setBranchForm({ branch_name: "", branch_code: "", address: "", phone: "", email: "", gstin: "" });
+      loadBranches();
+    } catch (err) { showError(err.response?.data?.message || err.message); }
+  };
+  const handleDeleteBranch = async (id) => {
+    if (!window.confirm("Deactivate this branch?")) return;
+    try {
+      await axios.delete(`${API_URL}/branches/${id}`, { headers: getAuthHeaders() });
+      loadBranches();
+    } catch (err) { showError(err.response?.data?.message || err.message); }
+  };
+
   const [emailConfig, setEmailConfig] = useState({
     enabled: false,
     service: "gmail",
@@ -273,9 +333,49 @@ Thank you,
         if (response.data.data.sms) {
           setSmsTemplate(prev => ({ ...prev, ...response.data.data.sms }));
         }
+        if (response.data.data.invoice_email) {
+          setInvoiceEmailTemplate(prev => ({ ...prev, ...response.data.data.invoice_email }));
+        }
+        if (response.data.data.receipt_email) {
+          setReceiptEmailTemplate(prev => ({ ...prev, ...response.data.data.receipt_email }));
+        }
       }
     } catch (error) {
       console.log('Templates not loaded:', error.message);
+    }
+  };
+
+  const handleSaveInvoiceEmailTemplate = async () => {
+    setLoading(true);
+    try {
+      await axios.post(
+        `${API_URL}/settings/templates/invoice-email`,
+        invoiceEmailTemplate,
+        { headers: getAuthHeaders() }
+      );
+      showSuccess("✓ Invoice email template saved!");
+      setShowInvoiceEmailModal(false);
+    } catch (err) {
+      showError("Save failed: " + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveReceiptEmailTemplate = async () => {
+    setLoading(true);
+    try {
+      await axios.post(
+        `${API_URL}/settings/templates/receipt-email`,
+        receiptEmailTemplate,
+        { headers: getAuthHeaders() }
+      );
+      showSuccess("✓ Receipt email template saved!");
+      setShowReceiptEmailModal(false);
+    } catch (err) {
+      showError("Save failed: " + (err.response?.data?.message || err.message));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1110,10 +1210,18 @@ Thank you,
             </Button>
             <Button onClick={() => setShowEmailTemplateModal(true)} variant="outline" size="sm">
               <Edit size={14} />
-              Template
+              Reminder
+            </Button>
+            <Button onClick={() => setShowInvoiceEmailModal(true)} variant="outline" size="sm">
+              <Edit size={14} />
+              Invoice
+            </Button>
+            <Button onClick={() => setShowReceiptEmailModal(true)} variant="outline" size="sm">
+              <Edit size={14} />
+              Receipt
             </Button>
           </div>
-          <small className="help-text">💡 Automatic reminders sent daily at 9 AM</small>
+          <small className="help-text">💡 Templates: Fee Reminder · Invoice Email · Receipt Email</small>
         </Card>
 
         {/* SMS Notifications */}
@@ -1150,6 +1258,21 @@ Thank you,
               Template
             </Button>
           </div>
+        </Card>
+
+        {/* Branches */}
+        <Card>
+          <div className="card-icon" style={{ backgroundColor: '#0ea5e915' }}>
+            <Building2 size={24} color="#0ea5e9" />
+          </div>
+          <h3>Branches</h3>
+          <p>Manage multiple hostel branches</p>
+          <div className="button-group">
+            <Button onClick={() => { loadBranches(); setShowBranchesModal(true); }} variant="outline">
+              <Building2 size={16} /> Manage Branches
+            </Button>
+          </div>
+          <small className="help-text">💡 Add multiple locations; students & ledger can be filtered per branch</small>
         </Card>
 
         {/* Theme */}
@@ -1733,6 +1856,204 @@ Thank you,
                 Cancel
               </Button>
               <Button variant="success" onClick={handleSaveEmailTemplate} loading={loading} disabled={loading}>
+                <Save size={16} /> Save Template
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice Email Template Modal */}
+      {showInvoiceEmailModal && (
+        <div className="modal-overlay" onClick={() => setShowInvoiceEmailModal(false)}>
+          <div className="modal-content template-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><Mail size={20} /> Edit Invoice Email Template</h3>
+              <button className="close-btn" onClick={() => setShowInvoiceEmailModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="template-info">
+                <strong>Available Variables:</strong>
+                <div className="variables-list">
+                  <span className="variable">{'{student_name}'}</span>
+                  <span className="variable">{'{father_name}'}</span>
+                  <span className="variable">{'{invoice_number}'}</span>
+                  <span className="variable">{'{fee_amount}'}</span>
+                  <span className="variable">{'{due_date}'}</span>
+                  <span className="variable">{'{period}'}</span>
+                  <span className="variable">{'{hostel_name}'}</span>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Subject *</label>
+                <input
+                  type="text"
+                  value={invoiceEmailTemplate.subject}
+                  onChange={(e) => setInvoiceEmailTemplate({ ...invoiceEmailTemplate, subject: e.target.value })}
+                  className="form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Message Body *</label>
+                <textarea
+                  value={invoiceEmailTemplate.body}
+                  onChange={(e) => setInvoiceEmailTemplate({ ...invoiceEmailTemplate, body: e.target.value })}
+                  className="form-textarea"
+                  rows={12}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <Button variant="secondary" onClick={() => setShowInvoiceEmailModal(false)}>Cancel</Button>
+              <Button variant="success" onClick={handleSaveInvoiceEmailTemplate} loading={loading} disabled={loading}>
+                <Save size={16} /> Save Template
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Branches Modal */}
+      {showBranchesModal && (
+        <div className="modal-overlay" onClick={() => setShowBranchesModal(false)}>
+          <div className="modal-content config-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 700 }}>
+            <div className="modal-header">
+              <h3><Building2 size={20} /> Branches</h3>
+              <button className="close-btn" onClick={() => setShowBranchesModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Branch Name *</label>
+                  <input className="form-input" value={branchForm.branch_name}
+                    onChange={e => setBranchForm({ ...branchForm, branch_name: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Code</label>
+                  <input className="form-input" value={branchForm.branch_code}
+                    onChange={e => setBranchForm({ ...branchForm, branch_code: e.target.value })} />
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Phone</label>
+                  <input className="form-input" value={branchForm.phone}
+                    onChange={e => setBranchForm({ ...branchForm, phone: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Email</label>
+                  <input className="form-input" value={branchForm.email}
+                    onChange={e => setBranchForm({ ...branchForm, email: e.target.value })} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Address</label>
+                <input className="form-input" value={branchForm.address}
+                  onChange={e => setBranchForm({ ...branchForm, address: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label>GSTIN</label>
+                <input className="form-input" value={branchForm.gstin}
+                  onChange={e => setBranchForm({ ...branchForm, gstin: e.target.value.toUpperCase() })} />
+              </div>
+              <Button variant="primary" onClick={handleAddBranch}>
+                <Plus size={14} /> Add Branch
+              </Button>
+
+              <hr style={{ margin: '20px 0' }} />
+              <h4 style={{ marginBottom: 10 }}>Existing Branches</h4>
+              {branches.length === 0 ? (
+                <p style={{ color: '#64748b' }}>No branches configured.</p>
+              ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
+                      <th style={{ textAlign: 'left', padding: 8 }}>Name</th>
+                      <th style={{ textAlign: 'left', padding: 8 }}>Code</th>
+                      <th style={{ textAlign: 'left', padding: 8 }}>Phone</th>
+                      <th style={{ textAlign: 'left', padding: 8 }}>GSTIN</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {branches.map(b => (
+                      <tr key={b.branch_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: 8, fontWeight: 600 }}>{b.branch_name}{b.is_default ? ' (default)' : ''}</td>
+                        <td style={{ padding: 8 }}>{b.branch_code || '-'}</td>
+                        <td style={{ padding: 8 }}>{b.phone || '-'}</td>
+                        <td style={{ padding: 8 }}>{b.gstin || '-'}</td>
+                        <td style={{ padding: 8 }}>
+                          {!b.is_default && (
+                            <button
+                              onClick={() => handleDeleteBranch(b.branch_id)}
+                              style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer' }}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <div className="modal-footer">
+              <Button variant="secondary" onClick={() => setShowBranchesModal(false)}>Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Email Template Modal */}
+      {showReceiptEmailModal && (
+        <div className="modal-overlay" onClick={() => setShowReceiptEmailModal(false)}>
+          <div className="modal-content template-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><Mail size={20} /> Edit Receipt Email Template</h3>
+              <button className="close-btn" onClick={() => setShowReceiptEmailModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="template-info">
+                <strong>Available Variables:</strong>
+                <div className="variables-list">
+                  <span className="variable">{'{student_name}'}</span>
+                  <span className="variable">{'{father_name}'}</span>
+                  <span className="variable">{'{receipt_number}'}</span>
+                  <span className="variable">{'{amount_paid}'}</span>
+                  <span className="variable">{'{payment_date}'}</span>
+                  <span className="variable">{'{period}'}</span>
+                  <span className="variable">{'{hostel_name}'}</span>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Subject *</label>
+                <input
+                  type="text"
+                  value={receiptEmailTemplate.subject}
+                  onChange={(e) => setReceiptEmailTemplate({ ...receiptEmailTemplate, subject: e.target.value })}
+                  className="form-input"
+                />
+              </div>
+              <div className="form-group">
+                <label>Message Body *</label>
+                <textarea
+                  value={receiptEmailTemplate.body}
+                  onChange={(e) => setReceiptEmailTemplate({ ...receiptEmailTemplate, body: e.target.value })}
+                  className="form-textarea"
+                  rows={12}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <Button variant="secondary" onClick={() => setShowReceiptEmailModal(false)}>Cancel</Button>
+              <Button variant="success" onClick={handleSaveReceiptEmailTemplate} loading={loading} disabled={loading}>
                 <Save size={16} /> Save Template
               </Button>
             </div>

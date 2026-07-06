@@ -667,4 +667,16 @@ exports.applyWaiver = asyncHandler(async (req, res) => {
   }
 });
 
+// EARLY EXIT INVOICE PREVIEW
+exports.getEarlyExitInvoice = asyncHandler(async (req, res) => {
+  try {
+    const studentId = Number(req.params.studentId);
+    const { exit_date } = req.query;
+    const data = studentFeeDetailsService.computeEarlyExitInvoice({ studentId, exit_date });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = exports;

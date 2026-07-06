@@ -108,12 +108,14 @@ Thank you,
     const sms = await getSetting("sms_template", {
       message: "Dear {mother_name}, Fee of Rs.{fee_amount} for {student_name} is due on {due_date}. Please pay soon. - {hostel_name}"
     });
-    return { email, sms };
+    const invoice_email = await getSetting("invoice_email_template", null);
+    const receipt_email = await getSetting("receipt_email_template", null);
+    return { email, sms, invoice_email, receipt_email };
   });
 
 exports.saveEmailTemplate = (data) => setSetting("email_template", data);
-
 exports.saveSmsTemplate = (data) => setSetting("sms_template", data);
+exports.saveTemplate = (kind, data) => setSetting(`${kind}_template`, data);
 
 // =========================
 // Email Config

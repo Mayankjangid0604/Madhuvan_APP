@@ -131,6 +131,20 @@ exports.saveSmsTemplate = async (req, res, next) => {
   }
 };
 
+exports.saveInvoiceEmailTemplate = async (req, res, next) => {
+  try {
+    await settingsService.saveTemplate("invoice_email", req.body);
+    res.json({ success: true, message: "Invoice email template saved" });
+  } catch (error) { next(error); }
+};
+
+exports.saveReceiptEmailTemplate = async (req, res, next) => {
+  try {
+    await settingsService.saveTemplate("receipt_email", req.body);
+    res.json({ success: true, message: "Receipt email template saved" });
+  } catch (error) { next(error); }
+};
+
 /**
  * GET EMAIL CONFIG
  */

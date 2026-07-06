@@ -13,7 +13,7 @@ import FeeInvoiceModal from "../../components/fees/FeeInvoiceModal";
 import {
   printInvoice,
   printReceipt,
-  printAllInvoicesForFee
+  printInvoiceForFee
 } from "../../utils/feeDocuments";
 import "./FeeDetails.css";
 
@@ -45,16 +45,28 @@ const FeeDetails = () => {
     } catch { return null; }
   };
 
+  const feeSplitForFee = (fee) => {
+    const cycle = (data?.student?.fee_type_cycle || "monthly").toLowerCase();
+    const months = cycle === "half_yearly" ? 6 : cycle === "yearly" ? 12 : 1;
+    const messTotal = 5000 * months;
+    const total = Number(fee.final_amount || fee.fee_amount || 0);
+    const type = String(fee.fee_type || "").toLowerCase();
+    if (type.includes("mess")) return { accommodation: 0, mess: total };
+    if (type.includes("security")) return { accommodation: total, mess: 0 };
+    return {
+      accommodation: Math.max(0, total - messTotal),
+      mess: Math.min(total, messTotal),
+    };
+  };
+
   const handlePrintInvoice = async (fee) => {
     if (!data?.student) return;
-    const isOnline = data.student.payment_mode === 'online';
     const invoice_no = (await fetchDocNumber("invoice")) || `INV-${data.student.student_id}-${fee.fee_id}`;
-    printAllInvoicesForFee({
+    printInvoiceForFee({
       hostel: hostelInfo,
       student: data.student,
       fee,
-      is_online_payment: isOnline,
-      apply_accommodation_gst: false, // recurring invoices don't tax accommodation
+      apply_accommodation_gst: false,
       invoice_no
     });
   };
@@ -62,17 +74,20 @@ const FeeDetails = () => {
   const handlePrintReceipt = async (fee, payment) => {
     if (!data?.student) return;
     const receipt_no = (await fetchDocNumber("receipt")) || `RCPT-${data.student.student_id}-${payment?.payment_id || fee.fee_id}`;
+    const split = feeSplitForFee(fee);
     printReceipt({
       hostel: hostelInfo,
       student: data.student,
       receipt_no,
       payment_date: payment?.payment_date || fee.payment_date || new Date(),
-      amount_received: payment?.payment_amount || fee.paid_amount,
+      accommodation_amount: split.accommodation,
+      mess_amount: split.mess,
+      apply_accommodation_gst: false,
       payment_mode: (payment?.payment_mode || fee.payment_mode || 'CASH').toUpperCase(),
       reference_no: payment?.reference_no || fee.reference_no,
       for_period_start: fee.fee_period_start || fee.fee_month,
       for_period_end: fee.fee_period_end,
-      notes: fee.fee_type ? `Payment towards ${fee.fee_type}` : ""
+      received_by: payment?.received_by || 'ADMIN',
     });
   };
 
@@ -565,7 +580,7 @@ const FeeDetails = () => {
                               )}
                             </div>
 
-                            {/* Invoice / Receipt / Waiver actions */}
+                            {/* Invoice / Receipt actions */}
                             <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
                               {fee.fee_status !== 'PAID' && Number(fee.remaining || fee.final_amount) > 0 && (
                                 <button
@@ -573,7 +588,7 @@ const FeeDetails = () => {
                                   onClick={(e) => { e.stopPropagation(); handlePrintInvoice(fee); }}
                                   style={{ background: '#1e40af', color: '#fff' }}
                                 >
-                                  <Printer size={14} /> Print Invoice
+                                  <Printer size={14} /> Receive Invoice
                                 </button>
                               )}
                               {Number(fee.paid_amount || 0) > 0 && (
@@ -587,39 +602,6 @@ const FeeDetails = () => {
                                   style={{ background: '#059669', color: '#fff' }}
                                 >
                                   <Receipt size={14} /> Print Receipt
-                                </button>
-                              )}
-                              {fee.fee_status !== 'PAID'
-                                && Number(fee.remaining || fee.final_amount) > 0
-                                && /rent|monthly|half|yearly|accommodation|hostel/i.test(fee.fee_type || "") && (
-                                <button
-                                  className="fd-view-invoice-btn"
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    const remaining = Number(fee.remaining || fee.final_amount);
-                                    const inputAmt = window.prompt(
-                                      `Enter waiver amount for accommodation (max ₹${remaining}):`,
-                                      String(remaining)
-                                    );
-                                    if (inputAmt === null) return;
-                                    const amt = Number(inputAmt);
-                                    if (!(amt > 0)) { alert("Enter a valid amount greater than 0"); return; }
-                                    const reason = window.prompt("Reason for waiver:", "Concession") || "Concession";
-                                    try {
-                                      const res = await feeAPI.applyWaiver({ fee_id: fee.fee_id, amount: amt, reason });
-                                      if (res.data?.success) {
-                                        alert(`Waiver of ₹${amt} applied successfully.`);
-                                        await loadData();
-                                      } else {
-                                        alert(res.data?.message || "Waiver could not be applied");
-                                      }
-                                    } catch (err) {
-                                      alert(err.response?.data?.message || err.message || "Failed to apply waiver");
-                                    }
-                                  }}
-                                  style={{ background: '#7c3aed', color: '#fff' }}
-                                >
-                                  <IndianRupee size={14} /> Grant Waiver
                                 </button>
                               )}
                             </div>

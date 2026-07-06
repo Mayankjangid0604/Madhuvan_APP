@@ -293,5 +293,6 @@ router.get("/:id", feeController.getFeeById);
  */
 router.post("/", feeController.createFee);
 router.post("/apply-waiver", feeController.applyWaiver);
+router.get("/student/:studentId/early-exit", feeController.getEarlyExitInvoice);
 
 module.exports = router;

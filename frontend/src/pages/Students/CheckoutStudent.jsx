@@ -13,6 +13,9 @@ import {
 } from "lucide-react";
 import { roomAPI } from "../../services/api/room.api";
 import { fineAPI } from "../../services/api/fine.api";
+import { feeAPI } from "../../services/api/fee.api";
+import { settingsAPI } from "../../services/api/settings.api";
+import { printInvoice } from "../../utils/feeDocuments";
 import Button from "../../components/buttons/Button";
 import ConfirmModal from "../../components/modals/ConfirmModal";
 import DateInput from "../../components/common/DateInput";
@@ -376,6 +379,47 @@ const CheckoutStudent = ({ student, onClose, onSuccess }) => {
           <div className="checkout-actions">
             <Button variant="secondary" onClick={onClose} disabled={loading}>
               Cancel
+            </Button>
+            <Button
+              variant="primary"
+              type="button"
+              disabled={loading}
+              onClick={async () => {
+                try {
+                  const [previewRes, hostelRes] = await Promise.all([
+                    feeAPI.getEarlyExitInvoice(student.student_id, formData.checkout_date),
+                    settingsAPI.getHostelInfo().catch(() => ({ data: { data: {} } })),
+                  ]);
+                  const preview = previewRes.data?.data;
+                  const hostel = hostelRes.data?.data || {};
+                  if (!preview) {
+                    alert("Could not compute exit invoice.");
+                    return;
+                  }
+                  if (!preview.applies) {
+                    const ok = window.confirm(
+                      `Student has stayed ${preview.days_stayed} days (>= 90). No accommodation GST will apply. Print anyway?`
+                    );
+                    if (!ok) return;
+                  }
+                  printInvoice({
+                    hostel,
+                    student,
+                    invoice_no: `INV-EXIT-${student.student_id}`,
+                    invoice_date: formData.checkout_date,
+                    due_date: formData.checkout_date,
+                    period_start: student.date_of_joining,
+                    period_end: formData.checkout_date,
+                    accommodation_amount: preview.total_accommodation,
+                    mess_amount: preview.mess_remaining,
+                    apply_accommodation_gst: preview.applies,
+                  });
+                } catch (err) {
+                  alert(err.response?.data?.message || "Failed to generate exit invoice");
+                }
+              }}
+            >
+              🧾 Preview / Print Exit Invoice
             </Button>
             <Button variant="danger" type="submit" disabled={loading}>
               <LogOut size={16} />

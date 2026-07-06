@@ -1,26 +1,30 @@
-// Utilities for building fee-related printable documents:
-//  - Invoice   (for pending fees; split for online-payment students; capped at ₹60,000/invoice)
-//  - Receipt   (issued only after a fee is paid)
-//  - Bill      (for expense entries in the ledger)
-//  - Voucher   (for expense/salary payments)
-//
-// All amounts are in ₹.
+// Printable documents for the Madhuvan Hostels workflow.
+// Layouts match the reference PDFs shared by the user:
+//   Invoice — one page; blue theme; logos left+right; GSTIN pill; QR SCAN & PAY
+//   Receipt — Admin Copy + Student Copy on one page separated by cut line; when
+//             printing, we ask which copy the user wants
+//   Bill    — vendor block, itemised table, totals, payment details
 import { printElement } from "./printUtil";
 
+// -----------------------------------------------------------------------------
+// SHARED HELPERS
+// -----------------------------------------------------------------------------
 const fmtINR = (amount) =>
-  new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(
-    Math.round(Number(amount || 0) * 100) / 100
-  );
+  new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 })
+    .format(Math.round(Number(amount || 0) * 100) / 100);
 
 const fmtDate = (d) => {
   if (!d) return "";
   const date = new Date(d);
   if (isNaN(date.getTime())) return String(d);
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+};
+
+const fmtMonth = (d) => {
+  if (!d) return "";
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return String(d);
+  return date.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
 };
 
 const escapeHtml = (str) =>
@@ -28,439 +32,6 @@ const escapeHtml = (str) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
   );
 
-/**
- * One invoice per fee — no splitting for half-yearly / yearly cycles.
- * Kept as a helper (single-element array) so existing callers stay simple.
- */
-export const splitInvoicesForFee = ({ total_amount, fee_type_cycle, period_start }) => {
-  const total = Number(total_amount) || 0;
-  const cycle = (fee_type_cycle || "monthly").toLowerCase();
-  const months = cycle === "half_yearly" ? 6 : cycle === "yearly" ? 12 : 1;
-
-  const start = period_start ? new Date(period_start) : new Date();
-  const invStart = new Date(start.getFullYear(), start.getMonth(), 1);
-  const invEnd = new Date(start.getFullYear(), start.getMonth() + months, 0);
-
-  return [
-    {
-      index: 1,
-      total: 1,
-      amount: Math.round(total * 100) / 100,
-      period_start: invStart.toISOString().split("T")[0],
-      period_end: invEnd.toISOString().split("T")[0],
-    },
-  ];
-};
-
-/**
- * gstSplitFromOnlineInvoice(invoice_amount, opts)
- * GST rules (only for ONLINE payments):
- *   - Mess portion: ₹5,000 base + 2.5% CGST + 2.5% SGST (always taxed for online).
- *   - Accommodation portion: remainder. GST only applies if the student is
- *     exiting/checking-out before completing 90 days at the hostel. Otherwise
- *     accommodation is GST-exempt.
- * opts:
- *   - apply_accommodation_gst: boolean (default false)
- *     Set to true only when generating the final invoice for an early-exit
- *     (stay < 90 days).
- */
-export const gstSplitFromOnlineInvoice = (invoice_amount, opts = {}) => {
-  const total = Number(invoice_amount) || 0;
-  const applyAccomGst = !!opts.apply_accommodation_gst;
-
-  const messBase = 5000;
-  const messCgst = messBase * 0.025;
-  const messSgst = messBase * 0.025;
-  const messTotal = messBase + messCgst + messSgst; // 5250
-
-  // If total ≤ mess portion, treat whole thing as mess-only (rare).
-  if (total <= messTotal) {
-    const t = total / 1.05;
-    return {
-      accommodation: { base: 0, cgst: 0, sgst: 0, total: 0 },
-      mess: {
-        base: Math.round(t * 100) / 100,
-        cgst: Math.round(t * 0.025 * 100) / 100,
-        sgst: Math.round(t * 0.025 * 100) / 100,
-        total,
-      },
-      grand_total: total,
-    };
-  }
-
-  const accomTotal = total - messTotal;
-  let accomBase = accomTotal;
-  let accomCgst = 0;
-  let accomSgst = 0;
-
-  if (applyAccomGst) {
-    // Accommodation GST-inclusive back-calc when applied.
-    accomBase = accomTotal / 1.05;
-    accomCgst = accomBase * 0.025;
-    accomSgst = accomBase * 0.025;
-  }
-
-  return {
-    accommodation: {
-      base: Math.round(accomBase * 100) / 100,
-      cgst: Math.round(accomCgst * 100) / 100,
-      sgst: Math.round(accomSgst * 100) / 100,
-      total: Math.round(accomTotal * 100) / 100,
-    },
-    mess: {
-      base: messBase,
-      cgst: Math.round(messCgst * 100) / 100,
-      sgst: Math.round(messSgst * 100) / 100,
-      total: messTotal,
-    },
-    grand_total: total,
-  };
-};
-
-// ============================================
-// SHARED STYLES
-// ============================================
-const baseStyles = `
-  @page { size: A4; margin: 15mm; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; font-size: 12px; }
-  .doc-wrap { max-width: 800px; margin: 0 auto; padding: 20px; border: 1px solid #cbd5e1; }
-  .doc-header { display: flex; justify-content: space-between; align-items: start; border-bottom: 3px solid #1e40af; padding-bottom: 12px; margin-bottom: 16px; }
-  .doc-title { font-size: 22px; color: #1e3a8a; font-weight: 700; }
-  .doc-subtitle { font-size: 12px; color: #64748b; margin-top: 4px; }
-  .doc-meta { text-align: right; font-size: 11px; color: #475569; }
-  .doc-meta strong { color: #1e293b; }
-  .party-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-  .party-box { border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; background: #f8fafc; }
-  .party-box h4 { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .party-box .name { font-weight: 700; font-size: 13px; }
-  .items-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-  .items-table th { background: #1e40af; color: #fff; text-align: left; padding: 8px 10px; font-size: 11px; }
-  .items-table td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
-  .items-table tfoot td { font-weight: 700; background: #f1f5f9; }
-  .text-right { text-align: right; }
-  .totals-box { border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 14px; margin-left: auto; width: 280px; }
-  .totals-box .row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; }
-  .totals-box .row.grand { border-top: 2px solid #1e40af; margin-top: 8px; padding-top: 8px; font-weight: 800; font-size: 14px; color: #1e40af; }
-  .doc-footer { margin-top: 24px; padding-top: 16px; border-top: 1px dashed #cbd5e1; font-size: 11px; color: #64748b; text-align: center; }
-  .sig-row { display: flex; justify-content: space-between; margin-top: 40px; }
-  .sig-box { text-align: center; font-size: 11px; color: #475569; width: 180px; }
-  .sig-line { border-top: 1px solid #1e293b; margin-bottom: 4px; padding-top: 40px; }
-  .badge { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
-  .badge.paid { background: #dcfce7; color: #166534; }
-  .badge.due { background: #fef3c7; color: #92400e; }
-  .badge.split { background: #ede9fe; color: #6d28d9; }
-`;
-
-// ============================================
-// INVOICE (for pending / unpaid fees)
-// ============================================
-export const buildInvoiceHTML = ({
-  hostel = {},
-  student = {},
-  invoice_no,
-  invoice_date,
-  period_start,
-  period_end,
-  amount,
-  fee_type = "Hostel Fee",
-  is_online_payment = false,
-  apply_accommodation_gst = false, // true only when student is exiting < 90 days
-  split_index,
-  split_total,
-}) => {
-  const hostelName = escapeHtml(hostel.hostel_name || "Madhuvan Hostel");
-  const hostelAddr = [hostel.address_line1, hostel.address_line2].filter(Boolean).map(escapeHtml).join(", ");
-  const hostelPhone = escapeHtml(hostel.phone || "");
-  const hostelEmail = escapeHtml(hostel.email || "");
-  const hostelGstin = escapeHtml(hostel.gstin || "");
-
-  const splitBadge = "";
-
-  let itemsRows = "";
-  if (is_online_payment) {
-    const parts = gstSplitFromOnlineInvoice(amount, {
-      apply_accommodation_gst
-    });
-    itemsRows = `
-      <tr>
-        <td>Accommodation Fee<br><small style="color:#64748b">SAC 996311 (GST-inclusive)</small></td>
-        <td class="text-right">${fmtINR(parts.accommodation.base)}</td>
-        <td class="text-right">${fmtINR(parts.accommodation.cgst)}</td>
-        <td class="text-right">${fmtINR(parts.accommodation.sgst)}</td>
-        <td class="text-right">${fmtINR(parts.accommodation.total)}</td>
-      </tr>
-      <tr>
-        <td>Mess / Food Charges<br><small style="color:#64748b">SAC 996333</small></td>
-        <td class="text-right">${fmtINR(parts.mess.base)}</td>
-        <td class="text-right">${fmtINR(parts.mess.cgst)}</td>
-        <td class="text-right">${fmtINR(parts.mess.sgst)}</td>
-        <td class="text-right">${fmtINR(parts.mess.total)}</td>
-      </tr>
-    `;
-    const totalCgst = parts.accommodation.cgst + parts.mess.cgst;
-    const totalSgst = parts.accommodation.sgst + parts.mess.sgst;
-    const totalBase = parts.accommodation.base + parts.mess.base;
-    itemsRows += `
-      <tr style="background:#f1f5f9;font-weight:700">
-        <td>Totals</td>
-        <td class="text-right">${fmtINR(totalBase)}</td>
-        <td class="text-right">${fmtINR(totalCgst)}</td>
-        <td class="text-right">${fmtINR(totalSgst)}</td>
-        <td class="text-right">${fmtINR(parts.grand_total)}</td>
-      </tr>
-    `;
-  } else {
-    itemsRows = `
-      <tr>
-        <td>${escapeHtml(fee_type)}<br><small style="color:#64748b">Period: ${fmtDate(period_start)} – ${fmtDate(period_end)}</small></td>
-        <td class="text-right" colspan="3">—</td>
-        <td class="text-right">${fmtINR(amount)}</td>
-      </tr>
-    `;
-  }
-
-  return `
-    <div class="doc-wrap">
-      <div class="doc-header">
-        <div>
-          <div class="doc-title">${hostelName}</div>
-          <div class="doc-subtitle">${hostelAddr}</div>
-          ${hostelPhone ? `<div class="doc-subtitle">📞 ${hostelPhone}</div>` : ""}
-          ${hostelEmail ? `<div class="doc-subtitle">✉️ ${hostelEmail}</div>` : ""}
-          ${hostelGstin ? `<div class="doc-subtitle">GSTIN: <strong>${hostelGstin}</strong></div>` : ""}
-        </div>
-        <div class="doc-meta">
-          <div style="font-size:16px;font-weight:800;color:#1e40af">TAX INVOICE</div>
-          <div>${splitBadge}</div>
-          <div style="margin-top:6px"><strong>Invoice #:</strong> ${escapeHtml(invoice_no || "")}</div>
-          <div><strong>Date:</strong> ${fmtDate(invoice_date)}</div>
-          <div><strong>Period:</strong> ${fmtDate(period_start)} – ${fmtDate(period_end)}</div>
-          <div><span class="badge due">Payment Pending</span></div>
-        </div>
-      </div>
-
-      <div class="party-grid">
-        <div class="party-box">
-          <h4>Billed To</h4>
-          <div class="name">${escapeHtml(student.student_name || "")}</div>
-          <div>Student ID: <strong>${escapeHtml(student.student_id || "")}</strong></div>
-          ${student.father_name ? `<div>Father: ${escapeHtml(student.father_name)}</div>` : ""}
-          ${student.student_mobile ? `<div>Mobile: ${escapeHtml(student.student_mobile)}</div>` : ""}
-          ${student.class_or_coaching ? `<div>Class: ${escapeHtml(student.class_or_coaching)}</div>` : ""}
-        </div>
-        <div class="party-box">
-          <h4>Payment Mode</h4>
-          <div class="name">${is_online_payment ? "🔷 ONLINE (GST Applicable)" : "💵 CASH"}</div>
-          <div style="margin-top:6px;font-size:11px;color:#64748b">
-            ${is_online_payment
-              ? "This invoice is generated per GST rules for online payments."
-              : "Cash payment invoice — no GST split."}
-          </div>
-        </div>
-      </div>
-
-      <table class="items-table">
-        <thead>
-          <tr>
-            <th>Description</th>
-            <th class="text-right">Taxable Value</th>
-            <th class="text-right">CGST (2.5%)</th>
-            <th class="text-right">SGST (2.5%)</th>
-            <th class="text-right">Amount (₹)</th>
-          </tr>
-        </thead>
-        <tbody>${itemsRows}</tbody>
-      </table>
-
-      <div class="totals-box">
-        <div class="row"><span>Sub Total</span><span>₹ ${fmtINR(amount)}</span></div>
-        <div class="row grand"><span>Grand Total</span><span>₹ ${fmtINR(amount)}</span></div>
-      </div>
-
-      <div class="sig-row">
-        <div class="sig-box"><div class="sig-line"></div>Student / Guardian</div>
-        <div class="sig-box"><div class="sig-line"></div>For ${hostelName}</div>
-      </div>
-
-      <div class="doc-footer">
-        This is an invoice for pending fee. A receipt will be issued after payment.<br/>
-        Generated on ${fmtDate(new Date())}
-      </div>
-    </div>
-  `;
-};
-
-// ============================================
-// RECEIPT (only after payment)
-// ============================================
-export const buildReceiptHTML = ({
-  hostel = {},
-  student = {},
-  receipt_no,
-  payment_date,
-  amount_received,
-  payment_mode = "CASH",
-  reference_no,
-  for_period_start,
-  for_period_end,
-  notes,
-}) => {
-  const hostelName = escapeHtml(hostel.hostel_name || "Madhuvan Hostel");
-  const hostelAddr = [hostel.address_line1, hostel.address_line2].filter(Boolean).map(escapeHtml).join(", ");
-  return `
-    <div class="doc-wrap">
-      <div class="doc-header">
-        <div>
-          <div class="doc-title">${hostelName}</div>
-          <div class="doc-subtitle">${hostelAddr}</div>
-        </div>
-        <div class="doc-meta">
-          <div style="font-size:16px;font-weight:800;color:#059669">PAYMENT RECEIPT</div>
-          <div><span class="badge paid">PAID</span></div>
-          <div style="margin-top:6px"><strong>Receipt #:</strong> ${escapeHtml(receipt_no || "")}</div>
-          <div><strong>Date:</strong> ${fmtDate(payment_date)}</div>
-        </div>
-      </div>
-
-      <div class="party-grid">
-        <div class="party-box">
-          <h4>Received From</h4>
-          <div class="name">${escapeHtml(student.student_name || "")}</div>
-          <div>Student ID: <strong>${escapeHtml(student.student_id || "")}</strong></div>
-          ${student.father_name ? `<div>Father: ${escapeHtml(student.father_name)}</div>` : ""}
-          ${student.student_mobile ? `<div>Mobile: ${escapeHtml(student.student_mobile)}</div>` : ""}
-        </div>
-        <div class="party-box">
-          <h4>Payment Details</h4>
-          <div><strong>Amount:</strong> ₹ ${fmtINR(amount_received)}</div>
-          <div><strong>Mode:</strong> ${escapeHtml(payment_mode)}</div>
-          ${reference_no ? `<div><strong>Reference:</strong> ${escapeHtml(reference_no)}</div>` : ""}
-          ${for_period_start ? `<div><strong>For Period:</strong> ${fmtDate(for_period_start)} – ${fmtDate(for_period_end)}</div>` : ""}
-        </div>
-      </div>
-
-      <div style="border:2px dashed #059669; border-radius:8px; padding:20px; text-align:center; background:#f0fdf4">
-        <div style="font-size:11px; color:#065f46; text-transform:uppercase; letter-spacing:1px">Amount Received (In Words)</div>
-        <div style="margin-top:6px; font-size:14px; font-weight:700; color:#064e3b">
-          Rupees ${amountToWords(amount_received)} only
-        </div>
-      </div>
-
-      ${notes ? `<div style="margin-top:12px; padding:10px; background:#fef9c3; border-radius:6px; font-size:12px">📝 ${escapeHtml(notes)}</div>` : ""}
-
-      <div class="sig-row">
-        <div class="sig-box"><div class="sig-line"></div>Payer</div>
-        <div class="sig-box"><div class="sig-line"></div>For ${hostelName}</div>
-      </div>
-
-      <div class="doc-footer">
-        Thank you for your payment. Please retain this receipt for your records.
-      </div>
-    </div>
-  `;
-};
-
-// ============================================
-// BILL (for expenses in ledger)
-// ============================================
-export const buildBillHTML = ({ hostel = {}, entry }) => {
-  const hostelName = escapeHtml(hostel.hostel_name || "Madhuvan Hostel");
-  const hostelAddr = [hostel.address_line1, hostel.address_line2].filter(Boolean).map(escapeHtml).join(", ");
-  return `
-    <div class="doc-wrap">
-      <div class="doc-header">
-        <div>
-          <div class="doc-title">${hostelName}</div>
-          <div class="doc-subtitle">${hostelAddr}</div>
-        </div>
-        <div class="doc-meta">
-          <div style="font-size:16px;font-weight:800;color:#dc2626">EXPENSE BILL</div>
-          <div><strong>Bill #:</strong> EXP-${escapeHtml(entry.entry_id || "")}</div>
-          <div><strong>Date:</strong> ${fmtDate(entry.entry_date)}</div>
-        </div>
-      </div>
-
-      <table class="items-table">
-        <thead>
-          <tr>
-            <th>Description</th>
-            <th>Category</th>
-            <th>Payment Mode</th>
-            <th class="text-right">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>${escapeHtml(entry.description || "-")}</td>
-            <td>${escapeHtml((entry.category || "-").replace(/_/g, " "))}</td>
-            <td>${escapeHtml(entry.payment_mode || "CASH")}</td>
-            <td class="text-right">₹ ${fmtINR(entry.amount)}</td>
-          </tr>
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="3" class="text-right">Total</td>
-            <td class="text-right">₹ ${fmtINR(entry.amount)}</td>
-          </tr>
-        </tfoot>
-      </table>
-
-      ${entry.reference_no ? `<div style="margin-bottom:10px"><strong>Reference:</strong> ${escapeHtml(entry.reference_no)}</div>` : ""}
-
-      <div class="sig-row">
-        <div class="sig-box"><div class="sig-line"></div>Prepared By</div>
-        <div class="sig-box"><div class="sig-line"></div>Authorized Signatory</div>
-      </div>
-
-      <div class="doc-footer">Generated on ${fmtDate(new Date())}</div>
-    </div>
-  `;
-};
-
-// ============================================
-// VOUCHER (payment voucher for salary / expense payout)
-// ============================================
-export const buildVoucherHTML = ({ hostel = {}, voucher_no, date, payee, amount, purpose, payment_mode = "CASH", reference_no }) => {
-  const hostelName = escapeHtml(hostel.hostel_name || "Madhuvan Hostel");
-  return `
-    <div class="doc-wrap">
-      <div class="doc-header">
-        <div>
-          <div class="doc-title">${hostelName}</div>
-        </div>
-        <div class="doc-meta">
-          <div style="font-size:16px;font-weight:800;color:#7c3aed">PAYMENT VOUCHER</div>
-          <div><strong>Voucher #:</strong> ${escapeHtml(voucher_no || "")}</div>
-          <div><strong>Date:</strong> ${fmtDate(date)}</div>
-        </div>
-      </div>
-
-      <div style="border:1px solid #e2e8f0; border-radius:8px; padding:16px; margin-bottom:16px">
-        <div style="margin-bottom:8px"><strong>Paid To:</strong> ${escapeHtml(payee)}</div>
-        <div style="margin-bottom:8px"><strong>Purpose:</strong> ${escapeHtml(purpose)}</div>
-        <div style="margin-bottom:8px"><strong>Payment Mode:</strong> ${escapeHtml(payment_mode)}</div>
-        ${reference_no ? `<div style="margin-bottom:8px"><strong>Reference:</strong> ${escapeHtml(reference_no)}</div>` : ""}
-        <div style="margin-top:10px; padding:12px; background:#f5f3ff; border-radius:6px; text-align:center">
-          <div style="font-size:11px; color:#6d28d9; text-transform:uppercase">Amount</div>
-          <div style="font-size:20px; font-weight:800; color:#5b21b6">₹ ${fmtINR(amount)}</div>
-          <div style="font-size:12px; color:#6d28d9; margin-top:4px">Rupees ${amountToWords(amount)} only</div>
-        </div>
-      </div>
-
-      <div class="sig-row">
-        <div class="sig-box"><div class="sig-line"></div>Receiver</div>
-        <div class="sig-box"><div class="sig-line"></div>Approved By</div>
-      </div>
-
-      <div class="doc-footer">Generated on ${fmtDate(new Date())}</div>
-    </div>
-  `;
-};
-
-// ============================================
-// Number to words (Indian format, integer part)
-// ============================================
 function amountToWords(num) {
   const n = Math.floor(Number(num) || 0);
   if (n === 0) return "Zero";
@@ -484,55 +55,867 @@ function amountToWords(num) {
   return s.trim();
 }
 
-// Print helpers
+const sessionFromDate = (isoDate) => {
+  const d = isoDate ? new Date(isoDate) : new Date();
+  // Session starts April in Indian academic year
+  const year = d.getFullYear();
+  const month = d.getMonth();
+  if (month >= 3) return `${year}-${String(year + 1).slice(2)}`;
+  return `${year - 1}-${String(year).slice(2)}`;
+};
+
+const backendBase = () => {
+  try {
+    return (import.meta.env.VITE_API_BASE_URL || "").replace(/\/api$/, "");
+  } catch {
+    return "";
+  }
+};
+
+const logoImg = (path, alt) => {
+  if (!path) {
+    // fallback: Madhuvan text badge
+    return `<div class="logo-badge">${escapeHtml(alt || "M")}</div>`;
+  }
+  const url = /^https?:\/\//.test(path) ? path : `${backendBase()}${path}`;
+  return `<img class="logo-badge-img" src="${escapeHtml(url)}" alt="${escapeHtml(alt || "logo")}" />`;
+};
+
+// -----------------------------------------------------------------------------
+// SPLIT (kept as no-op single invoice; user removed the split)
+// -----------------------------------------------------------------------------
+export const splitInvoicesForFee = ({ total_amount, fee_type_cycle, period_start }) => {
+  const total = Number(total_amount) || 0;
+  const cycle = (fee_type_cycle || "monthly").toLowerCase();
+  const months = cycle === "half_yearly" ? 6 : cycle === "yearly" ? 12 : 1;
+  const start = period_start ? new Date(period_start) : new Date();
+  const invStart = new Date(start.getFullYear(), start.getMonth(), 1);
+  const invEnd = new Date(start.getFullYear(), start.getMonth() + months, 0);
+  return [{
+    index: 1, total: 1,
+    amount: Math.round(total * 100) / 100,
+    period_start: invStart.toISOString().split("T")[0],
+    period_end: invEnd.toISOString().split("T")[0],
+  }];
+};
+
+// -----------------------------------------------------------------------------
+// GST SPLIT
+// -----------------------------------------------------------------------------
+// Given (accommodation_amount, mess_amount, num_months), returns GST breakdown.
+//   Regular billing:
+//     Mess portion: CGST 2.5% + SGST 2.5% (exclusive on top of ₹5000 × n)
+//     Accommodation: GST-exempt
+//   Early exit:
+//     Mess portion: CGST 2.5% + SGST 2.5% (unchanged)
+//     Accommodation: CGST 9% + SGST 9% (exclusive; on total accommodation)
+export const gstBreakdown = ({ accommodation_base, mess_base, apply_accommodation_gst = false }) => {
+  const accBase = Number(accommodation_base) || 0;
+  const messBase = Number(mess_base) || 0;
+
+  const messCgst = messBase * 0.025;
+  const messSgst = messBase * 0.025;
+
+  const accCgst = apply_accommodation_gst ? accBase * 0.09 : 0;
+  const accSgst = apply_accommodation_gst ? accBase * 0.09 : 0;
+
+  const subtotal = accBase + messBase;
+  const totalGst = accCgst + accSgst + messCgst + messSgst;
+  const grand = subtotal + totalGst;
+
+  return {
+    accommodation: {
+      base: Math.round(accBase * 100) / 100,
+      cgst: Math.round(accCgst * 100) / 100,
+      sgst: Math.round(accSgst * 100) / 100,
+      total: Math.round((accBase + accCgst + accSgst) * 100) / 100,
+    },
+    mess: {
+      base: Math.round(messBase * 100) / 100,
+      cgst: Math.round(messCgst * 100) / 100,
+      sgst: Math.round(messSgst * 100) / 100,
+      total: Math.round((messBase + messCgst + messSgst) * 100) / 100,
+    },
+    subtotal: Math.round(subtotal * 100) / 100,
+    total_gst: Math.round(totalGst * 100) / 100,
+    grand_total: Math.round(grand * 100) / 100,
+  };
+};
+
+// -----------------------------------------------------------------------------
+// SHARED STYLES (blue theme matching the PDFs)
+// -----------------------------------------------------------------------------
+const baseStyles = `
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
+    color: #1e293b;
+    font-size: 11px;
+    line-height: 1.35;
+    background: #fff;
+  }
+  .page { max-width: 780px; margin: 0 auto; padding: 8px 6px; }
+
+  /* Header with big center title + logos left + right */
+  .doc-brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+  }
+  .logo-badge, .logo-badge-img {
+    width: 80px; height: 80px;
+    border-radius: 10px;
+    background: #1e3a8a;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-weight: 900;
+    font-size: 22px;
+    object-fit: contain;
+  }
+  .doc-brand .brand-center {
+    flex: 1; text-align: center;
+    padding: 0 16px;
+  }
+  .brand-name {
+    font-size: 30px; font-weight: 900;
+    color: #1e3a8a; letter-spacing: 0.5px;
+  }
+  .brand-sub {
+    font-size: 15px; color: #1e293b; margin-top: 2px;
+  }
+  .brand-contact {
+    margin-top: 6px;
+    font-size: 12px; color: #334155;
+  }
+  .brand-contact span { display: inline-block; margin: 0 6px; }
+  .brand-contact .icon { color: #ef4444; margin-right: 4px; }
+
+  .doc-title {
+    text-align: center;
+    font-size: 22px; font-weight: 800;
+    color: #1e3a8a;
+    letter-spacing: 1px;
+    margin: 18px 0 8px;
+  }
+  .paid-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #dcfce7; color: #166534;
+    padding: 4px 12px; border-radius: 999px;
+    font-weight: 800; font-size: 12px;
+    margin: 4px auto 6px;
+  }
+  .gstin-pill {
+    display: inline-block;
+    padding: 6px 18px;
+    border: 1.5px solid #1e3a8a;
+    border-radius: 8px;
+    font-weight: 700;
+    color: #1e293b;
+    font-size: 12px;
+  }
+  .doc-number {
+    text-align: center;
+    font-size: 12px; font-weight: 700;
+    color: #1e293b;
+    margin-top: 6px;
+  }
+  hr.rule {
+    border: none; border-top: 2px solid #1e293b; margin: 14px 0;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 12px;
+  }
+  .info-block h4 {
+    font-size: 12px; font-weight: 800;
+    color: #1e3a8a;
+    text-transform: uppercase; letter-spacing: 0.6px;
+    margin-bottom: 6px;
+  }
+  .info-block .row {
+    display: grid;
+    grid-template-columns: 110px 10px 1fr;
+    font-size: 12px;
+    padding: 2px 0;
+  }
+  .info-block .row .k { font-weight: 700; color: #334155; }
+  .info-block .row .v { color: #1e293b; }
+  .info-block .row .v.strong { font-weight: 700; }
+  .info-block .row .v.due { color: #dc2626; font-weight: 700; }
+
+  table.items {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 4px;
+    font-size: 11px;
+  }
+  table.items th {
+    background: #1e3a8a;
+    color: #fff;
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  table.items th.r, table.items td.r { text-align: right; }
+  table.items td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #fff;
+  }
+  table.items tr.subtotal td {
+    background: #f8fafc;
+    font-weight: 700;
+  }
+  table.items tr.grand td {
+    background: #dbeafe;
+    font-weight: 800;
+    color: #1e3a8a;
+    font-size: 12px;
+  }
+
+  .side-summary {
+    display: grid; grid-template-columns: 1fr 320px; gap: 16px;
+    margin-top: 10px;
+  }
+  .side-summary .in-words {
+    border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 12px;
+  }
+  .side-summary .in-words .lbl {
+    font-size: 10px; font-weight: 800; color: #1e3a8a;
+    text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px;
+  }
+  .side-summary .in-words .val {
+    font-size: 13px; font-weight: 700; color: #1e293b;
+  }
+  .payment-summary {
+    border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px 14px;
+  }
+  .payment-summary .row {
+    display: flex; justify-content: space-between; padding: 3px 0; font-size: 12px;
+  }
+  .payment-summary .row.total {
+    border-top: 2px solid #1e3a8a;
+    margin-top: 6px; padding-top: 8px;
+    font-weight: 800; color: #1e3a8a; font-size: 14px;
+  }
+
+  .notes {
+    margin-top: 16px;
+    display: grid; grid-template-columns: 1fr 200px; gap: 16px;
+    align-items: start;
+  }
+  .notes h5 {
+    font-size: 11px; font-weight: 800; color: #1e3a8a;
+    text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px;
+  }
+  .notes ul { padding-left: 18px; font-size: 11px; color: #334155; }
+  .notes ul li { margin: 3px 0; }
+
+  .qr-box {
+    text-align: center;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px;
+    background: #fff;
+  }
+  .qr-box .qr-title {
+    font-size: 11px; font-weight: 800;
+    letter-spacing: 0.8px;
+    color: #1e293b;
+    margin-bottom: 6px;
+  }
+  .qr-box img { max-width: 120px; height: auto; display: block; margin: 0 auto; }
+  .qr-box .powered {
+    font-size: 9px; color: #64748b; margin-top: 4px;
+  }
+
+  .doc-footer {
+    text-align: center;
+    margin-top: 22px;
+    padding-top: 10px;
+    border-top: 1px solid #cbd5e1;
+    color: #475569;
+    font-size: 10px;
+  }
+  .thanks {
+    color: #1e3a8a; font-weight: 700; font-size: 12px; font-style: italic;
+    margin-bottom: 4px;
+  }
+
+  /* Receipt copy separator */
+  .copy-tag {
+    display: inline-block;
+    background: #1e3a8a; color: #fff;
+    padding: 3px 12px;
+    font-size: 11px; font-weight: 800;
+    border-radius: 4px;
+    letter-spacing: 1px;
+  }
+  .cut-line {
+    display: flex; align-items: center;
+    color: #94a3b8;
+    margin: 14px 0;
+    gap: 8px;
+  }
+  .cut-line::before, .cut-line::after {
+    content: "";
+    flex: 1;
+    border-top: 1.5px dashed #94a3b8;
+  }
+`;
+
+// -----------------------------------------------------------------------------
+// BRAND HEADER (shared)
+// -----------------------------------------------------------------------------
+const brandHeader = (hostel = {}) => {
+  const hostelName = escapeHtml(hostel.hostel_name || "Madhuvan Hostels");
+  const tagline = escapeHtml(hostel.tagline || "Girls Residency");
+  const phone = escapeHtml(hostel.phone || "");
+  const email = escapeHtml(hostel.email || "");
+  return `
+    <div class="doc-brand">
+      ${logoImg(hostel.logo_left, "M")}
+      <div class="brand-center">
+        <div class="brand-name">${hostelName.toUpperCase()}</div>
+        <div class="brand-sub">${tagline}</div>
+        <div class="brand-contact">
+          ${phone ? `<span><span class="icon">📞</span>${phone}</span>` : ""}
+          ${phone && email ? "|" : ""}
+          ${email ? `<span><span class="icon">✉</span>${email}</span>` : ""}
+        </div>
+      </div>
+      ${logoImg(hostel.logo_right, "M")}
+    </div>
+  `;
+};
+
+// -----------------------------------------------------------------------------
+// INVOICE  (image 1)
+// -----------------------------------------------------------------------------
+export const buildInvoiceHTML = ({
+  hostel = {},
+  student = {},
+  invoice_no,
+  invoice_date,
+  due_date,
+  period_start,
+  period_end,
+  accommodation_amount = 0,
+  mess_amount = 0,
+  apply_accommodation_gst = false,
+}) => {
+  const invDate = fmtDate(invoice_date || new Date());
+  const dueDate = fmtDate(due_date);
+  const session = sessionFromDate(invoice_date);
+  const monthLabel = fmtMonth(period_start || invoice_date);
+  const gstin = escapeHtml(hostel.gstin || "");
+
+  const parts = gstBreakdown({
+    accommodation_base: accommodation_amount,
+    mess_base: mess_amount,
+    apply_accommodation_gst,
+  });
+
+  const rows = [];
+  if (parts.accommodation.base > 0) {
+    rows.push(`
+      <tr>
+        <td>Hostel Accommodation Fee</td>
+        <td>${monthLabel}</td>
+        <td class="r">${fmtINR(parts.accommodation.base)}</td>
+      </tr>
+    `);
+  }
+  if (parts.mess.base > 0) {
+    rows.push(`
+      <tr>
+        <td>Mess Charges</td>
+        <td>${monthLabel}</td>
+        <td class="r">${fmtINR(parts.mess.base)}</td>
+      </tr>
+    `);
+  }
+  rows.push(`
+    <tr class="subtotal">
+      <td>Subtotal</td>
+      <td></td>
+      <td class="r">${fmtINR(parts.subtotal)}</td>
+    </tr>
+  `);
+  if (apply_accommodation_gst && parts.accommodation.cgst > 0) {
+    rows.push(`
+      <tr>
+        <td>CGST @9% (Accommodation)</td>
+        <td>${monthLabel}</td>
+        <td class="r">${fmtINR(parts.accommodation.cgst)}</td>
+      </tr>
+      <tr>
+        <td>SGST @9% (Accommodation)</td>
+        <td>${monthLabel}</td>
+        <td class="r">${fmtINR(parts.accommodation.sgst)}</td>
+      </tr>
+    `);
+  }
+  if (parts.mess.cgst > 0) {
+    rows.push(`
+      <tr>
+        <td>CGST @2.5% (Applicable on Mess Charges only)</td>
+        <td>${monthLabel}</td>
+        <td class="r">${fmtINR(parts.mess.cgst)}</td>
+      </tr>
+      <tr>
+        <td>SGST @2.5% (Applicable on Mess Charges only)</td>
+        <td>${monthLabel}</td>
+        <td class="r">${fmtINR(parts.mess.sgst)}</td>
+      </tr>
+    `);
+  }
+  rows.push(`
+    <tr class="grand">
+      <td>GRAND TOTAL (TOTAL AMOUNT PAYABLE)</td>
+      <td></td>
+      <td class="r">₹${fmtINR(parts.grand_total)}</td>
+    </tr>
+  `);
+
+  return `
+    <div class="page">
+      ${brandHeader(hostel)}
+      <div class="doc-title">INVOICE</div>
+      <div style="text-align:center;">
+        ${gstin ? `<div class="gstin-pill">GSTIN : ${gstin}</div>` : ""}
+      </div>
+      <div class="doc-number">Invoice No.: ${escapeHtml(invoice_no || "")}</div>
+      <hr class="rule" />
+
+      <div class="info-grid">
+        <div class="info-block">
+          <h4>Student Information</h4>
+          <div class="row"><span class="k">Student Name</span><span>:</span><span class="v strong">${escapeHtml(student.student_name || "")}</span></div>
+          <div class="row"><span class="k">Father Name</span><span>:</span><span class="v">${escapeHtml(student.father_name || "-")}</span></div>
+          <div class="row"><span class="k">Student ID</span><span>:</span><span class="v">${escapeHtml(student.student_id || "-")}</span></div>
+          <div class="row"><span class="k">Room</span><span>:</span><span class="v">${escapeHtml(student.room_no || "-")}${student.bed_no ? ` (Bed ${escapeHtml(student.bed_no)})` : ""}</span></div>
+        </div>
+        <div class="info-block">
+          <h4>Invoice Information</h4>
+          <div class="row"><span class="k">Invoice Date</span><span>:</span><span class="v">${invDate}</span></div>
+          <div class="row"><span class="k">Due Date</span><span>:</span><span class="v due">${dueDate || "-"}</span></div>
+          <div class="row"><span class="k">Session</span><span>:</span><span class="v">${session}</span></div>
+        </div>
+      </div>
+
+      <table class="items">
+        <thead>
+          <tr>
+            <th style="width:55%">DESCRIPTION</th>
+            <th style="width:25%">MONTH</th>
+            <th class="r" style="width:20%">AMOUNT (₹)</th>
+          </tr>
+        </thead>
+        <tbody>${rows.join("")}</tbody>
+      </table>
+
+      <div class="side-summary">
+        <div class="in-words">
+          <div class="lbl">Amount in Words</div>
+          <div class="val">Rupees ${amountToWords(parts.grand_total)} Only</div>
+        </div>
+        <div class="payment-summary">
+          <div class="row"><span>Subtotal</span><span>₹${fmtINR(parts.subtotal)}</span></div>
+          <div class="row"><span>Total GST (CGST + SGST)</span><span>₹${fmtINR(parts.total_gst)}</span></div>
+          <div class="row total"><span>TOTAL PAYABLE</span><span>₹${fmtINR(parts.grand_total)}</span></div>
+        </div>
+      </div>
+
+      <div class="notes" style="grid-template-columns:1fr;">
+        <div>
+          <h5>Notes</h5>
+          <ul>
+            <li>GST is applicable ${apply_accommodation_gst ? "on Mess &amp; Accommodation Charges." : "only on Mess Charges."}</li>
+            <li>Kindly make the payment on or before the due date.</li>
+            <li>Please mention the <strong>Student Name or Invoice Number</strong> while making the payment.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="doc-footer">
+        <div class="thanks">Thank you for choosing ${escapeHtml(hostel.hostel_name || "Madhuvan Hostels")}.</div>
+        <div>For any queries, please contact the hostel office.</div>
+        <div>This is a computer-generated invoice and does not require a signature.</div>
+      </div>
+    </div>
+  `;
+};
+
+// -----------------------------------------------------------------------------
+// RECEIPT  (image 2 — Admin + Student copies on one page)
+// -----------------------------------------------------------------------------
+const receiptCopy = ({
+  copyTag, hostel, student, receipt_no, payment_date, for_month, payment_mode, received_by,
+  accommodation_amount, mess_amount, apply_accommodation_gst, gstin
+}) => {
+  const parts = gstBreakdown({
+    accommodation_base: accommodation_amount,
+    mess_base: mess_amount,
+    apply_accommodation_gst,
+  });
+  const monthLabel = fmtMonth(for_month);
+  const generatedOn = new Date().toLocaleString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  });
+
+  const rows = [];
+  if (parts.accommodation.base > 0) {
+    rows.push(`
+      <tr><td>Hostel Accommodation Fee</td><td>${monthLabel}</td><td class="r">${fmtINR(parts.accommodation.base)}</td></tr>
+    `);
+  }
+  if (parts.mess.base > 0) {
+    rows.push(`
+      <tr><td>Mess Charges</td><td>${monthLabel}</td><td class="r">${fmtINR(parts.mess.base)}</td></tr>
+    `);
+  }
+  rows.push(`
+    <tr class="subtotal"><td>Subtotal</td><td></td><td class="r">${fmtINR(parts.subtotal)}</td></tr>
+  `);
+  if (apply_accommodation_gst && parts.accommodation.cgst > 0) {
+    rows.push(`
+      <tr><td>CGST @9% (Accommodation)</td><td>${monthLabel}</td><td class="r">${fmtINR(parts.accommodation.cgst)}</td></tr>
+      <tr><td>SGST @9% (Accommodation)</td><td>${monthLabel}</td><td class="r">${fmtINR(parts.accommodation.sgst)}</td></tr>
+    `);
+  }
+  if (parts.mess.cgst > 0) {
+    rows.push(`
+      <tr><td>CGST @2.5% (Applicable on Mess Charges only)</td><td>${monthLabel}</td><td class="r">${fmtINR(parts.mess.cgst)}</td></tr>
+      <tr><td>SGST @2.5% (Applicable on Mess Charges only)</td><td>${monthLabel}</td><td class="r">${fmtINR(parts.mess.sgst)}</td></tr>
+    `);
+  }
+  rows.push(`
+    <tr class="grand"><td>TOTAL AMOUNT RECEIVED</td><td></td><td class="r">₹${fmtINR(parts.grand_total)}</td></tr>
+  `);
+
+  return `
+    <div class="page">
+      <div style="text-align:center;margin-bottom:2px;">
+        <span class="copy-tag">${copyTag}</span>
+      </div>
+      ${brandHeader(hostel)}
+      <div class="doc-title">PAYMENT RECEIPT</div>
+      <div style="text-align:center;"><span class="paid-badge">✔ PAID</span></div>
+      <div style="text-align:center;">${gstin ? `<div class="gstin-pill">GSTIN : ${escapeHtml(gstin)}</div>` : ""}</div>
+      <div class="doc-number">Receipt No.: ${escapeHtml(receipt_no || "")}</div>
+      <hr class="rule" />
+
+      <div class="info-grid">
+        <div class="info-block">
+          <h4>Student Information</h4>
+          <div class="row"><span class="k">Student Name</span><span>:</span><span class="v strong">${escapeHtml(student.student_name || "")}</span></div>
+          <div class="row"><span class="k">Father Name</span><span>:</span><span class="v">${escapeHtml(student.father_name || "-")}</span></div>
+          <div class="row"><span class="k">Student ID</span><span>:</span><span class="v">${escapeHtml(student.student_id || "-")}</span></div>
+          <div class="row"><span class="k">Room</span><span>:</span><span class="v">${escapeHtml(student.room_no || "-")}${student.bed_no ? ` (Bed ${escapeHtml(student.bed_no)})` : ""}</span></div>
+        </div>
+        <div class="info-block">
+          <h4>Payment Information</h4>
+          <div class="row"><span class="k">Receipt Date</span><span>:</span><span class="v">${fmtDate(payment_date)}</span></div>
+          <div class="row"><span class="k">For Month</span><span>:</span><span class="v">${monthLabel}</span></div>
+          <div class="row"><span class="k">Mode of Payment</span><span>:</span><span class="v">${escapeHtml(payment_mode || "CASH")}</span></div>
+          <div class="row"><span class="k">Received By</span><span>:</span><span class="v">${escapeHtml(received_by || "ADMIN")}</span></div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 260px;gap:14px;">
+        <table class="items">
+          <thead>
+            <tr>
+              <th style="width:55%">DESCRIPTION</th>
+              <th style="width:25%">MONTH</th>
+              <th class="r" style="width:20%">AMOUNT (₹)</th>
+            </tr>
+          </thead>
+          <tbody>${rows.join("")}</tbody>
+        </table>
+
+        <div>
+          <div class="in-words" style="margin-bottom:10px;">
+            <div class="lbl">Amount in Words</div>
+            <div class="val" style="font-size:12px;">Rupees ${amountToWords(parts.grand_total)} Only</div>
+          </div>
+          <div class="payment-summary">
+            <div class="row"><span>Subtotal</span><span>₹${fmtINR(parts.subtotal)}</span></div>
+            <div class="row"><span>Total GST (CGST + SGST)</span><span>₹${fmtINR(parts.total_gst)}</span></div>
+            <div class="row total"><span>TOTAL RECEIVED</span><span>₹${fmtINR(parts.grand_total)}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="notes" style="grid-template-columns:1fr;">
+        <div>
+          <h5>Notes</h5>
+          <ul>
+            <li>Payment received for the above charges.</li>
+            <li>This is a computer-generated receipt and does not require a signature.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="doc-footer">
+        <div class="thanks">Thank you for your payment!</div>
+        <div>Please mention the Receipt Number for any future reference.</div>
+        <div>Generated on: ${generatedOn}</div>
+      </div>
+    </div>
+  `;
+};
+
+export const buildReceiptHTML = (params) => {
+  const gstin = params.hostel?.gstin || "";
+  const commonProps = {
+    hostel: params.hostel || {},
+    student: params.student || {},
+    receipt_no: params.receipt_no,
+    payment_date: params.payment_date,
+    for_month: params.for_period_start,
+    payment_mode: params.payment_mode,
+    received_by: params.received_by || "ADMIN",
+    accommodation_amount: params.accommodation_amount || 0,
+    mess_amount: params.mess_amount || 0,
+    apply_accommodation_gst: params.apply_accommodation_gst || false,
+    gstin,
+  };
+  const copies = params.copies || ["admin", "student"]; // both copies by default
+
+  const pages = [];
+  if (copies.includes("admin")) {
+    pages.push(receiptCopy({ ...commonProps, copyTag: "ADMIN COPY" }));
+  }
+  if (copies.includes("student")) {
+    if (pages.length) pages.push(`<div class="cut-line">✂ cut here</div>`);
+    pages.push(receiptCopy({ ...commonProps, copyTag: "STUDENT COPY" }));
+  }
+  return pages.join("");
+};
+
+// -----------------------------------------------------------------------------
+// BILL  (image 3 — expense bill with items table)
+// -----------------------------------------------------------------------------
+export const buildBillHTML = ({ hostel = {}, entry = {}, items = [] }) => {
+  const billNo = escapeHtml(entry.bill_no || entry.entry_id || "EXP");
+  const billDate = fmtDate(entry.entry_date || new Date());
+
+  const table = (items && items.length)
+    ? items
+    : [{
+        description: entry.description || "Expense",
+        qty: 1,
+        unit: "-",
+        rate: entry.amount || 0,
+        amount: entry.amount || 0,
+      }];
+
+  const totalAmount = table.reduce((sum, r) => sum + Number(r.amount || 0), 0);
+  const itemRows = table.map((r, i) => `
+    <tr>
+      <td class="r">${i + 1}</td>
+      <td>${escapeHtml(r.description || "-")}</td>
+      <td class="r">${fmtINR(r.qty || 0)}</td>
+      <td>${escapeHtml(r.unit || "-")}</td>
+      <td class="r">${fmtINR(r.rate || 0)}</td>
+      <td class="r">${fmtINR(r.amount || 0)}</td>
+    </tr>
+  `).join("");
+
+  return `
+    <div class="page">
+      ${brandHeader(hostel)}
+      <hr class="rule" style="border-top:1px dotted #94a3b8; margin: 8px 0 14px;" />
+      <div class="doc-title" style="letter-spacing:1px;">EXPENSE BILL</div>
+
+      <div class="info-grid">
+        <div class="info-block" style="border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
+          <div class="row"><span class="k">Bill No.</span><span>:</span><span class="v">${billNo}</span></div>
+          <div class="row"><span class="k">Bill Date</span><span>:</span><span class="v">${billDate}</span></div>
+          <div class="row"><span class="k">Expense Category</span><span>:</span><span class="v">${escapeHtml((entry.category || "").replace(/_/g, " "))}</span></div>
+          <div class="row"><span class="k">Payment Mode</span><span>:</span><span class="v">${escapeHtml(entry.payment_mode || "-")}</span></div>
+          <div class="row"><span class="k">Reference No.</span><span>:</span><span class="v">${escapeHtml(entry.reference_no || "-")}</span></div>
+        </div>
+        <div class="info-block" style="border:1px solid #cbd5e1; border-radius:8px; padding:10px 12px;">
+          <h4>Vendor / Supplier Details</h4>
+          <div class="row"><span class="k">Supplier Name</span><span>:</span><span class="v">${escapeHtml(entry.supplier_name || "-")}</span></div>
+          <div class="row"><span class="k">Address</span><span>:</span><span class="v">${escapeHtml(entry.supplier_address || "-")}</span></div>
+          <div class="row"><span class="k">Contact No.</span><span>:</span><span class="v">${escapeHtml(entry.supplier_phone || "-")}</span></div>
+        </div>
+      </div>
+
+      <table class="items">
+        <thead>
+          <tr>
+            <th class="r" style="width:6%">S. No.</th>
+            <th style="width:38%">Description of Item / Service</th>
+            <th class="r" style="width:12%">Quantity</th>
+            <th style="width:10%">Unit</th>
+            <th class="r" style="width:14%">Rate (₹)</th>
+            <th class="r" style="width:20%">Amount (₹)</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows}</tbody>
+        <tfoot>
+          <tr class="grand">
+            <td colspan="5" class="r"><strong>TOTAL AMOUNT</strong></td>
+            <td class="r"><strong>₹${fmtINR(totalAmount)}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="in-words" style="margin-top:10px;">
+        <div class="lbl">Amount in Words</div>
+        <div class="val">Rupees ${amountToWords(totalAmount)} Only</div>
+      </div>
+
+      ${entry.notes ? `
+        <div style="margin-top:10px;border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px;">
+          <div style="font-weight:800;color:#1e3a8a;font-size:11px;text-transform:uppercase;">Notes / Purpose of Expense:</div>
+          <div style="font-size:11px;color:#334155;margin-top:2px;">${escapeHtml(entry.notes)}</div>
+        </div>` : ""}
+
+      <div style="margin-top:10px;border:1px solid #1e3a8a;border-radius:8px;overflow:hidden;">
+        <div style="background:#1e3a8a;color:#fff;padding:6px 12px;font-weight:800;font-size:11px;text-transform:uppercase;">Payment Details</div>
+        <div class="info-grid" style="margin:10px 12px;">
+          <div class="info-block">
+            <div class="row"><span class="k">Paid To</span><span>:</span><span class="v">${escapeHtml(entry.supplier_name || "-")}</span></div>
+            <div class="row"><span class="k">Amount Paid</span><span>:</span><span class="v strong">₹${fmtINR(totalAmount)}</span></div>
+            <div class="row"><span class="k">Payment Date</span><span>:</span><span class="v">${billDate}</span></div>
+          </div>
+          <div class="info-block">
+            <div class="row"><span class="k">Payment Mode</span><span>:</span><span class="v">${escapeHtml(entry.payment_mode || "-")}</span></div>
+            <div class="row"><span class="k">Reference No.</span><span>:</span><span class="v">${escapeHtml(entry.reference_no || "-")}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="doc-footer">This is a computer-generated bill and does not require a signature.</div>
+    </div>
+  `;
+};
+
+// -----------------------------------------------------------------------------
+// VOUCHER (kept for salary printouts elsewhere)
+// -----------------------------------------------------------------------------
+export const buildVoucherHTML = ({ hostel = {}, voucher_no, date, payee, amount, purpose, payment_mode = "CASH", reference_no }) => `
+  <div class="page">
+    ${brandHeader(hostel)}
+    <div class="doc-title">PAYMENT VOUCHER</div>
+    <div class="doc-number">Voucher No.: ${escapeHtml(voucher_no || "")}</div>
+    <hr class="rule" />
+    <div class="info-grid">
+      <div class="info-block">
+        <div class="row"><span class="k">Date</span><span>:</span><span class="v">${fmtDate(date)}</span></div>
+        <div class="row"><span class="k">Paid To</span><span>:</span><span class="v strong">${escapeHtml(payee || "")}</span></div>
+        <div class="row"><span class="k">Purpose</span><span>:</span><span class="v">${escapeHtml(purpose || "")}</span></div>
+      </div>
+      <div class="info-block">
+        <div class="row"><span class="k">Payment Mode</span><span>:</span><span class="v">${escapeHtml(payment_mode)}</span></div>
+        <div class="row"><span class="k">Reference No.</span><span>:</span><span class="v">${escapeHtml(reference_no || "-")}</span></div>
+        <div class="row"><span class="k">Amount</span><span>:</span><span class="v strong">₹${fmtINR(amount)}</span></div>
+      </div>
+    </div>
+    <div class="in-words" style="margin-top:12px;">
+      <div class="lbl">Amount in Words</div>
+      <div class="val">Rupees ${amountToWords(amount)} Only</div>
+    </div>
+    <div class="doc-footer">Computer-generated voucher.</div>
+  </div>
+`;
+
+// -----------------------------------------------------------------------------
+// PRINT HELPERS
+// -----------------------------------------------------------------------------
 export const printInvoice = (params) => {
   const html = buildInvoiceHTML(params);
   printElement(html, `Invoice-${params.invoice_no || "New"}`, baseStyles);
 };
+
 export const printReceipt = (params) => {
-  const html = buildReceiptHTML(params);
+  // If caller didn't pre-decide copies, ask the user.
+  let copies = params.copies;
+  if (!copies) {
+    const answer = window.prompt(
+      "Print which receipt copy?\n  A = Admin only\n  S = Student only\n  B = Both",
+      "B"
+    );
+    if (!answer) return;
+    const a = String(answer).trim().toUpperCase();
+    if (a.startsWith("A")) copies = ["admin"];
+    else if (a.startsWith("S")) copies = ["student"];
+    else copies = ["admin", "student"];
+  }
+  const html = buildReceiptHTML({ ...params, copies });
   printElement(html, `Receipt-${params.receipt_no || "New"}`, baseStyles);
 };
+
 export const printBill = (params) => {
   const html = buildBillHTML(params);
-  printElement(html, `Bill-${params.entry?.entry_id || "New"}`, baseStyles);
+  printElement(html, `Bill-${params.entry?.bill_no || params.entry?.entry_id || "New"}`, baseStyles);
 };
+
 export const printVoucher = (params) => {
   const html = buildVoucherHTML(params);
   printElement(html, `Voucher-${params.voucher_no || "New"}`, baseStyles);
 };
 
-// Print all invoices for a fee (single invoice per fee now)
-export const printAllInvoicesForFee = ({
-  hostel,
-  student,
-  fee,
-  is_online_payment,
+// Prints a single invoice for one fee (accommodation + mess split by 5000 rule).
+export const printInvoiceForFee = ({
+  hostel, student, fee,
   apply_accommodation_gst = false,
   invoice_no,
 }) => {
-  const invoices = splitInvoicesForFee({
-    total_amount: fee.final_amount || fee.fee_amount,
-    fee_type_cycle: student.fee_type_cycle,
+  const cycle = (student.fee_type_cycle || "monthly").toLowerCase();
+  const months = cycle === "half_yearly" ? 6 : cycle === "yearly" ? 12 : 1;
+  const monthlyMess = 5000;
+  const totalMess = monthlyMess * months;
+
+  const feeTotal = Number(fee.final_amount || fee.fee_amount || 0);
+  // If the fee's fee_type suggests it's a Mess-only or Accommodation-only entry,
+  // treat that whole amount as one bucket. Otherwise split by 5000 rule.
+  const type = String(fee.fee_type || "").toLowerCase();
+  let accommodation_amount = Math.max(0, feeTotal - totalMess);
+  let mess_amount = Math.min(feeTotal, totalMess);
+  if (type.includes("mess")) { mess_amount = feeTotal; accommodation_amount = 0; }
+  else if (type.includes("security")) { mess_amount = 0; accommodation_amount = feeTotal; }
+
+  const html = buildInvoiceHTML({
+    hostel,
+    student,
+    invoice_no: invoice_no || `INV-${student.student_id}-${fee.fee_id}`,
+    invoice_date: new Date().toISOString().split("T")[0],
+    due_date: fee.due_date,
     period_start: fee.fee_period_start || fee.fee_month,
+    period_end: fee.fee_period_end,
+    accommodation_amount,
+    mess_amount,
+    apply_accommodation_gst,
   });
-  const merged = invoices
-    .map((inv) =>
-      buildInvoiceHTML({
-        hostel,
-        student,
-        invoice_no: invoice_no || `INV-${student.student_id}-${fee.fee_id}`,
-        invoice_date: new Date().toISOString().split("T")[0],
-        period_start: inv.period_start,
-        period_end: inv.period_end,
-        amount: inv.amount,
-        fee_type: fee.fee_type || "Hostel Fee",
-        is_online_payment,
-        apply_accommodation_gst,
-        split_index: inv.index,
-        split_total: inv.total,
-      })
-    )
-    .join('<div style="page-break-after: always"></div>');
-  printElement(merged, `Invoice-${student.student_name}`, baseStyles);
+  printElement(html, `Invoice-${student.student_name}`, baseStyles);
+};
+
+// Back-compat alias
+export const printAllInvoicesForFee = printInvoiceForFee;
+
+// Legacy helper (was used to compute a single number split into acc + mess).
+export const gstSplitFromOnlineInvoice = (invoice_amount, opts = {}) => {
+  const total = Number(invoice_amount) || 0;
+  const messBase = 5000;
+  const accBase = Math.max(0, total - messBase);
+  return gstBreakdown({
+    accommodation_base: accBase,
+    mess_base: messBase,
+    apply_accommodation_gst: !!opts.apply_accommodation_gst,
+  });
 };

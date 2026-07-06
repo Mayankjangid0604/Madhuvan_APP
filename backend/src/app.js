@@ -247,7 +247,8 @@ const routes = [
   { path: "/api/notifications", module: "./routes/notification.routes" },
   { path: "/api/backup", module: "./routes/backup.routes" },
   { path: "/api/members", module: "./routes/member.routes" },
-  { path: "/api/doc-number", module: "./routes/docNumber.routes" }
+  { path: "/api/doc-number", module: "./routes/docNumber.routes" },
+  { path: "/api/branches", module: "./routes/branch.routes" }
 ];
 
 let loaded = 0;

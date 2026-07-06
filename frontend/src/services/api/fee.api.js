@@ -68,6 +68,10 @@ export const feeAPI = {
 
   applyWaiver(data) {
     return api.post("/fees/apply-waiver", data);
+  },
+
+  getEarlyExitInvoice(studentId, exit_date) {
+    return api.get(`/fees/student/${studentId}/early-exit`, { params: { exit_date } });
   }
 };
 

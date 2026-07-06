@@ -28,6 +28,8 @@ router.post('/rules', settingsController.saveRules);
 router.get('/templates', settingsController.getTemplates);
 router.post('/templates/email', settingsController.saveEmailTemplate);
 router.post('/templates/sms', settingsController.saveSmsTemplate);
+router.post('/templates/invoice-email', settingsController.saveInvoiceEmailTemplate);
+router.post('/templates/receipt-email', settingsController.saveReceiptEmailTemplate);
 
 // =========================
 // Email Config

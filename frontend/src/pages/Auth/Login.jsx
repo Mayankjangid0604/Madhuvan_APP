@@ -53,7 +53,7 @@ const Login = () => {
 
         // ✅ FIX: Use AuthContext login — saves token, adminEmail, isAuthenticated, sets user, navigates
         setTimeout(() => {
-          authLogin(response.data.token, response.data.admin?.email || email.trim());
+          authLogin(response.data.token, response.data.admin?.email || email.trim(), rememberMe);
         }, 500);
       } else {
         setError("Login failed");

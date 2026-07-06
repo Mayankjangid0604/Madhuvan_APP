@@ -108,4 +108,77 @@ exports.getStudentFeeDetails = (studentId) => {
   };
 };
 
+// ============================================
+// EARLY-EXIT FINAL INVOICE PREVIEW (< 90 days)
+// Computes:
+//   - Remaining accommodation for the exit-month period (unpaid days × per-day rate)
+//   - Remaining mess for the exit-month period (unpaid days × ₹5000/mo prorated)
+//   - 5% GST (2.5% CGST + 2.5% SGST) on remaining mess
+//   - 18% GST (9% CGST + 9% SGST) on TOTAL accommodation ever billed
+//     (accommodation already paid + remaining accommodation).
+// Returns numbers only — the caller renders the invoice.
+// ============================================
+exports.computeEarlyExitInvoice = ({ studentId, exit_date }) => {
+  const db = require("../config/db.sqlite");
+  const student = db.db.prepare("SELECT * FROM students WHERE student_id = ?").get(studentId);
+  if (!student) throw new Error("Student not found");
+
+  const joining = new Date(student.date_of_joining);
+  const exit = exit_date ? new Date(exit_date) : new Date();
+  const daysStayed = Math.max(0, Math.floor((exit - joining) / (1000 * 60 * 60 * 24)));
+
+  const cycle = (student.fee_type_cycle || "monthly").toLowerCase();
+  const months = cycle === "half_yearly" ? 6 : cycle === "yearly" ? 12 : 1;
+  const messPerMonth = 5000;
+  const cycleTotal = Number(student.monthly_fee || 0);
+  const cycleMess = messPerMonth * months;
+  const cycleAccommodation = Math.max(0, cycleTotal - cycleMess);
+  const perDayAccommodation = cycleAccommodation / (months * 30);
+  const perDayMess = cycleMess / (months * 30);
+
+  // Sum all paid amounts previously received against accommodation portion.
+  const paidRows = db.db.prepare(`
+    SELECT COALESCE(SUM(paid_amount), 0) as total
+    FROM student_fees
+    WHERE student_id = ?
+      AND fee_type NOT LIKE '%Mess%'
+      AND fee_type NOT LIKE '%Security%'
+  `).get(studentId);
+  const accPaidHistorical = Number(paidRows?.total || 0);
+
+  // (unpaid remaining not currently used in the proration; kept for future use)
+
+  // Compute a proration for the current partial period from joining anniversary.
+  // For simplicity we take the fractional days beyond the last completed month.
+  const daysLeftInPeriod = daysStayed % 30;
+  const proratedAccommodation = Math.round(perDayAccommodation * daysLeftInPeriod * 100) / 100;
+  const proratedMess = Math.round(perDayMess * daysLeftInPeriod * 100) / 100;
+
+  const totalAccommodation = accPaidHistorical + proratedAccommodation;
+  const accCgst = Math.round(totalAccommodation * 0.09 * 100) / 100;
+  const accSgst = Math.round(totalAccommodation * 0.09 * 100) / 100;
+
+  const messCgst = Math.round(proratedMess * 0.025 * 100) / 100;
+  const messSgst = Math.round(proratedMess * 0.025 * 100) / 100;
+
+  const grand = proratedAccommodation + proratedMess + accCgst + accSgst + messCgst + messSgst;
+
+  return {
+    student_id: studentId,
+    exit_date: exit.toISOString().split("T")[0],
+    days_stayed: daysStayed,
+    days_left_in_period: daysLeftInPeriod,
+    accommodation_remaining: proratedAccommodation,
+    mess_remaining: proratedMess,
+    accommodation_paid_historical: Math.round(accPaidHistorical * 100) / 100,
+    total_accommodation: Math.round(totalAccommodation * 100) / 100,
+    accommodation_cgst: accCgst,
+    accommodation_sgst: accSgst,
+    mess_cgst: messCgst,
+    mess_sgst: messSgst,
+    grand_total: Math.round(grand * 100) / 100,
+    applies: daysStayed < 90,
+  };
+};
+
 module.exports = exports;
