@@ -56,6 +56,12 @@ router.get('/penalty-config', settingsController.getPenaltyConfig);
 router.post('/penalty-config', settingsController.savePenaltyConfig);
 
 // =========================
+// PhonePe Gateway Config
+// =========================
+router.get('/phonepe-config', settingsController.getPhonePeConfig);
+router.post('/phonepe-config', settingsController.savePhonePeConfig);
+
+// =========================
 // Logo Upload (standalone endpoint)
 // =========================
 router.post('/upload-logo', uploadLogo.single('logo'), settingsController.uploadLogo);

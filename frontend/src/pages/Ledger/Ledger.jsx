@@ -658,8 +658,11 @@ const Ledger = () => {
       'mess_fees': '🍽️',
       'maintenance': '🔧',
       'utilities': '💡',
+      'electric_bill': '⚡',
       'salary': '👤',
       'supplies': '📦',
+      'mess_supplies': '🍚',
+      'hostel_supplies': '📦',
       'refund': '↩️',
       'miscellaneous': '📋',
       'other': '📌'
@@ -1368,9 +1371,10 @@ const Ledger = () => {
                   <option value="">Select Category</option>
                   <option value="hostel_fees">🏠 Hostel Fees</option>
                   <option value="maintenance">🔧 Maintenance</option>
-                  <option value="utilities">💡 Utilities</option>
+                  <option value="electric_bill">⚡ Electric Bill</option>
                   <option value="salary">👤 Salary</option>
-                  <option value="supplies">📦 Supplies</option>
+                  <option value="mess_supplies">🍚 Mess Supplies</option>
+                  <option value="hostel_supplies">📦 Hostel Supplies</option>
                   <option value="refund">↩️ Refund</option>
                   <option value="miscellaneous">📋 Miscellaneous</option>
                   <option value="other">📌 Other</option>

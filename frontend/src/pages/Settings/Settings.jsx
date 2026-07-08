@@ -156,6 +156,33 @@ Thank you,
   const [showBranchesModal, setShowBranchesModal] = useState(false);
   const [branches, setBranches] = useState([]);
   const [branchForm, setBranchForm] = useState({ branch_name: "", branch_code: "", address: "", phone: "", email: "", gstin: "" });
+  const [showPhonePeModal, setShowPhonePeModal] = useState(false);
+  const [phonePeConfig, setPhonePeConfig] = useState({
+    enabled: false,
+    merchant_id: "",
+    salt_key: "",
+    salt_index: "1",
+    environment: "SANDBOX", // or PROD
+    callback_url: "",
+  });
+
+  const loadPhonePeConfig = async () => {
+    try {
+      const r = await axios.get(`${API_URL}/settings/phonepe-config`, { headers: getAuthHeaders() });
+      if (r.data?.success && r.data?.data) setPhonePeConfig(prev => ({ ...prev, ...r.data.data }));
+    } catch (err) { /* silent */ }
+  };
+
+  const handleSavePhonePeConfig = async () => {
+    setLoading(true);
+    try {
+      await axios.post(`${API_URL}/settings/phonepe-config`, phonePeConfig, { headers: getAuthHeaders() });
+      showSuccess("✓ PhonePe configuration saved");
+      setShowPhonePeModal(false);
+    } catch (err) {
+      showError(err.response?.data?.message || err.message);
+    } finally { setLoading(false); }
+  };
 
   const loadBranches = async () => {
     try {
@@ -1260,6 +1287,28 @@ Thank you,
           </div>
         </Card>
 
+        {/* PhonePe Payment Gateway */}
+        <Card>
+          <div className="card-icon" style={{ backgroundColor: '#5f259f15' }}>
+            <IndianRupee size={24} color="#5f259f" />
+          </div>
+          <h3>PhonePe Payment Gateway</h3>
+          <p>Auto-collect fees & auto-receipt</p>
+          <div className="status-badge" style={{
+            backgroundColor: phonePeConfig.enabled ? '#d1fae5' : '#fee2e2',
+            color: phonePeConfig.enabled ? '#065f46' : '#991b1b'
+          }}>
+            {phonePeConfig.enabled ? <CheckCircle size={14} /> : <X size={14} />}
+            {phonePeConfig.enabled ? 'Enabled' : 'Not configured'}
+          </div>
+          <div className="button-group">
+            <Button onClick={() => { loadPhonePeConfig(); setShowPhonePeModal(true); }} variant="outline">
+              <SettingsIcon size={14} /> Configure PhonePe
+            </Button>
+          </div>
+          <small className="help-text">💡 Payments received in PhonePe auto-update the fee & send the receipt</small>
+        </Card>
+
         {/* Branches */}
         <Card>
           <div className="card-icon" style={{ backgroundColor: '#0ea5e915' }}>
@@ -1909,6 +1958,79 @@ Thank you,
               <Button variant="secondary" onClick={() => setShowInvoiceEmailModal(false)}>Cancel</Button>
               <Button variant="success" onClick={handleSaveInvoiceEmailTemplate} loading={loading} disabled={loading}>
                 <Save size={16} /> Save Template
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PhonePe Config Modal */}
+      {showPhonePeModal && (
+        <div className="modal-overlay" onClick={() => setShowPhonePeModal(false)}>
+          <div className="modal-content config-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><IndianRupee size={20} /> PhonePe Gateway Configuration</h3>
+              <button className="close-btn" onClick={() => setShowPhonePeModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group checkbox">
+                <label>
+                  <input type="checkbox"
+                    checked={phonePeConfig.enabled}
+                    onChange={(e) => setPhonePeConfig({ ...phonePeConfig, enabled: e.target.checked })} />
+                  <span>Enable PhonePe auto-payment</span>
+                </label>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Merchant ID *</label>
+                  <input className="form-input" value={phonePeConfig.merchant_id}
+                    onChange={e => setPhonePeConfig({ ...phonePeConfig, merchant_id: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Environment</label>
+                  <select className="form-input" value={phonePeConfig.environment}
+                    onChange={e => setPhonePeConfig({ ...phonePeConfig, environment: e.target.value })}>
+                    <option value="SANDBOX">Sandbox (testing)</option>
+                    <option value="PROD">Production</option>
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Salt Key *</label>
+                  <input className="form-input" type="password" value={phonePeConfig.salt_key}
+                    onChange={e => setPhonePeConfig({ ...phonePeConfig, salt_key: e.target.value })} />
+                </div>
+                <div className="form-group">
+                  <label>Salt Index</label>
+                  <input className="form-input" value={phonePeConfig.salt_index}
+                    onChange={e => setPhonePeConfig({ ...phonePeConfig, salt_index: e.target.value })} />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Callback / Webhook URL</label>
+                <input className="form-input" value={phonePeConfig.callback_url}
+                  placeholder="https://your-server.example.com/api/webhooks/phonepe"
+                  onChange={e => setPhonePeConfig({ ...phonePeConfig, callback_url: e.target.value })} />
+                <small className="help-text">PhonePe will POST payment events to this URL. Your server must be reachable from the internet.</small>
+              </div>
+              <div className="info-box">
+                <strong>How to get credentials:</strong>
+                <ol>
+                  <li>Log in to PhonePe Business dashboard</li>
+                  <li>Go to Developer Settings → Payment Gateway APIs</li>
+                  <li>Copy Merchant ID, Salt Key and Salt Index into the fields above</li>
+                  <li>Add the Callback URL to your PhonePe portal webhooks</li>
+                </ol>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <Button variant="secondary" onClick={() => setShowPhonePeModal(false)}>Cancel</Button>
+              <Button variant="success" onClick={handleSavePhonePeConfig} loading={loading} disabled={loading}>
+                <Save size={16} /> Save Configuration
               </Button>
             </div>
           </div>

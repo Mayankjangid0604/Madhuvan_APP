@@ -1,19 +1,85 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { 
-  Bell, 
-  LogOut, 
+import {
+  Bell,
+  LogOut,
   Search,
   Users,
   BedDouble,
   IndianRupee,
   Home,
-  CheckCircle
+  CheckCircle,
+  Building2,
+  ChevronDown
 } from "lucide-react";
 import { notificationAPI } from "../../services/api/notification.api";
 // ✅ FIX: Import useAuth hook
 import { useAuth } from "../../contexts/AuthContext";
+import { useBranch } from "../../contexts/BranchContext";
 import "./topbar.css";
+
+const BranchDropdown = () => {
+  const { branches, selectedBranchId, currentBranch, selectBranch } = useBranch();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  if (!branches || branches.length === 0) return null;
+  return (
+    <div ref={ref} style={{ position: "relative", marginRight: 12 }}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 8,
+          padding: "8px 12px",
+          background: "#f8fafc", border: "1px solid #e2e8f0",
+          borderRadius: 10, cursor: "pointer",
+          fontWeight: 600, color: "#1e293b", fontSize: 13
+        }}
+        title="Change branch"
+      >
+        <Building2 size={16} color="#0ea5e9" />
+        <span>{currentBranch?.branch_name || "Select Branch"}</span>
+        <ChevronDown size={14} />
+      </button>
+      {open && (
+        <div style={{
+          position: "absolute", top: "100%", right: 0, marginTop: 6,
+          minWidth: 240, background: "#fff",
+          border: "1px solid #e2e8f0", borderRadius: 10,
+          boxShadow: "0 12px 24px rgba(0,0,0,0.12)",
+          zIndex: 200, overflow: "hidden"
+        }}>
+          {branches.map(b => (
+            <button
+              key={b.branch_id}
+              onClick={() => { selectBranch(b.branch_id); setOpen(false); }}
+              style={{
+                width: "100%", textAlign: "left", padding: "10px 14px",
+                background: selectedBranchId === b.branch_id ? "#eff6ff" : "#fff",
+                color: "#1e293b", border: "none", cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 10,
+                borderBottom: "1px solid #f1f5f9"
+              }}
+            >
+              <Building2 size={14} color={selectedBranchId === b.branch_id ? "#1e40af" : "#94a3b8"} />
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>{b.branch_name}</span>
+                {b.branch_code && <span style={{ fontSize: 11, color: "#64748b" }}>{b.branch_code}</span>}
+              </div>
+              {b.is_default ? <span style={{ marginLeft: "auto", fontSize: 10, color: "#059669", fontWeight: 700 }}>DEFAULT</span> : null}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Topbar = () => {
   const location = useLocation();
@@ -274,6 +340,8 @@ const Topbar = () => {
       </div>
 
       <div className="topbar-right">
+        {/* Branch Dropdown */}
+        <BranchDropdown />
         {/* Search */}
         <div className="search-container" ref={searchRef}>
           <div className="search-input">

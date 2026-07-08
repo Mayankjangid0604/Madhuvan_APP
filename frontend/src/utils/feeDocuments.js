@@ -843,19 +843,9 @@ export const printInvoice = (params) => {
 };
 
 export const printReceipt = (params) => {
-  // If caller didn't pre-decide copies, ask the user.
-  let copies = params.copies;
-  if (!copies) {
-    const answer = window.prompt(
-      "Print which receipt copy?\n  A = Admin only\n  S = Student only\n  B = Both",
-      "B"
-    );
-    if (!answer) return;
-    const a = String(answer).trim().toUpperCase();
-    if (a.startsWith("A")) copies = ["admin"];
-    else if (a.startsWith("S")) copies = ["student"];
-    else copies = ["admin", "student"];
-  }
+  // Default: print both copies. Callers can pass copies: ["admin"], ["student"], or ["admin","student"].
+  // Some Electron builds block window.prompt, which used to silently no-op — now we always render.
+  const copies = params.copies && params.copies.length ? params.copies : ["admin", "student"];
   const html = buildReceiptHTML({ ...params, copies });
   printElement(html, `Receipt-${params.receipt_no || "New"}`, baseStyles);
 };

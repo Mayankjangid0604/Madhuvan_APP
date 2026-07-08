@@ -145,6 +145,27 @@ exports.saveReceiptEmailTemplate = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+exports.getPhonePeConfig = async (req, res, next) => {
+  try {
+    const cfg = await settingsService.getConfig("phonepe_config", {
+      enabled: false,
+      merchant_id: "",
+      salt_key: "",
+      salt_index: "1",
+      environment: "SANDBOX",
+      callback_url: "",
+    });
+    res.json({ success: true, data: cfg });
+  } catch (error) { next(error); }
+};
+
+exports.savePhonePeConfig = async (req, res, next) => {
+  try {
+    await settingsService.saveConfig("phonepe_config", req.body);
+    res.json({ success: true, message: "PhonePe configuration saved" });
+  } catch (error) { next(error); }
+};
+
 /**
  * GET EMAIL CONFIG
  */

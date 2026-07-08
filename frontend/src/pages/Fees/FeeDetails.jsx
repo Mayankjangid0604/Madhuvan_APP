@@ -27,6 +27,7 @@ const FeeDetails = () => {
   const [expandedFees, setExpandedFees] = useState({});
   const [activeTab, setActiveTab] = useState("fees"); // 'fees' or 'transactions'
   const [hostelInfo, setHostelInfo] = useState({});
+  const [copyChooser, setCopyChooser] = useState({ open: false, fee: null, payment: null });
 
   useEffect(() => {
     loadData();
@@ -71,8 +72,15 @@ const FeeDetails = () => {
     });
   };
 
-  const handlePrintReceipt = async (fee, payment) => {
-    if (!data?.student) return;
+  const handlePrintReceipt = (fee, payment) => {
+    // Open the in-page copy chooser instead of window.prompt (which Electron blocks silently).
+    setCopyChooser({ open: true, fee, payment });
+  };
+
+  const doPrintReceipt = async (copies) => {
+    const { fee, payment } = copyChooser;
+    setCopyChooser({ open: false, fee: null, payment: null });
+    if (!fee || !data?.student) return;
     const receipt_no = (await fetchDocNumber("receipt")) || `RCPT-${data.student.student_id}-${payment?.payment_id || fee.fee_id}`;
     const split = feeSplitForFee(fee);
     printReceipt({
@@ -88,6 +96,7 @@ const FeeDetails = () => {
       for_period_start: fee.fee_period_start || fee.fee_month,
       for_period_end: fee.fee_period_end,
       received_by: payment?.received_by || 'ADMIN',
+      copies,
     });
   };
 
@@ -580,16 +589,61 @@ const FeeDetails = () => {
                               )}
                             </div>
 
-                            {/* Invoice / Receipt actions */}
+                            {/* Invoice / Receive Fee / Receipt / Waive actions */}
                             <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
                               {fee.fee_status !== 'PAID' && Number(fee.remaining || fee.final_amount) > 0 && (
-                                <button
-                                  className="fd-view-invoice-btn"
-                                  onClick={(e) => { e.stopPropagation(); handlePrintInvoice(fee); }}
-                                  style={{ background: '#1e40af', color: '#fff' }}
-                                >
-                                  <Printer size={14} /> Receive Invoice
-                                </button>
+                                <>
+                                  <button
+                                    className="fd-view-invoice-btn"
+                                    onClick={(e) => { e.stopPropagation(); handlePrintInvoice(fee); }}
+                                    style={{ background: '#1e40af', color: '#fff' }}
+                                  >
+                                    <Printer size={14} /> Print Invoice
+                                  </button>
+                                  <button
+                                    className="fd-view-invoice-btn"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate('/fees', {
+                                        state: {
+                                          autoPay: true,
+                                          studentId: student.student_id,
+                                          feeType: fee.fee_type,
+                                          feeId: fee.fee_id,
+                                          amountToPay: fee.remaining
+                                        }
+                                      });
+                                    }}
+                                    style={{ background: '#059669', color: '#fff' }}
+                                  >
+                                    <CreditCard size={14} /> Receive Fee
+                                  </button>
+                                  <button
+                                    className="fd-view-invoice-btn"
+                                    title="Write off the unpaid balance so the student can be checked out"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      const remaining = Number(fee.remaining || fee.final_amount);
+                                      const inputAmt = window.prompt(
+                                        `Write off / discount the unpaid balance for this fee (max ₹${remaining}):`,
+                                        String(remaining)
+                                      );
+                                      if (inputAmt === null) return;
+                                      const amt = Number(inputAmt);
+                                      if (!(amt > 0)) return;
+                                      const reason = window.prompt("Reason for write-off:", "Written off for checkout") || "Written off";
+                                      try {
+                                        await feeAPI.applyWaiver({ fee_id: fee.fee_id, amount: amt, reason });
+                                        await loadData();
+                                      } catch (err) {
+                                        alert(err.response?.data?.message || err.message || "Failed to write off");
+                                      }
+                                    }}
+                                    style={{ background: '#dc2626', color: '#fff' }}
+                                  >
+                                    <X size={14} /> Write Off / Discount
+                                  </button>
+                                </>
                               )}
                               {Number(fee.paid_amount || 0) > 0 && (
                                 <button
@@ -599,7 +653,7 @@ const FeeDetails = () => {
                                     const payments = getPaymentsForFee(fee.fee_id);
                                     handlePrintReceipt(fee, payments[payments.length - 1]);
                                   }}
-                                  style={{ background: '#059669', color: '#fff' }}
+                                  style={{ background: '#0891b2', color: '#fff' }}
                                 >
                                   <Receipt size={14} /> Print Receipt
                                 </button>
@@ -753,6 +807,46 @@ const FeeDetails = () => {
           </div>
         )}
       </div>
+
+      {/* Copy Chooser Modal (for receipt printing) */}
+      {copyChooser.open && (
+        <div
+          onClick={() => setCopyChooser({ open: false, fee: null, payment: null })}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 16, maxWidth: 400, width: '100%',
+              padding: '24px 20px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+            }}>
+            <h3 style={{ margin: 0, marginBottom: 8, fontSize: 18, color: '#1e293b' }}>Print Receipt</h3>
+            <p style={{ margin: 0, marginBottom: 16, fontSize: 13, color: '#64748b' }}>
+              Which copy do you want to print?
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={() => doPrintReceipt(["admin", "student"])}
+                style={{ padding: '12px 16px', border: 'none', borderRadius: 8, background: '#1e40af', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+                Both Copies (Admin + Student)
+              </button>
+              <button onClick={() => doPrintReceipt(["admin"])}
+                style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#1e293b', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+                Admin Copy only
+              </button>
+              <button onClick={() => doPrintReceipt(["student"])}
+                style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#1e293b', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+                Student Copy only
+              </button>
+              <button onClick={() => setCopyChooser({ open: false, fee: null, payment: null })}
+                style={{ padding: '10px 16px', border: 'none', borderRadius: 8, background: 'transparent', color: '#64748b', cursor: 'pointer', fontSize: 13, marginTop: 4 }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Invoice Modal */}
       {showInvoice && selectedPayment && (

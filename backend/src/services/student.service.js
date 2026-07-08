@@ -79,7 +79,7 @@ exports.createStudentWithFees = (data) => {
       data.discount_on_full_month !== undefined ? (data.discount_on_full_month ? 1 : 0) : 1,
       data.fee_type_cycle || 'monthly', data.next_fee_due_date || null, securityDeposit,
       (data.payment_mode === 'online' ? 'online' : 'cash'),
-      data.gender || 'Female'
+      data.gender || 'Girl'
     );
 
     const studentId = result.lastInsertRowid;
@@ -244,7 +244,7 @@ exports.updateStudent = (id, data) => {
       data.next_fee_due_date !== undefined ? data.next_fee_due_date : student.next_fee_due_date,
       data.original_security_deposit !== undefined ? Number(data.original_security_deposit) : student.original_security_deposit,
       data.payment_mode !== undefined ? (data.payment_mode === 'online' ? 'online' : 'cash') : (student.payment_mode || 'cash'),
-      data.gender !== undefined ? data.gender : (student.gender || 'Female'),
+      data.gender !== undefined ? data.gender : (student.gender || 'Girl'),
       id
     );
 
@@ -433,6 +433,26 @@ exports.checkoutStudent = (id, options = {}) => {
   const student = exports.getStudentById(id);
   if (!student) throw new Error("Student not found");
   if (student.date_of_leaving) throw new Error("Student has already checked out");
+
+  // Block checkout when any fee still has unpaid balance.
+  // Admin can zero-out a fee via the "Write Off / Discount" button from the
+  // fee history page before retrying.
+  if (!options.force_checkout) {
+    const unpaidRow = db.db.prepare(`
+      SELECT COALESCE(SUM(CASE WHEN final_amount > paid_amount THEN final_amount - paid_amount ELSE 0 END), 0) as unpaid
+      FROM student_fees
+      WHERE student_id = ? AND fee_status != 'PAID'
+    `).get(id);
+    const unpaid = Number(unpaidRow?.unpaid || 0);
+    if (unpaid > 0) {
+      const err = new Error(
+        `Cannot check out — ₹${unpaid.toLocaleString('en-IN')} in fees remain unpaid. ` +
+        `Collect the payment or write off the unpaid balance from the fee history page.`
+      );
+      err.code = 'UNPAID_FEES';
+      throw err;
+    }
+  }
 
   const checkoutDate = options.checkoutDate || new Date().toISOString().split("T")[0];
   const reason = options.reason || "Manual checkout";

@@ -1312,12 +1312,13 @@ function runMigrations() {
   safeAddColumn('students', 'original_security_deposit', 'REAL');
   safeAddColumn('students', 'discount_on_full_month', 'INTEGER DEFAULT 1');
   safeAddColumn('students', 'payment_mode', "TEXT DEFAULT 'cash'");
-  safeAddColumn('students', 'gender', "TEXT DEFAULT 'Female'");
+  safeAddColumn('students', 'gender', "TEXT DEFAULT 'Girl'");
 
-  // One-time migration for existing rows: default payment mode = cash, gender = Female.
+  // One-time migration for existing rows: default payment mode = cash, gender = Girl.
   try {
     db.prepare(`UPDATE students SET payment_mode = 'cash' WHERE payment_mode IS NULL OR payment_mode = ''`).run();
-    db.prepare(`UPDATE students SET gender = 'Female' WHERE gender IS NULL OR gender = ''`).run();
+    db.prepare(`UPDATE students SET gender = 'Girl' WHERE gender IS NULL OR gender = '' OR gender = 'Female'`).run();
+    db.prepare(`UPDATE students SET gender = 'Boy' WHERE gender = 'Male'`).run();
   } catch (e) {
     console.warn('Existing-student migration skipped:', e.message);
   }

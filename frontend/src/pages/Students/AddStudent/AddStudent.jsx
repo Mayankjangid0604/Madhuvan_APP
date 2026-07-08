@@ -63,7 +63,7 @@ const AddStudent = () => {
   const [studentData, setStudentData] = useState({
     form_date: new Date().toISOString().split('T')[0],
     student_name: "",
-    gender: "Female",
+    gender: "Girl",
     date_of_birth: "",
     student_mobile: "",
     father_email: "",
@@ -521,7 +521,7 @@ const AddStudent = () => {
       const studentPayload = {
         form_date: studentData.form_date,
         student_name: studentData.student_name,
-        gender: studentData.gender || 'Female',
+        gender: studentData.gender || 'Girl',
         date_of_birth: studentData.date_of_birth,
         student_mobile: studentData.student_mobile,
         father_email: studentData.father_email || null,
@@ -701,7 +701,7 @@ const AddStudent = () => {
     setStudentData({
       form_date: new Date().toISOString().split('T')[0],
       student_name: "",
-      gender: "Female",
+      gender: "Girl",
       date_of_birth: "",
       student_mobile: "",
       father_email: "",
@@ -925,7 +925,7 @@ const AddStudent = () => {
                       Gender <span className="required">*</span>
                     </label>
                     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                      {['Female', 'Male', 'Other'].map(g => (
+                      {['Girl', 'Boy', 'Other'].map(g => (
                         <label key={g} style={{
                           display: 'inline-flex', alignItems: 'center', gap: 6,
                           padding: '10px 14px',

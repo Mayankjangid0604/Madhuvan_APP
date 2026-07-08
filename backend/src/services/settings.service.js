@@ -116,6 +116,8 @@ Thank you,
 exports.saveEmailTemplate = (data) => setSetting("email_template", data);
 exports.saveSmsTemplate = (data) => setSetting("sms_template", data);
 exports.saveTemplate = (kind, data) => setSetting(`${kind}_template`, data);
+exports.getConfig = (key, def) => getSetting(key, def);
+exports.saveConfig = (key, data) => setSetting(key, data);
 
 // =========================
 // Email Config

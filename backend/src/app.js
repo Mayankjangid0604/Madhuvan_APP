@@ -382,6 +382,14 @@ setTimeout(() => {
     console.warn("   ⚠️ Cleanup cron:", err.message);
   }
 
+  try {
+    const { startFeeEmailCrons } = require("./cron/emailSchedule.cron");
+    startFeeEmailCrons();
+    console.log("   ✅ Fee email cron started (1st invoice, 3rd/5th reminders, 6+ daily overdue)");
+  } catch (err) {
+    console.warn("   ⚠️ Email cron:", err.message);
+  }
+
 }, 3000);
 
 // ============================================
