@@ -803,6 +803,10 @@ textarea.form-textarea[rows] {
 select.form-input {
   cursor: pointer;
   appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  min-height: 44px;
+  line-height: 1.5;
   background-image: url('data:image/svg+xml;utf8,<svg fill="%232563eb" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M5 8l5 5 5-5z"/></svg>');
   background-repeat: no-repeat;
   background-position: right 14px center;

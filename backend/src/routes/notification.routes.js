@@ -61,10 +61,10 @@ router.post("/test-sms", async (req, res) => {
   try {
     const { phone } = req.body;
     
-    if (!phone) {
+    if (!phone || phone.trim().length < 4) {
       return res.status(400).json({ 
         success: false, 
-        message: "Phone number is required" 
+        message: "A valid phone number is required (e.g. +919999999999)" 
       });
     }
     
@@ -75,9 +75,19 @@ router.post("/test-sms", async (req, res) => {
       message: "Test SMS sent successfully"
     });
   } catch (err) {
-    res.status(400).json({ 
+    // Differentiate config errors from send errors
+    const isConfigError = err.message.includes("not configured") || 
+                          err.message.includes("not found") ||
+                          err.message.includes("configure");
+    
+    const statusCode = isConfigError ? 422 : 400;
+    const message = isConfigError 
+      ? "SMS is not configured. Please set up Twilio Account SID, Auth Token, and From Number in Settings → SMS Configuration first."
+      : err.message;
+    
+    res.status(statusCode).json({ 
       success: false, 
-      message: err.message 
+      message 
     });
   }
 });

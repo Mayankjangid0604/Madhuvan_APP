@@ -3,7 +3,6 @@ import { ledgerAPI } from "../../services/api/ledger.api";
 import DateInput from "../../components/common/DateInput";
 import {
   Plus,
-  Download,
   Filter,
   Calendar,
   TrendingUp,
@@ -317,36 +316,6 @@ const Ledger = () => {
       showToast('error', err.response?.data?.message || "Failed to add entry");
     } finally {
       setModalLoading(false);
-    }
-  };
-
-  const handleExport = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const queryParams = new URLSearchParams(filters).toString();
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/export/ledger/csv?${queryParams}`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (!response.ok) throw new Error('Export failed');
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ledger_${filters.from_date}_to_${filters.to_date}.csv`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-
-      showToast('success', 'Ledger exported successfully!');
-    } catch (err) {
-      showToast('error', 'Export failed. Please try again.');
     }
   };
 
@@ -761,13 +730,6 @@ const Ledger = () => {
           >
             <Eye size={18} />
             <span>Print Preview</span>
-          </button>
-          <button
-            className="btn btn-secondary"
-            onClick={handleExport}
-          >
-            <Download size={18} />
-            <span>Export CSV</span>
           </button>
           <button
             className="btn btn-primary"

@@ -4,7 +4,7 @@
 //   Receipt — Admin Copy + Student Copy on one page separated by cut line; when
 //             printing, we ask which copy the user wants
 //   Bill    — vendor block, itemised table, totals, payment details
-import { printElement } from "./printUtil";
+import { printElement, printWithPreview } from "./printUtil";
 
 // -----------------------------------------------------------------------------
 // SHARED HELPERS
@@ -353,15 +353,15 @@ const baseStyles = `
   .copy-tag {
     display: inline-block;
     background: #1e3a8a; color: #fff;
-    padding: 3px 12px;
-    font-size: 11px; font-weight: 800;
+    padding: 2px 10px;
+    font-size: 10px; font-weight: 800;
     border-radius: 4px;
     letter-spacing: 1px;
   }
   .cut-line {
     display: flex; align-items: center;
     color: #94a3b8;
-    margin: 14px 0;
+    margin: 6px 0;
     gap: 8px;
   }
   .cut-line::before, .cut-line::after {
@@ -369,6 +369,34 @@ const baseStyles = `
     flex: 1;
     border-top: 1.5px dashed #94a3b8;
   }
+
+  /* Both receipt copies must fit on one A4 page */
+  .receipt-dual .page {
+    font-size: 10px;
+    padding: 4px 6px;
+  }
+  .receipt-dual .doc-brand { padding: 2px 0; }
+  .receipt-dual .logo-badge, .receipt-dual .logo-badge-img { width: 50px; height: 50px; font-size: 16px; }
+  .receipt-dual .brand-name { font-size: 20px; }
+  .receipt-dual .brand-sub { font-size: 12px; }
+  .receipt-dual .brand-contact { font-size: 10px; margin-top: 2px; }
+  .receipt-dual .doc-title { font-size: 16px; margin: 6px 0 4px; }
+  .receipt-dual .paid-badge { font-size: 10px; padding: 2px 8px; margin: 2px auto 4px; }
+  .receipt-dual .doc-number { font-size: 10px; margin-top: 2px; }
+  .receipt-dual hr.rule { margin: 6px 0; }
+  .receipt-dual .info-grid { gap: 10px; margin-bottom: 6px; }
+  .receipt-dual .info-block h4 { font-size: 10px; margin-bottom: 3px; }
+  .receipt-dual .info-block .row { font-size: 10px; padding: 1px 0; grid-template-columns: 95px 8px 1fr; }
+  .receipt-dual table.items th { padding: 4px 6px; font-size: 9px; }
+  .receipt-dual table.items td { padding: 4px 6px; font-size: 10px; }
+  .receipt-dual .in-words .lbl { font-size: 9px; }
+  .receipt-dual .in-words .val { font-size: 10px; }
+  .receipt-dual .payment-summary .row { font-size: 10px; padding: 2px 0; }
+  .receipt-dual .payment-summary .row.total { font-size: 12px; }
+  .receipt-dual .notes { margin-top: 6px; }
+  .receipt-dual .doc-footer { margin-top: 6px; padding-top: 4px; font-size: 9px; }
+  .receipt-dual .thanks { font-size: 10px; }
+  .receipt-dual .gstin-pill { font-size: 10px; padding: 3px 10px; }
 `;
 
 // -----------------------------------------------------------------------------
@@ -851,7 +879,12 @@ export const buildReceiptHTML = (params) => {
     if (pages.length) pages.push(`<div class="cut-line">✂ cut here</div>`);
     pages.push(receiptCopy({ ...commonProps, copyTag: "STUDENT COPY" }));
   }
-  return pages.join("");
+  const inner = pages.join("");
+  // Wrap in receipt-dual when both copies print so they fit on one A4
+  if (copies.length > 1) {
+    return `<div class="receipt-dual">${inner}</div>`;
+  }
+  return inner;
 };
 
 // -----------------------------------------------------------------------------
@@ -990,25 +1023,23 @@ export const buildVoucherHTML = ({ hostel = {}, voucher_no, date, payee, amount,
 // -----------------------------------------------------------------------------
 export const printInvoice = (params) => {
   const html = buildInvoiceHTML(params);
-  printElement(html, `Invoice-${params.invoice_no || "New"}`, baseStyles);
+  printWithPreview(html, `Invoice-${params.invoice_no || "New"}`, baseStyles);
 };
 
 export const printReceipt = (params) => {
-  // Default: print both copies. Callers can pass copies: ["admin"], ["student"], or ["admin","student"].
-  // Some Electron builds block window.prompt, which used to silently no-op — now we always render.
   const copies = params.copies && params.copies.length ? params.copies : ["admin", "student"];
   const html = buildReceiptHTML({ ...params, copies });
-  printElement(html, `Receipt-${params.receipt_no || "New"}`, baseStyles);
+  printWithPreview(html, `Receipt-${params.receipt_no || "New"}`, baseStyles);
 };
 
 export const printBill = (params) => {
   const html = buildBillHTML(params);
-  printElement(html, `Bill-${params.entry?.bill_no || params.entry?.entry_id || "New"}`, baseStyles);
+  printWithPreview(html, `Bill-${params.entry?.bill_no || params.entry?.entry_id || "New"}`, baseStyles);
 };
 
 export const printVoucher = (params) => {
   const html = buildVoucherHTML(params);
-  printElement(html, `Voucher-${params.voucher_no || "New"}`, baseStyles);
+  printWithPreview(html, `Voucher-${params.voucher_no || "New"}`, baseStyles);
 };
 
 // Prints a single invoice for one fee (accommodation + mess split by 5000 rule — online only).
@@ -1061,7 +1092,7 @@ export const printInvoiceForFee = ({
     is_online_payment,
     total_fee_amount: feeTotal,
   });
-  printElement(html, `Invoice-${student.student_name}`, baseStyles);
+  printWithPreview(html, `Invoice-${student.student_name}`, baseStyles);
 };
 
 // Back-compat alias

@@ -240,12 +240,13 @@ const ReceiveFee = () => {
           : breakdown.rentRemaining;
     }
 
+    const isOnlineStudent = (student.payment_mode || 'cash').toLowerCase() === 'online';
     setSelectedStudent(student);
     setSelectedFeeType(feeType);
     setSelectedFeeId(specificFeeId);
     setPaymentData({
       amount: targetAmount > 0 ? Math.round(targetAmount).toString() : "",
-      mode: "CASH",
+      mode: isOnlineStudent ? "UPI" : "CASH",
       reference: ""
     });
     setReceivedBy("");
@@ -658,10 +659,12 @@ const ReceiveFee = () => {
                       value={paymentData.mode}
                       onChange={e => setPaymentData(p => ({ ...p, mode: e.target.value }))}
                     >
-                      <option value="CASH">💵 Cash</option>
-                      <option value="UPI">📱 UPI</option>
-                      <option value="BANK">🏦 Bank Transfer</option>
-                      <option value="CHEQUE">📝 Cheque</option>
+                      {(selectedStudent?.payment_mode || 'cash').toLowerCase() !== 'online' && (
+                        <option value="CASH">Cash</option>
+                      )}
+                      <option value="UPI">UPI</option>
+                      <option value="BANK">Bank Transfer</option>
+                      <option value="CHEQUE">Cheque</option>
                     </select>
                   </div>
                   <div className="form-group">

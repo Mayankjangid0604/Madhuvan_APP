@@ -813,15 +813,10 @@ const FinePage = () => {
                     <th>Amount</th>
                     <th>Status</th>
                     <th>Note</th>
-                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRecords.map((record) => {
-                    const canCollect =
-                      record.displayType !== "MONEY_GIVEN" &&
-                      Number(record.deducted_from_security) !== 1 &&
-                      !["COLLECTED", "DEDUCTED", "GIVEN"].includes(record.status);
                     return (
                     <tr key={record.uniqueKey}>
                       <td>
@@ -863,32 +858,6 @@ const FinePage = () => {
                       </td>
                       <td className="note-cell">
                         <span className="note-text" title={record.displayNote}>{record.displayNote}</span>
-                      </td>
-                      <td>
-                        {canCollect ? (
-                          <button
-                            className="btn btn-success btn-sm"
-                            style={{ padding: "6px 10px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                            onClick={async () => {
-                              try {
-                                await fineAPI.collectFine({
-                                  record_type: record.type,
-                                  record_id: record.record_id || record.id,
-                                  payment_mode: "CASH"
-                                });
-                                showToast("success", `${formatCurrency(record.amount)} collected from ${record.student_name}`);
-                                fetchRecords(true);
-                              } catch (err) {
-                                showToast("error", err.response?.data?.message || "Failed to collect");
-                              }
-                            }}
-                          >
-                            <Banknote size={12} />
-                            Collect
-                          </button>
-                        ) : (
-                          <span style={{ color: "#94a3b8", fontSize: "12px" }}>—</span>
-                        )}
                       </td>
                     </tr>
                     );

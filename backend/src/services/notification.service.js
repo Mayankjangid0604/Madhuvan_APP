@@ -259,7 +259,7 @@ exports.sendSMSReminder = async (studentId, feeDetails) => {
 
     await twilioClient.messages.create({
       body: message,
-      from: smsConfig.fromNumber,
+      from: smsConfig.from,
       to: `+91${student.mother_mobile}`
     });
 
@@ -494,7 +494,7 @@ exports.sendTestSMS = async (to) => {
 
   const smsConfig = await settingsService.getSmsConfig();
 
-  if (!smsConfig.fromNumber) {
+  if (!smsConfig.from) {
     throw new Error("Twilio 'From' number not configured");
   }
 
@@ -506,7 +506,7 @@ exports.sendTestSMS = async (to) => {
 
   await twilioClient.messages.create({
     body: "Test SMS from Hostel Management System. SMS configuration is working correctly!",
-    from: smsConfig.fromNumber,
+    from: smsConfig.from,
     to: phoneNumber
   });
 
@@ -536,7 +536,7 @@ exports.sendSMS = async (to, message) => {
   try {
     await twilioClient.messages.create({
       body: message,
-      from: smsConfig.fromNumber,
+      from: smsConfig.from,
       to: phoneNumber
     });
 

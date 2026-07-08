@@ -230,6 +230,16 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
   outline: none !important;
 }
+/* Fix select text clipping - selects need more vertical space than inputs */
+select {
+  min-height: 44px !important;
+  padding: 10px 40px 10px 12px !important;
+  line-height: 1.5 !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  vertical-align: middle !important;
+}
 input::placeholder, textarea::placeholder {
   color: var(--pt-text-soft) !important;
   -webkit-text-fill-color: var(--pt-text-soft) !important;
