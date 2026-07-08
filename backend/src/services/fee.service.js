@@ -87,6 +87,13 @@ const getFeeGst = (fee, student) => {
   if (!student || (student.payment_mode || 'cash').toLowerCase() !== 'online') {
     return 0;
   }
+
+  // GST applies only from July 2026 onwards
+  const feeMonth = fee.fee_month || fee.fee_date || '';
+  if (feeMonth && feeMonth < '2026-07') {
+    return 0;
+  }
+
   const cycle = (student.fee_type_cycle || "monthly").toLowerCase();
   const months = cycle === "half_yearly" ? 6 : cycle === "yearly" ? 12 : 1;
   const totalMess = 5000 * months;
@@ -1192,22 +1199,8 @@ exports.applyWaiver = ({ fee_id, amount, reason }) => {
      WHERE fee_id = ?
   `).run(newDiscount, newFinal, newStatus, fee_id);
 
-  try {
-    const ledgerService = require('./ledger.service');
-    const student = db.db.prepare("SELECT student_name FROM students WHERE student_id = ?").get(fee.student_id);
-    ledgerService.addManualEntry({
-      entry_date: new Date().toISOString().split('T')[0],
-      entry_type: 'expense',
-      category: 'refund',
-      amount: wAmount,
-      payment_mode: 'adjustment',
-      reference_no: `WAIVER-F${fee_id}`,
-      description: `Fee waiver granted to ${student?.student_name || `student #${fee.student_id}`}: ${reason || 'concession'}`,
-      student_id: fee.student_id
-    });
-  } catch (e) {
-    console.warn('Ledger entry for waiver failed:', e.message);
-  }
+  // No outgoing ledger entry for waivers/discounts — they only reduce the
+  // invoice amount, they don't represent money leaving the hostel.
 
   return { fee_id, waiver_amount: wAmount, new_final: newFinal, new_status: newStatus };
 };

@@ -70,6 +70,16 @@ router.post("/phonepe", express.json({
     const studentId = Number(match[1]);
     const feeId = Number(match[2]);
 
+    // Duplicate check: skip if this transaction was already processed
+    const txnRef = data.transactionId || merchantTxnId;
+    const existing = db.db.prepare(`
+      SELECT payment_id FROM fee_payments WHERE reference_no = ? AND payment_mode = 'PHONEPE'
+    `).get(txnRef);
+    if (existing) {
+      console.log(`PhonePe webhook: duplicate callback for ${txnRef}, skipping`);
+      return res.json({ success: true, message: "Duplicate — already processed" });
+    }
+
     // Mark fee PAID (or add partial payment)
     const paidAt = new Date().toISOString().split("T")[0];
     try {
@@ -84,13 +94,29 @@ router.post("/phonepe", express.json({
                payment_mode = 'PHONEPE',
                reference_no = ?
          WHERE fee_id = ?
-      `).run(amount, amount, paidAt, data.transactionId || merchantTxnId, feeId);
+      `).run(amount, amount, paidAt, txnRef, feeId);
 
       db.db.prepare(`
         INSERT INTO fee_payments
           (student_id, fee_id, payment_amount, payment_date, payment_mode, reference_no, received_by)
         VALUES (?, ?, ?, ?, 'PHONEPE', ?, 'PhonePe Auto')
-      `).run(studentId, feeId, amount, paidAt, data.transactionId || merchantTxnId);
+      `).run(studentId, feeId, amount, paidAt, txnRef);
+
+      // Create ledger income entry
+      try {
+        const ledgerService = require("../services/ledger.service");
+        const fee = db.db.prepare("SELECT fee_month FROM student_fees WHERE fee_id = ?").get(feeId);
+        ledgerService.createFeePaymentEntry({
+          student_id: studentId,
+          payment_amount: amount,
+          payment_date: paidAt,
+          payment_mode: 'PHONEPE',
+          reference_no: txnRef,
+          fee_month: fee?.fee_month || paidAt
+        });
+      } catch (le) {
+        console.warn("PhonePe webhook: ledger entry failed:", le.message);
+      }
     } catch (e) {
       console.error("Failed to update fee row from PhonePe webhook:", e.message);
     }

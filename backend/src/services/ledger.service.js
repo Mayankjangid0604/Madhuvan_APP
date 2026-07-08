@@ -144,7 +144,7 @@ exports.createMoneyGivenEntry = ({
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     given_date || new Date().toISOString().split('T')[0],
-    'expense', 'Given Cash to Student', numAmount, 0, numAmount, newBalance,
+    'expense', 'Given Money', numAmount, 0, numAmount, newBalance,
     description, student_id
   );
   
@@ -605,18 +605,6 @@ function recalculateBalances() {
       .run(runningBalance, entry.entry_id);
   }
 }
-
-// ============================================
-// EXPORT CSV
-// ============================================
-exports.exportToCSV = (filters = {}) => {
-  const entries = exports.getAllEntries(filters);
-  let csv = 'Date,Type,Category,Amount,Debit,Credit,Balance,Mode,Reference,Description\n';
-  entries.forEach(e => {
-    csv += `${e.entry_date},${e.entry_type},${e.category},${e.amount},${e.debit},${e.credit},${e.balance},${e.payment_mode || ''},${e.reference_no || ''},"${e.description || ''}"\n`;
-  });
-  return csv;
-};
 
 // Backwards compatibility
 exports.getLedger = exports.getAllEntries;

@@ -511,7 +511,11 @@
   width: min(calc(100vw - 282px), 1400px) !important;
   max-width: calc(100vw - 282px) !important;
   min-width: 320px;
-  min-height: 85vh;
+  min-height: 60vh;
+  max-height: 92vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes slideIn {

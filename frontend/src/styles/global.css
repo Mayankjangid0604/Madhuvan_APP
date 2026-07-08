@@ -2693,3 +2693,22 @@ select:disabled {
 .skip-link:focus {
   top: 0;
 }
+
+/* ============================================
+   READABILITY: Room, Ledger, Fine, Reports
+   ============================================ */
+table th,
+table td {
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+
+.page-title,
+.section-title {
+  line-height: 1.4;
+}
+
+.stat-value,
+.summary-value {
+  font-variant-numeric: tabular-nums;
+}

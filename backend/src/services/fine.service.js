@@ -536,7 +536,7 @@ exports.collectFine = ({ record_type, record_id, payment_mode = 'CASH', referenc
     ledgerService.addManualEntry({
       entry_date: today,
       entry_type: 'income',
-      category: 'fine',
+      category: categoryLabel,
       amount,
       payment_mode: (payment_mode || 'cash').toLowerCase(),
       reference_no,

@@ -448,7 +448,10 @@ exports.getGstReport = async ({ from_date, to_date } = {}) => {
     WHERE LOWER(COALESCE(s.payment_mode, 'cash')) = 'online'
   `;
   const params = [];
-  if (from_date) { sql += ' AND fp.payment_date >= ?'; params.push(from_date); }
+  // GST applies only from July 2026 onwards
+  const gstStartDate = '2026-07-01';
+  const effectiveFrom = from_date && from_date > gstStartDate ? from_date : gstStartDate;
+  sql += ' AND fp.payment_date >= ?'; params.push(effectiveFrom);
   if (to_date) { sql += ' AND fp.payment_date <= ?'; params.push(to_date); }
   sql += ' ORDER BY fp.payment_date ASC';
 

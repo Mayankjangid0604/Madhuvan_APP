@@ -1175,6 +1175,24 @@ const Students = () => {
                             ).toLocaleDateString("en-IN")}
                           </span>
                         </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Gender</span>
+                          <span className="detail-value">
+                            {selectedStudent.gender || "-"}
+                          </span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Payment Mode</span>
+                          <span className="detail-value">
+                            {selectedStudent.payment_mode || "Cash"}
+                          </span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Fee Cycle</span>
+                          <span className="detail-value">
+                            {(selectedStudent.fee_type_cycle || "monthly").replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -1198,6 +1216,12 @@ const Students = () => {
                           </span>
                         </div>
                         <div className="detail-item">
+                          <span className="detail-label">Father's Email</span>
+                          <span className="detail-value">
+                            {selectedStudent.father_email || "-"}
+                          </span>
+                        </div>
+                        <div className="detail-item">
                           <span className="detail-label">Mother's Name</span>
                           <span className="detail-value">
                             {selectedStudent.mother_name || "-"}
@@ -1208,6 +1232,12 @@ const Students = () => {
                           <span className="detail-value">
                             <Phone size={14} />
                             {selectedStudent.mother_mobile || "-"}
+                          </span>
+                        </div>
+                        <div className="detail-item">
+                          <span className="detail-label">Mother's Email</span>
+                          <span className="detail-value">
+                            {selectedStudent.mother_email || "-"}
                           </span>
                         </div>
                         {selectedStudent.local_guardian_name && (
