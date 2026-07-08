@@ -1358,53 +1358,7 @@ function runMigrations() {
     console.warn('sync_queue table creation skipped:', e.message);
   }
 
-  // Branches (multi-branch support)
-  try {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS branches (
-        branch_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        branch_name TEXT NOT NULL,
-        branch_code TEXT,
-        address TEXT,
-        phone TEXT,
-        email TEXT,
-        gstin TEXT,
-        is_default INTEGER DEFAULT 0,
-        is_active INTEGER DEFAULT 1,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    // Seed the default branch if empty
-    const cnt = db.prepare('SELECT COUNT(*) as c FROM branches').get().c;
-    if (cnt === 0) {
-      db.prepare(`
-        INSERT INTO branches (branch_name, branch_code, is_default, is_active)
-        VALUES ('Main Branch', 'MAIN', 1, 1)
-      `).run();
-    }
-  } catch (e) {
-    console.warn('branches table setup skipped:', e.message);
-  }
-  safeAddColumn('students', 'branch_id', 'INTEGER');
-  safeAddColumn('ledger_entries', 'branch_id', 'INTEGER');
-  safeAddColumn('member', 'branch_id', 'INTEGER');
-  safeAddColumn('members', 'branch_id', 'INTEGER');
-  safeAddColumn('rooms', 'branch_id', 'INTEGER');
-  safeAddColumn('admins', 'role', "TEXT DEFAULT 'super_admin'");
-  safeAddColumn('admins', 'branch_id', 'INTEGER');
-
-  // Backfill: any row without a branch_id gets branch 1 (Main Branch).
-  try {
-    const defaultBranch = db.prepare(`SELECT branch_id FROM branches ORDER BY is_default DESC, branch_id ASC LIMIT 1`).get();
-    const defaultId = defaultBranch?.branch_id || 1;
-    db.prepare(`UPDATE students        SET branch_id = ? WHERE branch_id IS NULL`).run(defaultId);
-    db.prepare(`UPDATE ledger_entries  SET branch_id = ? WHERE branch_id IS NULL`).run(defaultId);
-    try { db.prepare(`UPDATE members       SET branch_id = ? WHERE branch_id IS NULL`).run(defaultId); } catch {}
-    try { db.prepare(`UPDATE member        SET branch_id = ? WHERE branch_id IS NULL`).run(defaultId); } catch {}
-    try { db.prepare(`UPDATE rooms         SET branch_id = ? WHERE branch_id IS NULL`).run(defaultId); } catch {}
-  } catch (e) {
-    console.warn('Branch backfill skipped:', e.message);
-  }
+  // (Branch system removed — no branches table, no per-row branch_id.)
 
   // 2. STUDENT_FEES Table Critical Columns
   safeAddColumn('student_fees', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');

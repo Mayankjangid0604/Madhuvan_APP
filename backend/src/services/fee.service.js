@@ -1056,14 +1056,7 @@ exports.applyPenaltiesToOverdueFees = exports.applyPenalties;
 // Active students AND checked-out students that still have unpaid fees.
 // (Once every fee of a checked-out student is fully paid, they drop off the list.)
 // ============================================
-exports.getAllFeesComprehensive = (opts = {}) => {
-  const { branch_id } = opts;
-  const params = [];
-  let branchFilter = '';
-  if (branch_id) {
-    branchFilter = ' AND s.branch_id = ?';
-    params.push(branch_id);
-  }
+exports.getAllFeesComprehensive = () => {
   const students = db.db.prepare(`
     SELECT DISTINCT s.student_id, s.student_name, s.father_name, s.student_mobile, s.photo_url,
                     s.status, s.date_of_leaving,
@@ -1080,8 +1073,8 @@ exports.getAllFeesComprehensive = (opts = {}) => {
           AND sf.fee_status != 'PAID'
           AND COALESCE(sf.final_amount, 0) > COALESCE(sf.paid_amount, 0)
       )
-    )${branchFilter}
-  `).all(...params);
+    )
+  `).all();
 
   return students.map(student => {
     const fees = db.db.prepare(`SELECT * FROM student_fees WHERE student_id = ? ORDER BY fee_month DESC`).all(student.student_id);

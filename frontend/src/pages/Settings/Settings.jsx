@@ -37,7 +37,7 @@ import "./settings.css";
 const Settings = () => {
   const { user, updateAuth } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const isSuperAdmin = (user?.role || 'super_admin') === 'super_admin';
+  const isSuperAdmin = true;
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -154,9 +154,6 @@ Thank you,
 
   const [showInvoiceEmailModal, setShowInvoiceEmailModal] = useState(false);
   const [showReceiptEmailModal, setShowReceiptEmailModal] = useState(false);
-  const [showBranchesModal, setShowBranchesModal] = useState(false);
-  const [branches, setBranches] = useState([]);
-  const [branchForm, setBranchForm] = useState({ branch_name: "", branch_code: "", address: "", phone: "", email: "", gstin: "" });
   const [showPhonePeModal, setShowPhonePeModal] = useState(false);
   const [phonePeConfig, setPhonePeConfig] = useState({
     enabled: false,
@@ -183,29 +180,6 @@ Thank you,
     } catch (err) {
       showError(err.response?.data?.message || err.message);
     } finally { setLoading(false); }
-  };
-
-  const loadBranches = async () => {
-    try {
-      const r = await axios.get(`${API_URL}/branches`, { headers: getAuthHeaders() });
-      setBranches(r.data?.data || []);
-    } catch (err) { console.log("branches load skipped:", err.message); }
-  };
-  const handleAddBranch = async () => {
-    if (!branchForm.branch_name.trim()) return showError("Branch name is required");
-    try {
-      await axios.post(`${API_URL}/branches`, branchForm, { headers: getAuthHeaders() });
-      showSuccess("✓ Branch added");
-      setBranchForm({ branch_name: "", branch_code: "", address: "", phone: "", email: "", gstin: "" });
-      loadBranches();
-    } catch (err) { showError(err.response?.data?.message || err.message); }
-  };
-  const handleDeleteBranch = async (id) => {
-    if (!window.confirm("Deactivate this branch?")) return;
-    try {
-      await axios.delete(`${API_URL}/branches/${id}`, { headers: getAuthHeaders() });
-      loadBranches();
-    } catch (err) { showError(err.response?.data?.message || err.message); }
   };
 
   const [emailConfig, setEmailConfig] = useState({
@@ -1173,17 +1147,6 @@ Thank you,
       </div>
 
       {/* Settings Grid */}
-      {!isSuperAdmin && (
-        <div style={{
-          background: '#eff6ff', border: '1px solid #bfdbfe',
-          borderRadius: 10, padding: '10px 14px', margin: '0 0 16px',
-          fontSize: 13, color: '#1e40af'
-        }}>
-          You are signed in as a <strong>branch admin</strong>. Only Hostel Rules,
-          Hostel Information and Change Password are available here. Ask the main
-          admin for other changes.
-        </div>
-      )}
       <div className="settings-grid">
         {/* Database Backup */}
         {isSuperAdmin && (
@@ -1326,23 +1289,6 @@ Thank you,
             </Button>
           </div>
           <small className="help-text">💡 Payments received in PhonePe auto-update the fee & send the receipt</small>
-        </Card>
-        )}
-
-        {/* Branches */}
-        {isSuperAdmin && (
-        <Card>
-          <div className="card-icon" style={{ backgroundColor: '#0ea5e915' }}>
-            <Building2 size={24} color="#0ea5e9" />
-          </div>
-          <h3>Branches</h3>
-          <p>Manage multiple hostel branches</p>
-          <div className="button-group">
-            <Button onClick={() => { loadBranches(); setShowBranchesModal(true); }} variant="outline">
-              <Building2 size={16} /> Manage Branches
-            </Button>
-          </div>
-          <small className="help-text">💡 Add multiple locations; students & ledger can be filtered per branch</small>
         </Card>
         )}
 
@@ -2060,100 +2006,6 @@ Thank you,
               <Button variant="success" onClick={handleSavePhonePeConfig} loading={loading} disabled={loading}>
                 <Save size={16} /> Save Configuration
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Branches Modal */}
-      {showBranchesModal && (
-        <div className="modal-overlay" onClick={() => setShowBranchesModal(false)}>
-          <div className="modal-content config-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 700 }}>
-            <div className="modal-header">
-              <h3><Building2 size={20} /> Branches</h3>
-              <button className="close-btn" onClick={() => setShowBranchesModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Branch Name *</label>
-                  <input className="form-input" value={branchForm.branch_name}
-                    onChange={e => setBranchForm({ ...branchForm, branch_name: e.target.value })} />
-                </div>
-                <div className="form-group">
-                  <label>Code</label>
-                  <input className="form-input" value={branchForm.branch_code}
-                    onChange={e => setBranchForm({ ...branchForm, branch_code: e.target.value })} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Phone</label>
-                  <input className="form-input" value={branchForm.phone}
-                    onChange={e => setBranchForm({ ...branchForm, phone: e.target.value })} />
-                </div>
-                <div className="form-group">
-                  <label>Email</label>
-                  <input className="form-input" value={branchForm.email}
-                    onChange={e => setBranchForm({ ...branchForm, email: e.target.value })} />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Address</label>
-                <input className="form-input" value={branchForm.address}
-                  onChange={e => setBranchForm({ ...branchForm, address: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>GSTIN</label>
-                <input className="form-input" value={branchForm.gstin}
-                  onChange={e => setBranchForm({ ...branchForm, gstin: e.target.value.toUpperCase() })} />
-              </div>
-              <Button variant="primary" onClick={handleAddBranch}>
-                <Plus size={14} /> Add Branch
-              </Button>
-
-              <hr style={{ margin: '20px 0' }} />
-              <h4 style={{ marginBottom: 10 }}>Existing Branches</h4>
-              {branches.length === 0 ? (
-                <p style={{ color: '#64748b' }}>No branches configured.</p>
-              ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <th style={{ textAlign: 'left', padding: 8 }}>Name</th>
-                      <th style={{ textAlign: 'left', padding: 8 }}>Code</th>
-                      <th style={{ textAlign: 'left', padding: 8 }}>Phone</th>
-                      <th style={{ textAlign: 'left', padding: 8 }}>GSTIN</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {branches.map(b => (
-                      <tr key={b.branch_id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: 8, fontWeight: 600 }}>{b.branch_name}{b.is_default ? ' (default)' : ''}</td>
-                        <td style={{ padding: 8 }}>{b.branch_code || '-'}</td>
-                        <td style={{ padding: 8 }}>{b.phone || '-'}</td>
-                        <td style={{ padding: 8 }}>{b.gstin || '-'}</td>
-                        <td style={{ padding: 8 }}>
-                          {!b.is_default && (
-                            <button
-                              onClick={() => handleDeleteBranch(b.branch_id)}
-                              style={{ background: '#fee2e2', color: '#991b1b', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: 'pointer' }}
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            <div className="modal-footer">
-              <Button variant="secondary" onClick={() => setShowBranchesModal(false)}>Close</Button>
             </div>
           </div>
         </div>

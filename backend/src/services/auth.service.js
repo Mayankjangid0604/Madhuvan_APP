@@ -12,7 +12,7 @@ exports.login = async (email, password) => {
   const emailNormalized = email.trim().toLowerCase();
 
   const [rows] = query(
-    "SELECT id, email, password, is_active, role, branch_id FROM admins WHERE LOWER(email) = ?",
+    "SELECT id, email, password, is_active FROM admins WHERE LOWER(email) = ?",
     [emailNormalized]
   );
 
@@ -32,22 +32,16 @@ exports.login = async (email, password) => {
     throw new Error("Invalid credentials");
   }
 
-  const role = admin.role || 'super_admin';
-  const branch_id = admin.branch_id || null;
   const token = generateToken({
     id: admin.id,
-    email: admin.email,
-    role,
-    branch_id,
+    email: admin.email
   });
 
   return {
     token,
     admin: {
       id: admin.id,
-      email: admin.email,
-      role,
-      branch_id,
+      email: admin.email
     }
   };
 };

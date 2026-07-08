@@ -25,9 +25,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('isAuthenticated');
         setUser(null);
       } else {
-        const role = localStorage.getItem('adminRole') || 'super_admin';
-        const branchId = localStorage.getItem('adminBranchId');
-        setUser({ email, token, role, branch_id: branchId ? Number(branchId) : null });
+        setUser({ email, token });
         localStorage.setItem('lastActiveAt', String(now));
       }
     } else {
@@ -71,25 +69,13 @@ export const AuthProvider = ({ children }) => {
   }, [checkAuth]);
 
   // ✅ Login function
-  const login = useCallback((token, email, rememberMe = false, extra = {}) => {
-    const role = extra.role || 'super_admin';
-    const branchId = extra.branch_id || null;
+  const login = useCallback((token, email, rememberMe = false) => {
     localStorage.setItem('token', token);
     localStorage.setItem('adminEmail', email);
-    localStorage.setItem('adminRole', role);
-    if (branchId) {
-      localStorage.setItem('adminBranchId', String(branchId));
-      // Force selected branch for scoped admins
-      if (role === 'branch_admin') {
-        localStorage.setItem('selectedBranchId', String(branchId));
-      }
-    } else {
-      localStorage.removeItem('adminBranchId');
-    }
     localStorage.setItem('isAuthenticated', 'true');
     localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
     localStorage.setItem('lastActiveAt', String(Date.now()));
-    setUser({ email, token, role, branch_id: branchId });
+    setUser({ email, token });
     navigate('/');
   }, [navigate]);
 

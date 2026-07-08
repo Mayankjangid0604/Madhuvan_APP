@@ -63,8 +63,8 @@ exports.createStudentWithFees = (data) => {
         photo_url, monthly_fee, security_deposit, fee_start_month, fee_end_month, fee_term_months,
         has_discount, discount_type, discount_value, discount_applicable, discount_months,
         discount_on_full_month,
-        fee_type_cycle, next_fee_due_date, original_security_deposit, payment_mode, gender, branch_id
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        fee_type_cycle, next_fee_due_date, original_security_deposit, payment_mode, gender
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       formDate, data.student_name, data.date_of_birth || null, data.student_mobile || null,
       data.father_email || null, data.mother_email || null, data.class_or_coaching || null,
@@ -79,8 +79,7 @@ exports.createStudentWithFees = (data) => {
       data.discount_on_full_month !== undefined ? (data.discount_on_full_month ? 1 : 0) : 1,
       data.fee_type_cycle || 'monthly', data.next_fee_due_date || null, securityDeposit,
       (data.payment_mode === 'online' ? 'online' : 'cash'),
-      data.gender || 'Girl',
-      data.branch_id || 1
+      data.gender || 'Girl'
     );
 
     const studentId = result.lastInsertRowid;
@@ -161,15 +160,7 @@ exports.createStudentWithFees = (data) => {
 /* =======================
    GET ALL STUDENTS
 ======================= */
-exports.getAllStudents = (opts = {}) => {
-  const { branch_id } = opts;
-  if (branch_id) {
-    return db.db.prepare(`
-      SELECT * FROM students
-      WHERE status = 'active' AND date_of_leaving IS NULL AND branch_id = ?
-      ORDER BY created_at DESC
-    `).all(branch_id);
-  }
+exports.getAllStudents = () => {
   return db.db.prepare(`
     SELECT * FROM students
     WHERE status = 'active' AND date_of_leaving IS NULL

@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import "./index.css";
+import "./styles/theme-premium.css";
 
 // Prevent mouse wheel from changing the value of focused <input type="number">
 // (a common source of accidental fee/amount edits when the user is just scrolling).

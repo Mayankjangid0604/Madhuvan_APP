@@ -410,10 +410,6 @@ exports.getAllEntries = (filters = {}) => {
     sql += ' AND le.category = ?';
     params.push(filters.category);
   }
-  if (filters.branch_id) {
-    sql += ' AND le.branch_id = ?';
-    params.push(filters.branch_id);
-  }
   if (filters.student_id) {
     sql += ' AND le.student_id = ?';
     params.push(filters.student_id);

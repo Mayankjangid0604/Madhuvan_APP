@@ -7,10 +7,7 @@ const asyncHandler = require("../utils/asyncHandler");
  * GET /api/ledger
  */
 exports.getAllEntries = asyncHandler(async (req, res) => {
-  const branch_id = req.headers['x-branch-id'] || req.query.branch_id;
-  const filters = { ...req.query };
-  if (branch_id) filters.branch_id = Number(branch_id);
-  const entries = ledgerService.getAllEntries(filters);
+  const entries = ledgerService.getAllEntries(req.query);
 
   res.json({
     success: true,

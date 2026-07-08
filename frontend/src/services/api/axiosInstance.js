@@ -20,12 +20,6 @@ api.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Attach selected branch on every request so the backend can scope data.
-    const branchId = localStorage.getItem("selectedBranchId");
-    if (branchId) {
-      config.headers["X-Branch-Id"] = branchId;
-    }
-
     // Disable caching
     config.headers["Cache-Control"] = "no-cache";
     config.headers["Pragma"] = "no-cache";

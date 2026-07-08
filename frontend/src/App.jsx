@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { HashRouter } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import { BranchProvider } from "./contexts/BranchContext";
 import { PageResetProvider } from "./contexts/PageResetContext";
 import AppRoutes from "./app/routes/AppRoutes";
 import AppLoader from "./components/loaders/AppLoader";
@@ -231,11 +230,9 @@ function App() {
       <PageResetProvider>
         <HashRouter>
           <AuthProvider>
-            <BranchProvider>
-              <ErrorBoundary>
-                <AppRoutes />
-              </ErrorBoundary>
-            </BranchProvider>
+            <ErrorBoundary>
+              <AppRoutes />
+            </ErrorBoundary>
           </AuthProvider>
         </HashRouter>
       </PageResetProvider>
