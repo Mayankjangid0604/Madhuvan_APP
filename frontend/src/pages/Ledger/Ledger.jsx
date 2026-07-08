@@ -76,6 +76,7 @@ const Ledger = () => {
 
   const [filters, setFilters] = useState(getCurrentMonthRange());
   const [hostelInfo, setHostelInfo] = useState({});
+  const [copyChooser, setCopyChooser] = useState({ open: false, row: null });
 
   useEffect(() => {
     settingsAPI.getHostelInfo()
@@ -95,22 +96,34 @@ const Ledger = () => {
 
   const handlePrintLedgerRow = async (row) => {
     if (row.entry_type === 'income') {
-      const receipt_no = (await fetchLedgerDocNumber("receipt")) || `RCPT-LDG-${row.entry_id}`;
-      printReceipt({
-        hostel: hostelInfo,
-        student: { student_name: row.description?.split(' - ')[0] || 'Received From', student_id: row.student_id || '-' },
-        receipt_no,
-        payment_date: row.entry_date,
-        amount_received: row.amount,
-        payment_mode: (row.payment_mode || 'CASH').toUpperCase(),
-        reference_no: row.reference_no,
-        notes: row.description
-      });
+      // Show copy chooser before printing receipt
+      setCopyChooser({ open: true, row });
     } else {
       const bill_no = (await fetchLedgerDocNumber("bill")) || `BILL-LDG-${row.entry_id}`;
       printBill({ hostel: hostelInfo, entry: { ...row, entry_id: bill_no } });
     }
   };
+
+  const doPrintLedgerReceipt = async (copies) => {
+    const { row } = copyChooser;
+    setCopyChooser({ open: false, row: null });
+    if (!row) return;
+    const receipt_no = (await fetchLedgerDocNumber("receipt")) || `RCPT-LDG-${row.entry_id}`;
+    const paymentMode = (row.payment_mode || 'CASH').toUpperCase();
+    printReceipt({
+      hostel: hostelInfo,
+      student: { student_name: row.description?.split(' - ')[0] || 'Received From', student_id: row.student_id || '-' },
+      receipt_no,
+      payment_date: row.entry_date,
+      amount_received: row.amount,
+      payment_mode: paymentMode,
+      reference_no: row.reference_no,
+      notes: row.description,
+      total_amount: Number(row.amount) || 0,
+      copies,
+    });
+  };
+
 
   // Initial state for manual entry
   const getInitialManualEntry = () => ({
@@ -1492,6 +1505,45 @@ const Ledger = () => {
                     <span>Add {manualEntry.entry_type === 'expense' ? 'Expense' : 'Income'}</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Copy Chooser Modal (for ledger receipt printing) */}
+      {copyChooser.open && (
+        <div
+          onClick={() => setCopyChooser({ open: false, row: null })}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 16, maxWidth: 400, width: '100%',
+              padding: '24px 20px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+            }}>
+            <h3 style={{ margin: 0, marginBottom: 8, fontSize: 18, color: '#1e293b' }}>Print Receipt</h3>
+            <p style={{ margin: 0, marginBottom: 16, fontSize: 13, color: '#64748b' }}>
+              Which copy do you want to print?
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={() => doPrintLedgerReceipt(["admin", "student"])}
+                style={{ padding: '12px 16px', border: 'none', borderRadius: 8, background: '#1e40af', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+                Both Copies (Admin + Student)
+              </button>
+              <button onClick={() => doPrintLedgerReceipt(["admin"])}
+                style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#1e293b', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+                Admin Copy only
+              </button>
+              <button onClick={() => doPrintLedgerReceipt(["student"])}
+                style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#1e293b', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}>
+                Student Copy only
+              </button>
+              <button onClick={() => setCopyChooser({ open: false, row: null })}
+                style={{ padding: '10px 16px', border: 'none', borderRadius: 8, background: 'transparent', color: '#64748b', cursor: 'pointer', fontSize: 13, marginTop: 4 }}>
+                Cancel
               </button>
             </div>
           </div>

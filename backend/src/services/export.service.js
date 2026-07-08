@@ -426,15 +426,14 @@ exports.getCustomReport = async (config) => {
 // Accommodation portion is GST-exempt UNLESS the student is exiting < 90 days —
 // that case is handled at final-invoice time, not in this recurring report.
 exports.getGstReport = async ({ from_date, to_date } = {}) => {
-  const onlineModes = ['UPI', 'BANK', 'ONLINE', 'CARD', 'NET_BANKING', 'upi', 'bank', 'online', 'card', 'net_banking'];
-  const placeholders = onlineModes.map(() => '?').join(',');
-
+  // Build SQL to get all payments for students whose admission payment_mode = 'online'
+  // We use LOWER() for case-insensitive match on student.payment_mode.
   let sql = `
     SELECT
       fp.payment_id,
       fp.payment_date,
       fp.payment_amount,
-      fp.payment_mode as tx_mode,
+      COALESCE(fp.payment_mode, 'CASH') as tx_mode,
       fp.reference_no,
       s.student_id,
       s.student_name,
@@ -446,15 +445,21 @@ exports.getGstReport = async ({ from_date, to_date } = {}) => {
     FROM fee_payments fp
     JOIN students s ON s.student_id = fp.student_id
     LEFT JOIN student_fees sf ON sf.fee_id = fp.fee_id
-    WHERE s.payment_mode = 'online'
-      AND fp.payment_mode IN (${placeholders})
+    WHERE LOWER(COALESCE(s.payment_mode, 'cash')) = 'online'
   `;
-  const params = [...onlineModes];
+  const params = [];
   if (from_date) { sql += ' AND fp.payment_date >= ?'; params.push(from_date); }
   if (to_date) { sql += ' AND fp.payment_date <= ?'; params.push(to_date); }
   sql += ' ORDER BY fp.payment_date ASC';
 
-  const [rows] = await db.query(sql, params);
+  // Use synchronous better-sqlite3 API (db.db is the raw Database instance)
+  let rows;
+  try {
+    rows = db.db.prepare(sql).all(...params);
+  } catch (err) {
+    console.error('❌ GST Report SQL error:', err.message);
+    throw new Error(`GST Report query failed: ${err.message}`);
+  }
 
   const MESS_BASE = 5000;
   const MESS_CGST = MESS_BASE * 0.025;
@@ -513,6 +518,7 @@ exports.getGstReport = async ({ from_date, to_date } = {}) => {
 
   return { period: { from: from_date || null, to: to_date || null }, entries, totals };
 };
+
 
 // 🔥 STUDENT LEDGER (FIXED FOR SQLITE)
 exports.getStudentLedgerCSV = async (studentId) => {

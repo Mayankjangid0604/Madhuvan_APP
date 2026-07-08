@@ -3,13 +3,34 @@ const db = require("../config/db.sqlite");
 
 const toNum = (v) => Number(v) || 0;
 
-const getTotalDue = (fee) => {
-  return toNum(fee.final_amount) + toNum(fee.previous_dues) + toNum(fee.penalty_amount) +
-    toNum(fee.fine_amount) + toNum(fee.property_damage_amount) + toNum(fee.money_given_amount) -
-    toNum(fee.advance_used);
+const getFeeGst = (fee, student) => {
+  if (!student || (student.payment_mode || 'cash').toLowerCase() !== 'online') {
+    return 0;
+  }
+  const cycle = (student.fee_type_cycle || "monthly").toLowerCase();
+  const months = cycle === "half_yearly" ? 6 : cycle === "yearly" ? 12 : 1;
+  const totalMess = 5000 * months;
+  
+  const feeTotal = toNum(fee.final_amount);
+  const type = String(fee.fee_type || "").toLowerCase();
+  
+  let mess_amount = 0;
+  if (type.includes("rent")) {
+    mess_amount = Math.min(feeTotal, totalMess);
+  } else if (type.includes("mess")) {
+    mess_amount = feeTotal;
+  }
+  
+  return mess_amount * 0.05; // 5% GST (2.5% CGST + 2.5% SGST)
 };
 
-const getRemaining = (fee) => Math.max(0, getTotalDue(fee) - toNum(fee.paid_amount));
+const getTotalDue = (fee, student) => {
+  return toNum(fee.final_amount) + toNum(fee.previous_dues) + toNum(fee.penalty_amount) +
+    toNum(fee.fine_amount) + toNum(fee.property_damage_amount) + toNum(fee.money_given_amount) -
+    toNum(fee.advance_used) + getFeeGst(fee, student);
+};
+
+const getRemaining = (fee, student) => Math.max(0, getTotalDue(fee, student) - toNum(fee.paid_amount));
 
 exports.getStudentFeeDetails = (studentId) => {
   // Get student info
@@ -34,8 +55,8 @@ exports.getStudentFeeDetails = (studentId) => {
   // Add total_due and remaining to each fee
   const processedFees = fees.map(fee => ({
     ...fee,
-    total_due: getTotalDue(fee),
-    remaining: getRemaining(fee)
+    total_due: getTotalDue(fee, student),
+    remaining: getRemaining(fee, student)
   }));
 
   // Get all payments with fee details

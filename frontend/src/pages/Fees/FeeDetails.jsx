@@ -28,6 +28,7 @@ const FeeDetails = () => {
   const [activeTab, setActiveTab] = useState("fees"); // 'fees' or 'transactions'
   const [hostelInfo, setHostelInfo] = useState({});
   const [copyChooser, setCopyChooser] = useState({ open: false, fee: null, payment: null });
+  const [waiverModal, setWaiverModal] = useState({ open: false, fee: null, amount: '', reason: '', loading: false, error: '' });
 
   useEffect(() => {
     loadData();
@@ -83,6 +84,8 @@ const FeeDetails = () => {
     if (!fee || !data?.student) return;
     const receipt_no = (await fetchDocNumber("receipt")) || `RCPT-${data.student.student_id}-${payment?.payment_id || fee.fee_id}`;
     const split = feeSplitForFee(fee);
+    const paymentMode = (payment?.payment_mode || fee.payment_mode || data.student.payment_mode || 'CASH').toUpperCase();
+    const paidAmount = Number(payment?.payment_amount || fee.paid_amount || 0);
     printReceipt({
       hostel: hostelInfo,
       student: data.student,
@@ -90,13 +93,16 @@ const FeeDetails = () => {
       payment_date: payment?.payment_date || fee.payment_date || new Date(),
       accommodation_amount: split.accommodation,
       mess_amount: split.mess,
+      // GST + split only for online-mode students
       apply_accommodation_gst: false,
-      payment_mode: (payment?.payment_mode || fee.payment_mode || 'CASH').toUpperCase(),
+      payment_mode: paymentMode,
       reference_no: payment?.reference_no || fee.reference_no,
       for_period_start: fee.fee_period_start || fee.fee_month,
       for_period_end: fee.fee_period_end,
       received_by: payment?.received_by || 'ADMIN',
       copies,
+      // Pass total so cash-mode receipt shows the actual payment amount
+      total_amount: paidAmount,
     });
   };
 
@@ -562,6 +568,23 @@ const FeeDetails = () => {
                                 <span>+{formatCurrency(fee.money_given_amount || 0)}</span>
                               </div>
 
+                              {(() => {
+                                const calculatedBaseTotal = toNum(fee.final_amount) + toNum(fee.previous_dues) + 
+                                  toNum(fee.penalty_amount) + toNum(fee.fine_amount) + 
+                                  toNum(fee.property_damage_amount) + toNum(fee.money_given_amount) - 
+                                  toNum(fee.advance_used);
+                                const gstAmount = Math.round((toNum(fee.total_due) - calculatedBaseTotal) * 100) / 100;
+                                if (gstAmount > 0) {
+                                  return (
+                                    <div className="fd-breakdown-row fd-text-blue" style={{ color: '#2563eb' }}>
+                                      <span>GST (5%)</span>
+                                      <span>+{formatCurrency(gstAmount)}</span>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
+
                               <div className="fd-breakdown-divider"></div>
 
                               <div className="fd-breakdown-row fd-breakdown-total">
@@ -621,23 +644,10 @@ const FeeDetails = () => {
                                   <button
                                     className="fd-view-invoice-btn"
                                     title="Write off the unpaid balance so the student can be checked out"
-                                    onClick={async (e) => {
+                                    onClick={(e) => {
                                       e.stopPropagation();
                                       const remaining = Number(fee.remaining || fee.final_amount);
-                                      const inputAmt = window.prompt(
-                                        `Write off / discount the unpaid balance for this fee (max ₹${remaining}):`,
-                                        String(remaining)
-                                      );
-                                      if (inputAmt === null) return;
-                                      const amt = Number(inputAmt);
-                                      if (!(amt > 0)) return;
-                                      const reason = window.prompt("Reason for write-off:", "Written off for checkout") || "Written off";
-                                      try {
-                                        await feeAPI.applyWaiver({ fee_id: fee.fee_id, amount: amt, reason });
-                                        await loadData();
-                                      } catch (err) {
-                                        alert(err.response?.data?.message || err.message || "Failed to write off");
-                                      }
+                                      setWaiverModal({ open: true, fee, amount: String(remaining), reason: 'Written off for checkout', loading: false, error: '' });
                                     }}
                                     style={{ background: '#dc2626', color: '#fff' }}
                                   >
@@ -858,6 +868,90 @@ const FeeDetails = () => {
           fee={selectedPayment.fee_info}
           breakdown={selectedPayment._breakdown}
         />
+      )}
+
+      {/* Waiver / Write-Off Modal */}
+      {waiverModal.open && (
+        <div
+          onClick={() => !waiverModal.loading && setWaiverModal(prev => ({ ...prev, open: false }))}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 16, maxWidth: 440, width: '100%',
+              padding: '28px 24px', boxShadow: '0 20px 40px rgba(0,0,0,0.25)'
+            }}>
+            <h3 style={{ margin: 0, marginBottom: 4, fontSize: 18, color: '#1e293b' }}>Write Off / Discount</h3>
+            <p style={{ margin: 0, marginBottom: 20, fontSize: 13, color: '#64748b' }}>
+              Apply a waiver or discount to reduce the unpaid fee balance.
+            </p>
+            {waiverModal.error && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#dc2626' }}>
+                {waiverModal.error}
+              </div>
+            )}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151' }}>
+                Amount to Write Off (₹)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max={Number(waiverModal.fee?.remaining || waiverModal.fee?.final_amount || 0)}
+                value={waiverModal.amount}
+                onChange={(e) => setWaiverModal(prev => ({ ...prev, amount: e.target.value, error: '' }))}
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+              />
+              <span style={{ fontSize: 12, color: '#6b7280', marginTop: 4, display: 'block' }}>
+                Max: ₹{Number(waiverModal.fee?.remaining || waiverModal.fee?.final_amount || 0).toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151' }}>
+                Reason
+              </label>
+              <input
+                type="text"
+                value={waiverModal.reason}
+                onChange={(e) => setWaiverModal(prev => ({ ...prev, reason: e.target.value }))}
+                placeholder="Enter reason for write-off"
+                style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                disabled={waiverModal.loading}
+                onClick={async () => {
+                  const amt = Number(waiverModal.amount);
+                  const maxAmt = Number(waiverModal.fee?.remaining || waiverModal.fee?.final_amount || 0);
+                  if (!(amt > 0)) { setWaiverModal(prev => ({ ...prev, error: 'Please enter a valid amount greater than 0' })); return; }
+                  if (amt > maxAmt) { setWaiverModal(prev => ({ ...prev, error: `Amount cannot exceed ₹${maxAmt.toLocaleString('en-IN')}` })); return; }
+                  setWaiverModal(prev => ({ ...prev, loading: true, error: '' }));
+                  try {
+                    await feeAPI.applyWaiver({ fee_id: waiverModal.fee.fee_id, amount: amt, reason: waiverModal.reason || 'Written off' });
+                    setWaiverModal({ open: false, fee: null, amount: '', reason: '', loading: false, error: '' });
+                    await loadData();
+                  } catch (err) {
+                    setWaiverModal(prev => ({ ...prev, loading: false, error: err.response?.data?.message || err.message || 'Failed to apply waiver' }));
+                  }
+                }}
+                style={{ flex: 1, padding: '12px 16px', border: 'none', borderRadius: 8, background: '#dc2626', color: '#fff', fontWeight: 700, cursor: waiverModal.loading ? 'not-allowed' : 'pointer', fontSize: 14, opacity: waiverModal.loading ? 0.7 : 1 }}
+              >
+                {waiverModal.loading ? 'Applying...' : 'Apply Write Off'}
+              </button>
+              <button
+                disabled={waiverModal.loading}
+                onClick={() => setWaiverModal({ open: false, fee: null, amount: '', reason: '', loading: false, error: '' })}
+                style={{ padding: '12px 20px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#374151', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

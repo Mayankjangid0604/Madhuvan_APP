@@ -386,10 +386,11 @@ select.form-input:focus {
 }
 
 select.form-input option {
-  color: #1f2937;
-  background: white;
+  color: #1f2937 !important;
+  background: white !important;
   padding: 12px;
   font-weight: 500;
+  display: block;
 }
 
 /* Error & Help Text */
@@ -426,7 +427,8 @@ select.form-input option {
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
-  overflow: hidden;
+  /* overflow: visible so native <select> dropdown is not clipped */
+  overflow: visible;
   margin-bottom: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
@@ -472,7 +474,8 @@ select.form-input option {
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 16px;
-  overflow: hidden;
+  /* overflow: visible so native <select> dropdown is not clipped */
+  overflow: visible;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 

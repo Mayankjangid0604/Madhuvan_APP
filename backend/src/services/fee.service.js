@@ -1,4 +1,4 @@
-// services/fee.service.js
+77// services/fee.service.js
 const db = require("../config/db.sqlite");
 
 // ============================================
@@ -83,15 +83,36 @@ const calculateProratedFee = exports.calculateProratedFee = (monthlyFee, joining
   };
 };
 
-const getTotalDue = (fee) => {
+const getFeeGst = (fee, student) => {
+  if (!student || (student.payment_mode || 'cash').toLowerCase() !== 'online') {
+    return 0;
+  }
+  const cycle = (student.fee_type_cycle || "monthly").toLowerCase();
+  const months = cycle === "half_yearly" ? 6 : cycle === "yearly" ? 12 : 1;
+  const totalMess = 5000 * months;
+
+  const feeTotal = toNum(fee.final_amount);
+  const type = String(fee.fee_type || "").toLowerCase();
+
+  let mess_amount = 0;
+  if (type.includes("rent")) {
+    mess_amount = Math.min(feeTotal, totalMess);
+  } else if (type.includes("mess")) {
+    mess_amount = feeTotal;
+  }
+
+  return mess_amount * 0.05;
+};
+
+const getTotalDue = (fee, student = null) => {
   return toNum(fee.final_amount) + toNum(fee.previous_dues) +
     toNum(fee.penalty_amount) + toNum(fee.fine_amount) +
     toNum(fee.property_damage_amount) + toNum(fee.money_given_amount) -
-    toNum(fee.advance_used);
+    toNum(fee.advance_used) + getFeeGst(fee, student);
 };
 
-const calculateStatus = (fee) => {
-  const totalDue = getTotalDue(fee);
+const calculateStatus = (fee, student = null) => {
+  const totalDue = getTotalDue(fee, student);
   const paid = toNum(fee.paid_amount);
 
   if (paid >= totalDue) return 'PAID';
@@ -105,7 +126,7 @@ const calculateStatus = (fee) => {
   return today > due ? 'OVERDUE' : 'DUE';
 };
 
-const getRemaining = (fee) => Math.max(0, getTotalDue(fee) - toNum(fee.paid_amount));
+const getRemaining = (fee, student = null) => Math.max(0, getTotalDue(fee, student) - toNum(fee.paid_amount));
 
 const normalizePaymentMode = (mode) => {
   if (!mode) return 'CASH';
@@ -329,7 +350,7 @@ exports.createMonthlyFee = (studentId, feeMonth = null, options = {}) => {
 
   // ✅ PRORATING LOGIC: If this is the student's JOIN month or START month, check for mid-month join
   let { year, month } = feeMonth ? parseDateParts(feeMonth) : { year: new Date().getFullYear(), month: new Date().getMonth() };
-  
+
   // ✅ FIX: Respect fee_type_cycle (monthly / half_yearly / yearly)
   if (cycle === 'yearly' || cycle === 'half_yearly') {
     const intervalMonths = cycle === 'yearly' ? 12 : 6;
@@ -425,7 +446,7 @@ exports.createMonthlyFee = (studentId, feeMonth = null, options = {}) => {
       }
       if (shouldApplyDiscount) {
         const useFullMonthForDiscount = (student.discount_on_full_month === 1 || student.discount_on_full_month === true);
-        
+
         if (normalDiscountType === 'percentage') {
           const targetAmount = useFullMonthForDiscount ? baseFee : currentBaseFee;
           discount = Math.round((targetAmount * student.discount_value) / 100);
@@ -472,8 +493,11 @@ exports.createMonthlyFee = (studentId, feeMonth = null, options = {}) => {
 
     const dueDate = `${year}-${String(month + 1).padStart(2, '0')}-05`;
 
+    const tempFee = { fee_type: getRentFeeType(cycle), final_amount: finalAmount };
+    const gstAmount = getFeeGst(tempFee, student);
+
     const advance = getStudentAdvance(studentId);
-    const totalDue = finalAmount;
+    const totalDue = finalAmount + gstAmount;
     const advanceUsed = Math.min(advance, totalDue);
     const paidAmount = advanceUsed;
 
@@ -514,7 +538,7 @@ exports.createMonthlyFee = (studentId, feeMonth = null, options = {}) => {
     }
 
     const fee = db.db.prepare('SELECT * FROM student_fees WHERE fee_id = ?').get(feeId);
-    const status = calculateStatus(fee);
+    const status = calculateStatus(fee, student);
     db.db.prepare('UPDATE student_fees SET fee_status = ? WHERE fee_id = ?').run(status, feeId);
 
     return { success: true, fee_id: feeId, status, total_due: totalDue, advance_used: advanceUsed };
@@ -648,7 +672,7 @@ exports.payFee = (data) => {
     const student = db.db.prepare("SELECT * FROM students WHERE student_id = ?").get(effectiveStudentId);
     if (!student) throw new Error("Student not found");
 
-    const totalDue = getTotalDue(fee);
+    const totalDue = getTotalDue(fee, student);
     const currentPaid = toNum(fee.paid_amount);
 
     let newPaidAmount = currentPaid + payment_amount;
@@ -664,7 +688,7 @@ exports.payFee = (data) => {
     } else if (newPaidAmount > 0) {
       newStatus = "PARTIAL";
     } else {
-      newStatus = calculateStatus({ ...fee, paid_amount: newPaidAmount });
+      newStatus = calculateStatus({ ...fee, paid_amount: newPaidAmount }, student);
     }
 
     let invoiceNumber = fee.invoice_number;
@@ -695,7 +719,7 @@ exports.payFee = (data) => {
       breakdown.push({
         type: fee.fee_type || 'Monthly Rent',
         amount: appliedAmount,
-        month: fee.fee_month ? new Date(fee.fee_month).toLocaleString('en-IN', {month: 'short', year: 'numeric'}) : ''
+        month: fee.fee_month ? new Date(fee.fee_month).toLocaleString('en-IN', { month: 'short', year: 'numeric' }) : ''
       });
     }
     if (excessAmount > 0) {
@@ -754,7 +778,7 @@ exports.payFee = (data) => {
 
           // 1. Record the transaction as a Salary Payment from Fee
           const receiptNumber = `SAL-FEE-${memberId}-${Date.now()}`;
-          
+
           db.db.prepare(`
             INSERT INTO member_transactions (
               member_id, amount, transaction_type, description, reference_no, student_id, salary_month
@@ -773,7 +797,7 @@ exports.payFee = (data) => {
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             memberId, actualCollected, paymentDateNormalized, paymentMonthName, paymentYear,
-            'fee_collection', 'Internal (Fee Transfer)', 
+            'fee_collection', 'Internal (Fee Transfer)',
             reference_no || invoiceNumber || null,
             `Direct salary payment from fee collected from student ${student.student_name}`,
             receiptNumber
@@ -1139,17 +1163,7 @@ exports.applyWaiver = ({ fee_id, amount, reason }) => {
   if (!fee) throw new Error(`Fee #${fee_id} not found`);
   if (fee.fee_status === 'PAID') throw new Error("This fee is already fully paid");
 
-  const type = String(fee.fee_type || "").toLowerCase();
-  const isAccommodation =
-    type.includes("rent") ||
-    type === "monthly" ||
-    type === "half-yearly" ||
-    type === "yearly" ||
-    type === "accommodation" ||
-    type === "hostel fee";
-  if (!isAccommodation) {
-    throw new Error(`Waivers can only be granted on accommodation fees. This fee is "${fee.fee_type}".`);
-  }
+  // Allow write-off/discount on any fee type — admin decision
 
   const totalDue = Number(fee.final_amount || 0)
     + Number(fee.previous_dues || 0)

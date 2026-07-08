@@ -410,6 +410,9 @@ export const buildInvoiceHTML = ({
   accommodation_amount = 0,
   mess_amount = 0,
   apply_accommodation_gst = false,
+  // NEW: if true, show accommodation+mess split with GST; if false, show single fee line (cash mode)
+  is_online_payment = false,
+  total_fee_amount = 0, // used in cash mode
 }) => {
   const invDate = fmtDate(invoice_date || new Date());
   const dueDate = fmtDate(due_date);
@@ -417,13 +420,81 @@ export const buildInvoiceHTML = ({
   const monthLabel = fmtMonth(period_start || invoice_date);
   const gstin = escapeHtml(hostel.gstin || "");
 
+  const rows = [];
+
+  // ── CASH MODE: single line, no GST ──
+  if (!is_online_payment) {
+    const total = total_fee_amount || (accommodation_amount + mess_amount);
+    rows.push(`
+      <tr>
+        <td>Hostel Fee</td>
+        <td>${monthLabel}</td>
+        <td class="r">${fmtINR(total)}</td>
+      </tr>
+    `);
+    rows.push(`
+      <tr class="grand">
+        <td>GRAND TOTAL (TOTAL AMOUNT PAYABLE)</td>
+        <td></td>
+        <td class="r">₹${fmtINR(total)}</td>
+      </tr>
+    `);
+
+    return `
+      <div class="page">
+        ${brandHeader(hostel)}
+        <div class="doc-title">INVOICE</div>
+        <div class="doc-number">Invoice No.: ${escapeHtml(invoice_no || "")}</div>
+        <hr class="rule" />
+
+        <div class="info-grid">
+          <div class="info-block">
+            <h4>Student Information</h4>
+            <div class="row"><span class="k">Student Name</span><span>:</span><span class="v strong">${escapeHtml(student.student_name || "")}</span></div>
+            <div class="row"><span class="k">Father Name</span><span>:</span><span class="v">${escapeHtml(student.father_name || "-")}</span></div>
+            <div class="row"><span class="k">Student ID</span><span>:</span><span class="v">${escapeHtml(student.student_id || "-")}</span></div>
+            <div class="row"><span class="k">Room</span><span>:</span><span class="v">${escapeHtml(student.room_no || "-")}${student.bed_no ? ` (Bed ${escapeHtml(student.bed_no)})` : ""}</span></div>
+          </div>
+          <div class="info-block">
+            <h4>Invoice Information</h4>
+            <div class="row"><span class="k">Invoice Date</span><span>:</span><span class="v">${invDate}</span></div>
+            <div class="row"><span class="k">Due Date</span><span>:</span><span class="v due">${dueDate || "-"}</span></div>
+            <div class="row"><span class="k">Session</span><span>:</span><span class="v">${session}</span></div>
+            <div class="row"><span class="k">Payment Mode</span><span>:</span><span class="v">CASH</span></div>
+          </div>
+        </div>
+
+        <table class="items">
+          <thead>
+            <tr>
+              <th style="width:55%">DESCRIPTION</th>
+              <th style="width:25%">MONTH</th>
+              <th class="r" style="width:20%">AMOUNT (₹)</th>
+            </tr>
+          </thead>
+          <tbody>${rows.join("")}</tbody>
+        </table>
+
+        <div class="side-summary">
+          <div class="in-words">
+            <div class="lbl">Amount in Words</div>
+            <div class="val">Rupees ${amountToWords(total)} Only</div>
+          </div>
+          <div class="payment-summary">
+            <div class="row total"><span>TOTAL PAYABLE</span><span>₹${fmtINR(total)}</span></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── ONLINE MODE: accommodation + mess split with GST ──
   const parts = gstBreakdown({
     accommodation_base: accommodation_amount,
     mess_base: mess_amount,
     apply_accommodation_gst,
   });
 
-  const rows = [];
   if (parts.accommodation.base > 0) {
     rows.push(`
       <tr>
@@ -559,13 +630,9 @@ export const buildInvoiceHTML = ({
 // -----------------------------------------------------------------------------
 const receiptCopy = ({
   copyTag, hostel, student, receipt_no, payment_date, for_month, payment_mode, received_by,
-  accommodation_amount, mess_amount, apply_accommodation_gst, gstin
+  accommodation_amount, mess_amount, apply_accommodation_gst, gstin,
+  is_online_payment = false, total_amount = 0,
 }) => {
-  const parts = gstBreakdown({
-    accommodation_base: accommodation_amount,
-    mess_base: mess_amount,
-    apply_accommodation_gst,
-  });
   const monthLabel = fmtMonth(for_month);
   const generatedOn = new Date().toLocaleString("en-IN", {
     day: "2-digit", month: "short", year: "numeric",
@@ -573,6 +640,78 @@ const receiptCopy = ({
   });
 
   const rows = [];
+
+  // ── CASH MODE: single fee line, no GST ──
+  if (!is_online_payment) {
+    const total = total_amount || (accommodation_amount + mess_amount);
+    rows.push(`<tr><td>Hostel Fee</td><td>${monthLabel}</td><td class="r">${fmtINR(total)}</td></tr>`);
+    rows.push(`<tr class="grand"><td>TOTAL AMOUNT RECEIVED</td><td></td><td class="r">₹${fmtINR(total)}</td></tr>`);
+
+    return `
+      <div class="page">
+        <div style="text-align:center;margin-bottom:2px;">
+          <span class="copy-tag">${copyTag}</span>
+        </div>
+        ${brandHeader(hostel)}
+        <div class="doc-title">PAYMENT RECEIPT</div>
+        <div style="text-align:center;"><span class="paid-badge">✔ PAID</span></div>
+        <div class="doc-number">Receipt No.: ${escapeHtml(receipt_no || "")}</div>
+        <hr class="rule" />
+
+        <div class="info-grid">
+          <div class="info-block">
+            <h4>Student Information</h4>
+            <div class="row"><span class="k">Student Name</span><span>:</span><span class="v strong">${escapeHtml(student.student_name || "")}</span></div>
+            <div class="row"><span class="k">Father Name</span><span>:</span><span class="v">${escapeHtml(student.father_name || "-")}</span></div>
+            <div class="row"><span class="k">Student ID</span><span>:</span><span class="v">${escapeHtml(student.student_id || "-")}</span></div>
+            <div class="row"><span class="k">Room</span><span>:</span><span class="v">${escapeHtml(student.room_no || "-")}${student.bed_no ? ` (Bed ${escapeHtml(student.bed_no)})` : ""}</span></div>
+          </div>
+          <div class="info-block">
+            <h4>Payment Information</h4>
+            <div class="row"><span class="k">Receipt Date</span><span>:</span><span class="v">${fmtDate(payment_date)}</span></div>
+            <div class="row"><span class="k">For Month</span><span>:</span><span class="v">${monthLabel}</span></div>
+            <div class="row"><span class="k">Mode of Payment</span><span>:</span><span class="v">CASH</span></div>
+            <div class="row"><span class="k">Received By</span><span>:</span><span class="v">${escapeHtml(received_by || "ADMIN")}</span></div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 260px;gap:14px;">
+          <table class="items">
+            <thead>
+              <tr>
+                <th style="width:55%">DESCRIPTION</th>
+                <th style="width:25%">MONTH</th>
+                <th class="r" style="width:20%">AMOUNT (₹)</th>
+              </tr>
+            </thead>
+            <tbody>${rows.join("")}</tbody>
+          </table>
+          <div>
+            <div class="in-words" style="margin-bottom:10px;">
+              <div class="lbl">Amount in Words</div>
+              <div class="val" style="font-size:12px;">Rupees ${amountToWords(total)} Only</div>
+            </div>
+            <div class="payment-summary">
+              <div class="row total"><span>TOTAL RECEIVED</span><span>₹${fmtINR(total)}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="doc-footer">
+          <div class="thanks">Thank you for your payment!</div>
+          <div>Generated on: ${generatedOn}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── ONLINE MODE: accommodation + mess split with GST ──
+  const parts = gstBreakdown({
+    accommodation_base: accommodation_amount,
+    mess_base: mess_amount,
+    apply_accommodation_gst,
+  });
+
   if (parts.accommodation.base > 0) {
     rows.push(`
       <tr><td>Hostel Accommodation Fee</td><td>${monthLabel}</td><td class="r">${fmtINR(parts.accommodation.base)}</td></tr>
@@ -587,6 +726,7 @@ const receiptCopy = ({
     <tr class="subtotal"><td>Subtotal</td><td></td><td class="r">${fmtINR(parts.subtotal)}</td></tr>
   `);
   if (apply_accommodation_gst && parts.accommodation.cgst > 0) {
+
     rows.push(`
       <tr><td>CGST @9% (Accommodation)</td><td>${monthLabel}</td><td class="r">${fmtINR(parts.accommodation.cgst)}</td></tr>
       <tr><td>SGST @9% (Accommodation)</td><td>${monthLabel}</td><td class="r">${fmtINR(parts.accommodation.sgst)}</td></tr>
@@ -677,6 +817,14 @@ const receiptCopy = ({
 
 export const buildReceiptHTML = (params) => {
   const gstin = params.hostel?.gstin || "";
+  // GST split: use STUDENT'S admission payment_mode as primary signal.
+  // If the student registered as 'online', always show acc+mess+GST format.
+  // If they registered as 'cash'/'offline', always show simple fee format.
+  const studentMode = (params.student?.payment_mode || "cash").toLowerCase();
+  const txMode = (params.payment_mode || "cash").toLowerCase();
+  const is_online = studentMode === "online" ||
+    txMode === "online" || txMode === "upi" || txMode === "bank" || txMode === "card";
+  const total = params.total_amount || (params.accommodation_amount || 0) + (params.mess_amount || 0);
   const commonProps = {
     hostel: params.hostel || {},
     student: params.student || {},
@@ -689,7 +837,10 @@ export const buildReceiptHTML = (params) => {
     mess_amount: params.mess_amount || 0,
     apply_accommodation_gst: params.apply_accommodation_gst || false,
     gstin,
+    is_online_payment: is_online,
+    total_amount: total,
   };
+
   const copies = params.copies || ["admin", "student"]; // both copies by default
 
   const pages = [];
@@ -860,12 +1011,16 @@ export const printVoucher = (params) => {
   printElement(html, `Voucher-${params.voucher_no || "New"}`, baseStyles);
 };
 
-// Prints a single invoice for one fee (accommodation + mess split by 5000 rule).
+// Prints a single invoice for one fee (accommodation + mess split by 5000 rule — online only).
 export const printInvoiceForFee = ({
   hostel, student, fee,
   apply_accommodation_gst = false,
   invoice_no,
 }) => {
+  // Determine if this is an online payment student
+  const paymentMode = (student.payment_mode || "cash").toLowerCase();
+  const is_online_payment = paymentMode === "online";
+
   const cycle = (student.fee_type_cycle || "monthly").toLowerCase();
   const months = cycle === "half_yearly" ? 6 : cycle === "yearly" ? 12 : 1;
   const monthlyMess = 5000;
@@ -875,10 +1030,22 @@ export const printInvoiceForFee = ({
   // If the fee's fee_type suggests it's a Mess-only or Accommodation-only entry,
   // treat that whole amount as one bucket. Otherwise split by 5000 rule.
   const type = String(fee.fee_type || "").toLowerCase();
-  let accommodation_amount = Math.max(0, feeTotal - totalMess);
-  let mess_amount = Math.min(feeTotal, totalMess);
-  if (type.includes("mess")) { mess_amount = feeTotal; accommodation_amount = 0; }
-  else if (type.includes("security")) { mess_amount = 0; accommodation_amount = feeTotal; }
+  
+  let accommodation_amount = 0;
+  let mess_amount = 0;
+  
+  if (type.includes("rent")) {
+    accommodation_amount = Math.max(0, feeTotal - totalMess);
+    mess_amount = Math.min(feeTotal, totalMess);
+  } else if (type.includes("mess")) {
+    mess_amount = feeTotal;
+  } else if (type.includes("security")) {
+    accommodation_amount = feeTotal;
+  } else {
+    // For fines, penalties, property damage, money given, etc.
+    // Assign to accommodation_amount so no GST is applied.
+    accommodation_amount = feeTotal;
+  }
 
   const html = buildInvoiceHTML({
     hostel,
@@ -890,7 +1057,9 @@ export const printInvoiceForFee = ({
     period_end: fee.fee_period_end,
     accommodation_amount,
     mess_amount,
-    apply_accommodation_gst,
+    apply_accommodation_gst: is_online_payment ? apply_accommodation_gst : false,
+    is_online_payment,
+    total_fee_amount: feeTotal,
   });
   printElement(html, `Invoice-${student.student_name}`, baseStyles);
 };

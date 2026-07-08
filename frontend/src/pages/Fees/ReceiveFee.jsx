@@ -5,9 +5,10 @@ import { memberAPI } from "../../services/api/member.api";
 import { getFileUrl } from "../../utils/imageSrc";
 import {
   Search, X, IndianRupee, User, CreditCard, Receipt,
-  ChevronDown, CheckCircle, AlertCircle, Loader2, Clock,
-  RefreshCw, AlertTriangle, PiggyBank, Home, Wallet, Info, FileText,
-  Shield, Gavel, Calendar, Banknote, CircleDollarSign, Hammer, HandCoins
+  CheckCircle, AlertCircle, Loader2,
+  RefreshCw, Home, Wallet, Info, FileText,
+  Banknote, CircleDollarSign, PiggyBank,
+  Clock, AlertTriangle, Shield, Calendar
 } from "lucide-react";
 import FeeInvoiceModal from "../../components/fees/FeeInvoiceModal";
 import "./receiveFee.css";
@@ -27,6 +28,7 @@ const ReceiveFee = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState({});
+  // eslint-disable-next-line no-unused-vars
 
   // Payment modal
   const [showPayModal, setShowPayModal] = useState(false);
@@ -317,6 +319,7 @@ const ReceiveFee = () => {
     return { label: "PENDING", color: "orange" };
   };
 
+  // eslint-disable-next-line no-unused-vars
   const toggleExpand = (studentId) => {
     setExpanded(prev => ({ ...prev, [studentId]: !prev[studentId] }));
   };
@@ -487,8 +490,8 @@ const ReceiveFee = () => {
 
             return (
               <div key={`student-${student.student_id}`} className={`student-card status-${status.color}`}>
-                {/* Card Header */}
-                <div className="card-header" onClick={() => toggleExpand(student.student_id)}>
+                {/* Card Header — not clickable anymore */}
+                <div className="card-header">
                   <div className="student-info">
                     <div className={`student-avatar avatar-${status.color}`} style={{ overflow: 'hidden' }}>
                       {student.photo_url ? (
@@ -513,7 +516,6 @@ const ReceiveFee = () => {
                   </div>
                   <div className="card-actions">
                     <span className={`status-badge badge-${status.color}`}>{status.label}</span>
-                    <ChevronDown size={18} className={`expand-icon ${isExpanded ? "rotated" : ""}`} />
                   </div>
                 </div>
 
@@ -550,209 +552,6 @@ const ReceiveFee = () => {
                     <span>View Fee History</span>
                   </button>
                 </div>
-
-                {/* Expanded Details */}
-                {isExpanded && (
-                  <div className="card-details">
-                    {/* ── ISSUE 2: Receivable Breakdown Cards ── */}
-                    <div className="details-header">
-                      <Receipt size={15} />
-                      <h4>Receivable Breakdown</h4>
-                    </div>
-
-                    <div className="breakdown-cards-grid">
-                      {breakdown.monthlyFee > 0 && (
-                        <div className="mini-card mini-card-blue">
-                          <div className="mini-card-icon"><Calendar size={16} /></div>
-                          <div className="mini-card-content">
-                            <span className="mini-card-label">Rent Fee</span>
-                            <strong className="mini-card-value">{formatCurrency(breakdown.monthlyFee)}</strong>
-                          </div>
-                        </div>
-                      )}
-                      {breakdown.previousDues > 0 && (
-                        <div className="mini-card mini-card-orange">
-                          <div className="mini-card-icon"><Clock size={16} /></div>
-                          <div className="mini-card-content">
-                            <span className="mini-card-label">Previous Dues</span>
-                            <strong className="mini-card-value">{formatCurrency(breakdown.previousDues)}</strong>
-                          </div>
-                        </div>
-                      )}
-                      {breakdown.penalty > 0 && (
-                        <div className="mini-card mini-card-red">
-                          <div className="mini-card-icon"><Gavel size={16} /></div>
-                          <div className="mini-card-content">
-                            <span className="mini-card-label">Penalty</span>
-                            <strong className="mini-card-value">{formatCurrency(breakdown.penalty)}</strong>
-                          </div>
-                        </div>
-                      )}
-                      {breakdown.fine > 0 && (
-                        <div className="mini-card mini-card-red">
-                          <div className="mini-card-icon"><Hammer size={16} /></div>
-                          <div className="mini-card-content">
-                            <span className="mini-card-label">Fine</span>
-                            <strong className="mini-card-value">{formatCurrency(breakdown.fine)}</strong>
-                          </div>
-                        </div>
-                      )}
-                      {breakdown.propertyDamage > 0 && (
-                        <div className="mini-card mini-card-orange">
-                          <div className="mini-card-icon"><AlertTriangle size={16} /></div>
-                          <div className="mini-card-content">
-                            <span className="mini-card-label">Property Damage</span>
-                            <strong className="mini-card-value">{formatCurrency(breakdown.propertyDamage)}</strong>
-                          </div>
-                        </div>
-                      )}
-                      {breakdown.moneyGiven > 0 && (
-                        <div className="mini-card mini-card-orange">
-                          <div className="mini-card-icon"><HandCoins size={16} /></div>
-                          <div className="mini-card-content">
-                            <span className="mini-card-label">Given Money</span>
-                            <strong className="mini-card-value">{formatCurrency(breakdown.moneyGiven)}</strong>
-                          </div>
-                        </div>
-                      )}
-                      {breakdown.advance > 0 && (
-                        <div className="mini-card mini-card-purple">
-                          <div className="mini-card-icon"><PiggyBank size={16} /></div>
-                          <div className="mini-card-content">
-                            <span className="mini-card-label">Advance Balance</span>
-                            <strong className="mini-card-value">{formatCurrency(breakdown.advance)}</strong>
-                          </div>
-                        </div>
-                      )}
-                      {breakdown.securityDue > 0 && (
-                        <div className="mini-card mini-card-cyan">
-                          <div className="mini-card-icon"><Shield size={16} /></div>
-                          <div className="mini-card-content">
-                            <span className="mini-card-label">Security Deposit</span>
-                            <strong className="mini-card-value">{formatCurrency(breakdown.securityDue)}</strong>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Detailed fee list */}
-                    {breakdown.unpaidRentFees.length > 0 && (
-                      <>
-                        <div className="details-header" style={{ marginTop: '16px' }}>
-                          <FileText size={15} />
-                          <h4>Unpaid Dues</h4>
-                        </div>
-                        {breakdown.unpaidRentFees.map((fee) => (
-                          <div className="breakdown-card" key={`fee-${fee.fee_id}`}>
-                            <div className="breakdown-title">
-                              {rentTypes.includes(fee.fee_type) ? `${formatMonth(fee.fee_month, fee.fee_type)} — ${fee.fee_type}` : fee.fee_type}
-                            </div>
-                            <div className="breakdown-row">
-                               <span>{rentTypes.includes(fee.fee_type) ? 'Fee Amount' : 'Amount'}</span>
-                              <span>{formatCurrency(fee.fee_amount)}</span>
-                            </div>
-                            {fee.discount_amount > 0 && (
-                              <div className="breakdown-row text-green">
-                                <span>Discount</span>
-                                <span>-{formatCurrency(fee.discount_amount)}</span>
-                              </div>
-                            )}
-                            {fee.previous_dues > 0 && (
-                              <div className="breakdown-row text-orange">
-                                <span>Previous Dues</span>
-                                <span>+{formatCurrency(fee.previous_dues)}</span>
-                              </div>
-                            )}
-                            {fee.penalty_amount > 0 && (
-                              <div className="breakdown-row text-red">
-                                <span>Penalty</span>
-                                <span>+{formatCurrency(fee.penalty_amount)}</span>
-                              </div>
-                            )}
-                            {fee.fine_amount > 0 && (
-                              <div className="breakdown-row text-red">
-                                <span>Fine</span>
-                                <span>+{formatCurrency(fee.fine_amount)}</span>
-                              </div>
-                            )}
-                            {fee.property_damage_amount > 0 && (
-                              <div className="breakdown-row text-orange">
-                                <span>Property Damage</span>
-                                <span>+{formatCurrency(fee.property_damage_amount)}</span>
-                              </div>
-                            )}
-                            {fee.money_given_amount > 0 && (
-                              <div className="breakdown-row text-orange">
-                                <span>Money Given</span>
-                                <span>+{formatCurrency(fee.money_given_amount)}</span>
-                              </div>
-                            )}
-                            {fee.advance_used > 0 && (
-                              <div className="breakdown-row text-green">
-                                <span>Advance Applied</span>
-                                <span>-{formatCurrency(fee.advance_used)}</span>
-                              </div>
-                            )}
-                            <div className="breakdown-divider" />
-                            <div className="breakdown-row total-row">
-                              <span>Total Due</span>
-                              <strong>{formatCurrency(fee.total_due)}</strong>
-                            </div>
-                            <div className="breakdown-row text-green">
-                              <span>Paid</span>
-                              <span>{formatCurrency(fee.paid_amount)}</span>
-                            </div>
-                            <div className="breakdown-row remaining-row">
-                              <span>Remaining</span>
-                              <strong>{formatCurrency(fee.remaining)}</strong>
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {breakdown.unpaidSecurityFees.length > 0 && (
-                      <>
-                        <div className="details-header" style={{ marginTop: '16px' }}>
-                          <Shield size={15} />
-                          <h4>Unpaid Security Deposit</h4>
-                        </div>
-                        {breakdown.unpaidSecurityFees.map((fee) => (
-                          <div className="breakdown-card" key={`sec-${fee.fee_id}`}>
-                            <div className="breakdown-title">Security Deposit</div>
-                            <div className="breakdown-row">
-                              <span>Amount</span>
-                              <span>{formatCurrency(fee.final_amount)}</span>
-                            </div>
-                            <div className="breakdown-row text-green">
-                              <span>Paid</span>
-                              <span>{formatCurrency(fee.paid_amount)}</span>
-                            </div>
-                            <div className="breakdown-row remaining-row">
-                              <span>Remaining</span>
-                              <strong>{formatCurrency(fee.remaining)}</strong>
-                            </div>
-                          </div>
-                        ))}
-                      </>
-                    )}
-
-                    {breakdown.unpaidRentFees.length === 0 && breakdown.unpaidSecurityFees.length === 0 && (
-                      <div className="no-pending-fee">
-                        <CheckCircle size={18} />
-                        <span>All fees are cleared!</span>
-                      </div>
-                    )}
-
-                    <button
-                      className="view-history-btn"
-                      onClick={() => navigate(`/fees/student/${student.student_id}`)}
-                    >
-                      <FileText size={14} />
-                      View Full History →
-                    </button>
-                  </div>
-                )}
               </div>
             );
           })}

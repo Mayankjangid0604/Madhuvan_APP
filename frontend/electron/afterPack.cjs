@@ -36,14 +36,21 @@ module.exports = async function afterPack(context) {
     });
   });
   
-  // Rebuild native modules for Electron
-  console.log(`🔧 Rebuilding native modules for Electron ${context.electronVersion} (${context.arch})...`);
+  // Resolve Electron version from package.json since context.electronVersion might be undefined
+  const pkg = require(path.join(context.packager.projectDir, 'package.json'));
+  const electronVersion = context.electronVersion || pkg.devDependencies.electron.replace(/^[^\d]+/, '');
+  
+  // Map electron-builder arch (number) to string, or fallback to process.arch
+  const archMap = { 0: 'ia32', 1: 'x64', 2: 'armv7l', 3: 'arm64' };
+  const archStr = archMap[context.arch] || process.arch;
+  
+  console.log(`🔧 Rebuilding native modules for Electron ${electronVersion} (${archStr})...`);
   
   try {
     await rebuild({
       buildPath: backendPath,
-      electronVersion: context.electronVersion,
-      arch: context.arch,
+      electronVersion: electronVersion,
+      arch: archStr,
       force: true
     });
     console.log("✅ Rebuild completed successfully using @electron/rebuild");

@@ -293,7 +293,7 @@ async function startBackend() {
           resolve(isHealthy);
         });
       }
-    }, 20000);
+    }, 60000);
   });
 }
 
