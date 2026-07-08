@@ -1338,6 +1338,26 @@ function runMigrations() {
     console.warn('doc_counters table creation skipped:', e.message);
   }
 
+  // Sync queue — every write can log a row here; a worker will POST them to the
+  // cloud when we go online. Kept unwired for now.
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS sync_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity TEXT NOT NULL,          -- e.g. 'student', 'fee', 'ledger'
+        entity_id INTEGER,             -- primary key of the changed row
+        op TEXT NOT NULL,              -- 'insert' | 'update' | 'delete'
+        payload TEXT,                  -- JSON snapshot of the row
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        sent_at DATETIME,              -- when the cloud accepted it
+        error TEXT                     -- last push error (if any)
+      )
+    `);
+    db.exec("CREATE INDEX IF NOT EXISTS idx_sync_queue_pending ON sync_queue(sent_at) WHERE sent_at IS NULL");
+  } catch (e) {
+    console.warn('sync_queue table creation skipped:', e.message);
+  }
+
   // Branches (multi-branch support)
   try {
     db.exec(`
@@ -1367,6 +1387,24 @@ function runMigrations() {
   }
   safeAddColumn('students', 'branch_id', 'INTEGER');
   safeAddColumn('ledger_entries', 'branch_id', 'INTEGER');
+  safeAddColumn('member', 'branch_id', 'INTEGER');
+  safeAddColumn('members', 'branch_id', 'INTEGER');
+  safeAddColumn('rooms', 'branch_id', 'INTEGER');
+  safeAddColumn('admins', 'role', "TEXT DEFAULT 'super_admin'");
+  safeAddColumn('admins', 'branch_id', 'INTEGER');
+
+  // Backfill: any row without a branch_id gets branch 1 (Main Branch).
+  try {
+    const defaultBranch = db.prepare(`SELECT branch_id FROM branches ORDER BY is_default DESC, branch_id ASC LIMIT 1`).get();
+    const defaultId = defaultBranch?.branch_id || 1;
+    db.prepare(`UPDATE students        SET branch_id = ? WHERE branch_id IS NULL`).run(defaultId);
+    db.prepare(`UPDATE ledger_entries  SET branch_id = ? WHERE branch_id IS NULL`).run(defaultId);
+    try { db.prepare(`UPDATE members       SET branch_id = ? WHERE branch_id IS NULL`).run(defaultId); } catch {}
+    try { db.prepare(`UPDATE member        SET branch_id = ? WHERE branch_id IS NULL`).run(defaultId); } catch {}
+    try { db.prepare(`UPDATE rooms         SET branch_id = ? WHERE branch_id IS NULL`).run(defaultId); } catch {}
+  } catch (e) {
+    console.warn('Branch backfill skipped:', e.message);
+  }
 
   // 2. STUDENT_FEES Table Critical Columns
   safeAddColumn('student_fees', 'updated_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');

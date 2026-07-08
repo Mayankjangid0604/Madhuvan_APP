@@ -19,11 +19,13 @@ const getInvoiceService = () => {
 // ============================================
 exports.getAllFees = asyncHandler(async (req, res) => {
   const { comprehensive, student_id, month, status } = req.query;
+  const branchHeader = req.headers['x-branch-id'] || req.query.branch_id;
+  const branch_id = branchHeader ? Number(branchHeader) : null;
 
   try {
     // ✅ FIX: When comprehensive=true, return student-grouped data
     if (comprehensive === 'true') {
-      const data = feeService.getAllFeesComprehensive();
+      const data = feeService.getAllFeesComprehensive({ branch_id });
       return res.json({
         success: true,
         data: data,

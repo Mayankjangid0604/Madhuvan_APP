@@ -37,6 +37,7 @@ import "./settings.css";
 const Settings = () => {
   const { user, updateAuth } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const isSuperAdmin = (user?.role || 'super_admin') === 'super_admin';
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -1172,8 +1173,20 @@ Thank you,
       </div>
 
       {/* Settings Grid */}
+      {!isSuperAdmin && (
+        <div style={{
+          background: '#eff6ff', border: '1px solid #bfdbfe',
+          borderRadius: 10, padding: '10px 14px', margin: '0 0 16px',
+          fontSize: 13, color: '#1e40af'
+        }}>
+          You are signed in as a <strong>branch admin</strong>. Only Hostel Rules,
+          Hostel Information and Change Password are available here. Ask the main
+          admin for other changes.
+        </div>
+      )}
       <div className="settings-grid">
         {/* Database Backup */}
+        {isSuperAdmin && (
         <Card>
           <div className="card-icon" style={{ backgroundColor: '#10b98115' }}>
             <Database size={24} color="#10b981" />
@@ -1205,8 +1218,10 @@ Thank you,
             💡 Auto backups run on {driveConfig.backupSchedule === 'monthly' ? '1st of every month' : driveConfig.backupSchedule === 'weekly' ? 'every Sunday' : 'daily'} at 2 AM
           </small>
         </Card>
+        )}
 
         {/* Email Notifications */}
+        {isSuperAdmin && (
         <Card>
           <div className="card-icon" style={{ backgroundColor: '#3b82f615' }}>
             <Mail size={24} color="#3b82f6" />
@@ -1250,8 +1265,10 @@ Thank you,
           </div>
           <small className="help-text">💡 Templates: Fee Reminder · Invoice Email · Receipt Email</small>
         </Card>
+        )}
 
         {/* SMS Notifications */}
+        {isSuperAdmin && (
         <Card>
           <div className="card-icon" style={{ backgroundColor: '#f59e0b15' }}>
             <MessageSquare size={24} color="#f59e0b" />
@@ -1286,8 +1303,10 @@ Thank you,
             </Button>
           </div>
         </Card>
+        )}
 
         {/* PhonePe Payment Gateway */}
+        {isSuperAdmin && (
         <Card>
           <div className="card-icon" style={{ backgroundColor: '#5f259f15' }}>
             <IndianRupee size={24} color="#5f259f" />
@@ -1308,8 +1327,10 @@ Thank you,
           </div>
           <small className="help-text">💡 Payments received in PhonePe auto-update the fee & send the receipt</small>
         </Card>
+        )}
 
         {/* Branches */}
+        {isSuperAdmin && (
         <Card>
           <div className="card-icon" style={{ backgroundColor: '#0ea5e915' }}>
             <Building2 size={24} color="#0ea5e9" />
@@ -1323,8 +1344,10 @@ Thank you,
           </div>
           <small className="help-text">💡 Add multiple locations; students & ledger can be filtered per branch</small>
         </Card>
+        )}
 
         {/* Theme */}
+        {isSuperAdmin && (
         <Card>
           <div className="card-icon" style={{ backgroundColor: theme === 'dark' ? '#1e293b30' : '#fde68a30' }}>
             {theme === 'dark' ? <Moon size={24} color="#cbd5e1" /> : <Sun size={24} color="#f59e0b" />}
@@ -1346,8 +1369,10 @@ Thank you,
           </div>
           <small className="help-text">💡 Preference is saved on this device</small>
         </Card>
+        )}
 
         {/* Change Username */}
+        {isSuperAdmin && (
         <Card>
           <div className="card-icon" style={{ backgroundColor: '#0ea5e915' }}>
             <UserIcon size={24} color="#0ea5e9" />
@@ -1365,6 +1390,7 @@ Thank you,
           </div>
           <small className="help-text">💡 You'll use this email to log in next time</small>
         </Card>
+        )}
 
         {/* Change Password */}
         <Card>
@@ -1402,6 +1428,7 @@ Thank you,
         </Card>
 
         {/* Penalty Settings */}
+        {isSuperAdmin && (
         <Card>
           <div className="card-icon" style={{ backgroundColor: '#ef444415' }}>
             <IndianRupee size={24} color="#ef4444" />
@@ -1428,6 +1455,7 @@ Thank you,
           </div>
           <small className="help-text">💡 Penalties are auto-added to overdue fees</small>
         </Card>
+        )}
 
         {/* Hostel Information */}
         <Card>

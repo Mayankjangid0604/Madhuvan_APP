@@ -1056,7 +1056,14 @@ exports.applyPenaltiesToOverdueFees = exports.applyPenalties;
 // Active students AND checked-out students that still have unpaid fees.
 // (Once every fee of a checked-out student is fully paid, they drop off the list.)
 // ============================================
-exports.getAllFeesComprehensive = () => {
+exports.getAllFeesComprehensive = (opts = {}) => {
+  const { branch_id } = opts;
+  const params = [];
+  let branchFilter = '';
+  if (branch_id) {
+    branchFilter = ' AND s.branch_id = ?';
+    params.push(branch_id);
+  }
   const students = db.db.prepare(`
     SELECT DISTINCT s.student_id, s.student_name, s.father_name, s.student_mobile, s.photo_url,
                     s.status, s.date_of_leaving,
@@ -1065,7 +1072,7 @@ exports.getAllFeesComprehensive = () => {
     LEFT JOIN room_allocation a ON a.student_id = s.student_id AND a.allocation_status = 'active'
     LEFT JOIN rooms r ON a.room_id = r.room_id
     LEFT JOIN beds b ON a.bed_id = b.bed_id
-    WHERE
+    WHERE (
       (s.status = 'active' AND s.date_of_leaving IS NULL)
       OR EXISTS (
         SELECT 1 FROM student_fees sf
@@ -1073,7 +1080,8 @@ exports.getAllFeesComprehensive = () => {
           AND sf.fee_status != 'PAID'
           AND COALESCE(sf.final_amount, 0) > COALESCE(sf.paid_amount, 0)
       )
-  `).all();
+    )${branchFilter}
+  `).all(...params);
 
   return students.map(student => {
     const fees = db.db.prepare(`SELECT * FROM student_fees WHERE student_id = ? ORDER BY fee_month DESC`).all(student.student_id);

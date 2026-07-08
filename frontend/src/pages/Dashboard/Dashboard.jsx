@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import StatusBadge from "../../components/badges/StatusBadge";
 import "./dashboard.css";
+import "./dashboardPremium.css";
 
 // ============================================
 // CONSTANTS

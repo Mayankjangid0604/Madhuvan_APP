@@ -20,15 +20,14 @@ export const AuthProvider = ({ children }) => {
     const IDLE_GRACE = 24 * 60 * 60 * 1000; // 24 hours
 
     if (token && isAuth && email) {
-      // If remember-me is on and we're within the grace window, restore session.
-      // If remember-me is on but idle > 24h, require re-login.
-      // If remember-me is off, session persists for the browser session anyway.
       if (rememberMe && idleMs > IDLE_GRACE) {
         localStorage.removeItem('token');
         localStorage.removeItem('isAuthenticated');
         setUser(null);
       } else {
-        setUser({ email, token });
+        const role = localStorage.getItem('adminRole') || 'super_admin';
+        const branchId = localStorage.getItem('adminBranchId');
+        setUser({ email, token, role, branch_id: branchId ? Number(branchId) : null });
         localStorage.setItem('lastActiveAt', String(now));
       }
     } else {
@@ -72,13 +71,25 @@ export const AuthProvider = ({ children }) => {
   }, [checkAuth]);
 
   // ✅ Login function
-  const login = useCallback((token, email, rememberMe = false) => {
+  const login = useCallback((token, email, rememberMe = false, extra = {}) => {
+    const role = extra.role || 'super_admin';
+    const branchId = extra.branch_id || null;
     localStorage.setItem('token', token);
     localStorage.setItem('adminEmail', email);
+    localStorage.setItem('adminRole', role);
+    if (branchId) {
+      localStorage.setItem('adminBranchId', String(branchId));
+      // Force selected branch for scoped admins
+      if (role === 'branch_admin') {
+        localStorage.setItem('selectedBranchId', String(branchId));
+      }
+    } else {
+      localStorage.removeItem('adminBranchId');
+    }
     localStorage.setItem('isAuthenticated', 'true');
     localStorage.setItem('rememberMe', rememberMe ? 'true' : 'false');
     localStorage.setItem('lastActiveAt', String(Date.now()));
-    setUser({ email, token });
+    setUser({ email, token, role, branch_id: branchId });
     navigate('/');
   }, [navigate]);
 

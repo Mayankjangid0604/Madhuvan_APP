@@ -20,8 +20,10 @@ import "./topbar.css";
 
 const BranchDropdown = () => {
   const { branches, selectedBranchId, currentBranch, selectBranch } = useBranch();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const isBranchAdmin = user?.role === "branch_admin";
 
   useEffect(() => {
     const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -30,6 +32,10 @@ const BranchDropdown = () => {
   }, []);
 
   if (!branches || branches.length === 0) return null;
+  // Branch admin can only see their own branch
+  const visibleBranches = isBranchAdmin
+    ? branches.filter(b => b.branch_id === user?.branch_id)
+    : branches;
   return (
     <div ref={ref} style={{ position: "relative", marginRight: 12 }}>
       <button
@@ -55,7 +61,7 @@ const BranchDropdown = () => {
           boxShadow: "0 12px 24px rgba(0,0,0,0.12)",
           zIndex: 200, overflow: "hidden"
         }}>
-          {branches.map(b => (
+          {visibleBranches.map(b => (
             <button
               key={b.branch_id}
               onClick={() => { selectBranch(b.branch_id); setOpen(false); }}

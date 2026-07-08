@@ -20,7 +20,8 @@ exports.createStudent = asyncHandler(async (req, res) => {
   }
 
   try {
-    const result = studentService.createStudentWithFees(req.body);
+    const branch_id = resolveBranchId(req) || req.body.branch_id;
+    const result = studentService.createStudentWithFees({ ...req.body, branch_id: branch_id || 1 });
     
     return res.status(201).json({
       success: true,
@@ -53,9 +54,18 @@ exports.createStudent = asyncHandler(async (req, res) => {
  * Get all students
  * GET /api/students
  */
+// Middleware helper — resolves branch_id from headers/query/user
+const resolveBranchId = (req) => {
+  const raw = req.headers['x-branch-id'] || req.query.branch_id;
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
 exports.getAllStudents = asyncHandler(async (req, res) => {
   try {
-    const students = studentService.getAllStudents();
+    const branch_id = resolveBranchId(req);
+    const students = studentService.getAllStudents({ branch_id });
     
     return res.status(200).json({
       success: true,

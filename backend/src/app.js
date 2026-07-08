@@ -248,7 +248,8 @@ const routes = [
   { path: "/api/backup", module: "./routes/backup.routes" },
   { path: "/api/members", module: "./routes/member.routes" },
   { path: "/api/doc-number", module: "./routes/docNumber.routes" },
-  { path: "/api/branches", module: "./routes/branch.routes" }
+  { path: "/api/branches", module: "./routes/branch.routes" },
+  { path: "/api/webhooks", module: "./routes/webhook.routes" }
 ];
 
 let loaded = 0;
@@ -388,6 +389,13 @@ setTimeout(() => {
     console.log("   ✅ Fee email cron started (1st invoice, 3rd/5th reminders, 6+ daily overdue)");
   } catch (err) {
     console.warn("   ⚠️ Email cron:", err.message);
+  }
+
+  try {
+    const { startPushWorker } = require("./sync/pushWorker");
+    startPushWorker();
+  } catch (err) {
+    console.warn("   ⚠️ Push worker:", err.message);
   }
 
 }, 3000);
