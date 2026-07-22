@@ -1345,7 +1345,6 @@ const Ledger = () => {
                   disabled={modalLoading}
                 >
                   <option value="">Select Category</option>
-                  <option value="hostel_fees">🏠 Hostel Fees</option>
                   <option value="maintenance">🔧 Maintenance</option>
                   <option value="electric_bill">⚡ Electric Bill</option>
                   <option value="salary">👤 Salary</option>
