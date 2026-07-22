@@ -89,72 +89,108 @@ const setSetting = async (key, value) => {
 // =========================
 exports.getTemplates = () =>
   getCached("templates", async () => {
-    const email = await getSetting("email_template", {
-      subject: "Fee Payment Reminder - {student_name}",
-      body: `Dear {father_name},
+    const admission_email = await getSetting("admission_email_template", {
+      subject: "Admission Confirmed - {student_name}",
+      body: `Dear {contact_name},
+
+{student_name}'s admission to {hostel_name} is confirmed.
+
+Please find attached the admission form and the fee invoice.
+
+Amount Due: ₹{fee_amount}
+Due Date: {due_date}
+
+Thank you,
+{hostel_name}`
+    });
+    const admission_sms = await getSetting("admission_sms_template", {
+      message: "Dear {contact_name}, admission of {student_name} at {hostel_name} is confirmed. Fee Rs.{fee_amount} due on {due_date}. - {hostel_name}"
+    });
+    const due_reminder_email = await getSetting("due_reminder_email_template", {
+      subject: "Fee Due Reminder - {student_name}",
+      body: `Dear {contact_name},
 
 This is a reminder that the hostel fee for {student_name} is due.
 
-Fee Details:
-- Amount: ₹{fee_amount}
-- Due Date: {due_date}
-- Status: {fee_status}
+Amount: ₹{fee_amount}
+Due Date: {due_date}
 
 Please make the payment at the earliest.
 
 Thank you,
 {hostel_name}`
     });
-    const sms = await getSetting("sms_template", {
-      message: "Dear {mother_name}, Fee of Rs.{fee_amount} for {student_name} is due on {due_date}. Please pay soon. - {hostel_name}"
+    const overdue_email = await getSetting("overdue_email_template", {
+      subject: "Fee Overdue - Updated Invoice - {student_name}",
+      body: `Dear {contact_name},
+
+The hostel fee for {student_name} is overdue. A late-payment penalty of ₹{penalty_amount} has been added.
+
+Total Payable: ₹{fee_amount}
+Original Due Date: {due_date}
+
+Please find the updated invoice attached.
+
+Thank you,
+{hostel_name}`
     });
-    const invoice_email = await getSetting("invoice_email_template", null);
-    const receipt_email = await getSetting("receipt_email_template", null);
-    return { email, sms, invoice_email, receipt_email };
+    const receipt_email = await getSetting("receipt_email_template", {
+      subject: "Fee Receipt #{receipt_number} - {student_name}",
+      body: `Dear {contact_name},
+
+We have received ₹{fee_amount} for {student_name} on {payment_date}.
+
+Receipt Number: {receipt_number}
+
+Receipt attached.
+
+Thank you,
+{hostel_name}`
+    });
+    const receipt_sms = await getSetting("receipt_sms_template", {
+      message: "Dear {contact_name}, payment of Rs.{fee_amount} received for {student_name} on {payment_date}. Receipt: {receipt_number}. - {hostel_name}"
+    });
+    return { admission_email, admission_sms, due_reminder_email, overdue_email, receipt_email, receipt_sms };
   });
 
-exports.saveEmailTemplate = (data) => setSetting("email_template", data);
-exports.saveSmsTemplate = (data) => setSetting("sms_template", data);
 exports.saveTemplate = (kind, data) => setSetting(`${kind}_template`, data);
 exports.getConfig = (key, def) => getSetting(key, def);
 exports.saveConfig = (key, data) => setSetting(key, data);
 
 // =========================
-// Email Config
+// MSG91 Config (SMS + Email + WhatsApp)
 // =========================
-exports.getEmailConfig = () =>
-  getCached("email_config", async () =>
-    getSetting("email_config", {
+exports.getMsg91Config = () =>
+  getCached("msg91_config", async () =>
+    getSetting("msg91_config", {
       enabled: false,
-      service: "gmail",
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      user: "",
-      password: "",
-      fromName: "Hostel Management",
-      fromEmail: ""
+      authKey: "",
+      publicBaseUrl: "",
+      sms: {
+        senderId: "",
+        route: "4",
+        templates: {
+          admission: "",
+          fee_receipt: ""
+        }
+      },
+      email: {
+        domain: "",
+        fromEmail: "",
+        fromName: "Hostel Management",
+        templateId: ""
+      },
+      whatsapp: {
+        integratedNumber: "",
+        namespace: "",
+        templates: {
+          receipt: ""
+        }
+      }
     })
   );
 
-exports.saveEmailConfig = (data) =>
-  setSetting("email_config", {
-    ...data,
-    fromEmail: data.fromEmail || data.user
-  });
-
-// =========================
-// SMS Config
-// =========================
-exports.getSmsConfig = () =>
-  getSetting("sms_config", {
-    enabled: false,
-    accountSid: "",
-    authToken: "",
-    from: ""
-  });
-
-exports.saveSmsConfig = (data) => setSetting("sms_config", data);
+exports.saveMsg91Config = (data) => setSetting("msg91_config", data);
 
 // =========================
 // Drive Config

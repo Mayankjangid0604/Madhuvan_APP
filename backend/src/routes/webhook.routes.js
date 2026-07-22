@@ -8,9 +8,7 @@ const router = express.Router();
 const db = require("../config/db.sqlite");
 const settingsService = require("../services/settings.service");
 const feeService = require("../services/fee.service");
-const docService = require("../services/docNumber.service");
-let emailCron;
-try { emailCron = require("../cron/emailSchedule.cron"); } catch { emailCron = { sendPaymentReceipt: async () => {} }; }
+const notificationService = require("../services/notification.service");
 
 const WEBHOOK_PATH = "/api/webhooks/phonepe";
 
@@ -82,6 +80,7 @@ router.post("/phonepe", express.json({
 
     // Mark fee PAID (or add partial payment)
     const paidAt = new Date().toISOString().split("T")[0];
+    let paymentId = null;
     try {
       db.db.prepare(`
         UPDATE student_fees
@@ -96,11 +95,12 @@ router.post("/phonepe", express.json({
          WHERE fee_id = ?
       `).run(amount, amount, paidAt, txnRef, feeId);
 
-      db.db.prepare(`
+      const insertResult = db.db.prepare(`
         INSERT INTO fee_payments
           (student_id, fee_id, payment_amount, payment_date, payment_mode, reference_no, received_by)
         VALUES (?, ?, ?, ?, 'PHONEPE', ?, 'PhonePe Auto')
       `).run(studentId, feeId, amount, paidAt, txnRef);
+      paymentId = insertResult.lastInsertRowid;
 
       // Create ledger income entry
       try {
@@ -121,19 +121,13 @@ router.post("/phonepe", express.json({
       console.error("Failed to update fee row from PhonePe webhook:", e.message);
     }
 
-    // Fire receipt email (student copy)
+    // Fire fee-receipt notifications (email + SMS + WhatsApp receipt)
     try {
-      const receiptNumber = docService.nextDocNumber("receipt");
-      const fee = db.db.prepare("SELECT * FROM student_fees WHERE fee_id = ?").get(feeId);
-      await emailCron.sendPaymentReceipt({
-        studentId,
-        receiptNumber,
-        amount,
-        forPeriod: fee?.fee_type || "",
-        paymentDate: paidAt,
-      });
+      if (paymentId) {
+        await notificationService.sendFeeReceiptNotifications({ studentId, feeId, paymentId });
+      }
     } catch (e) {
-      console.warn("Receipt email failed:", e.message);
+      console.warn("Receipt notification failed:", e.message);
     }
 
     res.json({ success: true, message: "Payment recorded" });

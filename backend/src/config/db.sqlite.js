@@ -192,6 +192,7 @@ function getCoreSchemaDefinitions() {
         local_guardian_name TEXT,
         local_guardian_relation TEXT,
         local_guardian_mobile TEXT,
+        local_guardian_email TEXT,
         id_type TEXT,
         id_number TEXT,
         address_line1 TEXT,
@@ -1086,6 +1087,7 @@ function removeCheckConstraints() {
               local_guardian_name TEXT,
               local_guardian_relation TEXT,
               local_guardian_mobile TEXT,
+              local_guardian_email TEXT,
               id_type TEXT,
               id_number TEXT,
               address_line1 TEXT,
@@ -1313,6 +1315,7 @@ function runMigrations() {
   safeAddColumn('students', 'discount_on_full_month', 'INTEGER DEFAULT 1');
   safeAddColumn('students', 'payment_mode', "TEXT DEFAULT 'cash'");
   safeAddColumn('students', 'gender', "TEXT DEFAULT 'Girl'");
+  safeAddColumn('students', 'local_guardian_email', 'TEXT');
 
   // One-time migration for existing rows: default payment mode = cash, gender = Girl.
   try {

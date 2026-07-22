@@ -60,52 +60,52 @@ router.post("/test-email", async (req, res) => {
 router.post("/test-sms", async (req, res) => {
   try {
     const { phone } = req.body;
-    
+
     if (!phone || phone.trim().length < 4) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "A valid phone number is required (e.g. +919999999999)" 
+      return res.status(400).json({
+        success: false,
+        message: "A valid phone number is required (e.g. +919999999999)"
       });
     }
-    
+
     await notificationService.sendTestSMS(phone);
 
-    res.json({ 
+    res.json({
       success: true,
       message: "Test SMS sent successfully"
     });
   } catch (err) {
     // Differentiate config errors from send errors
-    const isConfigError = err.message.includes("not configured") || 
+    const isConfigError = err.message.includes("not configured") ||
                           err.message.includes("not found") ||
                           err.message.includes("configure");
-    
+
     const statusCode = isConfigError ? 422 : 400;
-    const message = isConfigError 
-      ? "SMS is not configured. Please set up Twilio Account SID, Auth Token, and From Number in Settings → SMS Configuration first."
+    const message = isConfigError
+      ? "SMS is not configured. Please set up your MSG91 Auth Key and SMS template in Settings → MSG91 Configuration first."
       : err.message;
-    
-    res.status(statusCode).json({ 
-      success: false, 
-      message 
+
+    res.status(statusCode).json({
+      success: false,
+      message
     });
   }
 });
 
 /**
  * @swagger
- * /api/notifications/send-reminder/{studentId}/{feeId}:
+ * /api/notifications/send-due-reminder/{studentId}/{feeId}:
  *   post:
- *     summary: Send fee reminder to student
+ *     summary: Manually (re)send a due-fee reminder email for a specific fee
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  */
-router.post("/send-reminder/:studentId/:feeId", async (req, res) => {
+router.post("/send-due-reminder/:studentId/:feeId", async (req, res) => {
   try {
     const { studentId, feeId } = req.params;
-    const result = await notificationService.sendFeeReminder(studentId, feeId);
-    
+    const result = await notificationService.sendDueReminderEmail(studentId, feeId, "manual");
+
     res.json({
       success: true,
       data: result
@@ -120,20 +120,20 @@ router.post("/send-reminder/:studentId/:feeId", async (req, res) => {
 
 /**
  * @swagger
- * /api/notifications/bulk-reminders:
+ * /api/notifications/send-overdue-reminder/{studentId}/{feeId}:
  *   post:
- *     summary: Send bulk overdue reminders
+ *     summary: Manually (re)send an overdue-fee reminder email for a specific fee
  *     tags: [Notifications]
  *     security:
  *       - bearerAuth: []
  */
-router.post("/bulk-reminders", async (req, res) => {
+router.post("/send-overdue-reminder/:studentId/:feeId", async (req, res) => {
   try {
-    const result = await notificationService.sendBulkOverdueReminders();
-    
+    const { studentId, feeId } = req.params;
+    const result = await notificationService.sendOverdueReminderEmail(studentId, feeId);
+
     res.json({
       success: true,
-      message: `Sent reminders to ${result.total} students`,
       data: result
     });
   } catch (error) {

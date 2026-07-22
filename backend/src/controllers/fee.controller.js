@@ -1,6 +1,7 @@
 // controllers/fee.controller.js
 const feeService = require("../services/fee.service");
 const studentFeeDetailsService = require("../services/studentFeeDetails.service");
+const notificationService = require("../services/notification.service");
 const asyncHandler = require("../utils/asyncHandler");
 
 // Lazy load invoice service
@@ -201,6 +202,9 @@ exports.payFee = asyncHandler(async (req, res) => {
           received_member_id
         });
 
+        notificationService.sendFeeReceiptNotifications({ studentId: student_id, feeId: anyUnpaidFee.fee_id })
+          .catch((e) => console.warn("Fee receipt notification failed:", e.message));
+
         return res.json({
           success: true,
           message: "Payment recorded successfully",
@@ -223,6 +227,9 @@ exports.payFee = asyncHandler(async (req, res) => {
       received_by,
       received_member_id
     });
+
+    notificationService.sendFeeReceiptNotifications({ studentId: student_id, feeId: unpaidFee.fee_id })
+      .catch((e) => console.warn("Fee receipt notification failed:", e.message));
 
     return res.json({
       success: true,
@@ -452,11 +459,15 @@ exports.payAllFees = asyncHandler(async (req, res) => {
       return {
         total_paid: totalApplied,
         invoice_number: invoiceNumber,
-        advance_received: remainingAmount > 0 ? remainingAmount : 0
+        advance_received: remainingAmount > 0 ? remainingAmount : 0,
+        first_fee_id: firstFeeId
       };
     });
 
     const result = payAllTx();
+
+    notificationService.sendFeeReceiptNotifications({ studentId: student_id, feeId: result.first_fee_id })
+      .catch((e) => console.warn("Fee receipt notification failed:", e.message));
 
     return res.json({
       success: true,

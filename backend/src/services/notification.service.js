@@ -1,550 +1,353 @@
-const PDFDocument = require('pdfkit');
-const nodemailer = require('nodemailer');
-const fs = require('fs');
-const path = require('path');
 const db = require('../config/db.sqlite');
-const settingsService = require("./settings.service");
+const settingsService = require('./settings.service');
+const msg91Service = require('./msg91.service');
 const invoiceService = require('./invoice.service');
+const admissionFormService = require('./admissionForm.service');
+const signedLink = require('../utils/signedLink.util');
 
-// Global transporter - will be updated dynamically
-let emailTransporter = null;
-let twilioClient = null;
+const toNum = (v) => Number(v) || 0;
+const fmtINR = (n) => `₹${Math.round(toNum(n)).toLocaleString('en-IN')}`;
+const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 
-/**
- * Initialize email transporter from database settings
- */
-const initializeEmailTransporter = async () => {
+const fillTemplate = (tpl, vars) => {
+  let s = String(tpl || '');
+  Object.entries(vars || {}).forEach(([k, v]) => {
+    s = s.split(`{${k}}`).join(String(v ?? ''));
+  });
+  return s;
+};
+
+const computeRemaining = (fee) =>
+  toNum(fee.final_amount) + toNum(fee.previous_dues) + toNum(fee.penalty_amount) +
+  toNum(fee.fine_amount) + toNum(fee.property_damage_amount) + toNum(fee.money_given_amount) - toNum(fee.paid_amount);
+
+const getStudent = (studentId) =>
+  db.db.prepare(`SELECT * FROM students WHERE student_id = ?`).get(studentId);
+
+const logNotification = (studentId, type, method, status, message) => {
   try {
-    const emailConfig = await settingsService.getEmailConfig();
+    db.db.prepare(`
+      INSERT INTO notification_logs (student_id, notification_type, notification_method, notification_status, notification_message, sent_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `).run(studentId, type, method, status, message || null);
+  } catch (e) {
+    console.warn('Failed to write notification log:', e.message);
+  }
+};
 
-    if (!emailConfig.enabled || !emailConfig.user || !emailConfig.password) {
-      console.log('⚠️ Email not configured');
-      emailTransporter = null;
-      return;
-    }
-
-    // 🔥 DESTROY OLD TRANSPORTER
-    emailTransporter = null;
-
-    const secure = Number(emailConfig.port) === 465;
-
-    emailTransporter = nodemailer.createTransport({
-      host: emailConfig.host,
-      port: Number(emailConfig.port),
-      secure,
-      auth: {
-        user: emailConfig.user,
-        pass: emailConfig.password
-      }
-    });
-
-    await emailTransporter.verify();
-    console.log('✅ Email transporter verified');
-
-  } catch (err) {
-    console.error('❌ Email init failed:', err.message);
-    emailTransporter = null;
+const logReminder = (studentId, feeId, type, method, status) => {
+  try {
+    db.db.prepare(`
+      INSERT INTO reminder_logs (student_id, fee_id, reminder_type, reminder_method, reminder_status, sent_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `).run(studentId, feeId, type, method, status);
+  } catch (e) {
+    console.warn('Failed to write reminder log:', e.message);
   }
 };
 
 /**
- * Initialize SMS client from database settings
+ * Resolve which contact to message: father -> mother -> local guardian.
+ * A contact only "exists" if it has a mobile or an email on file; if the
+ * chosen contact is missing one channel, that channel falls back further
+ * down the chain (e.g. father has no email but mother does).
  */
-const initializeTwilioClient = async () => {
-  try {
-    const smsConfig = await settingsService.getSmsConfig();
-    
-    // Check if SMS is enabled and configured
-    if (!smsConfig.enabled || !smsConfig.accountSid || !smsConfig.authToken) {
-      console.log('⚠️  SMS not configured - SMS reminders disabled');
-      twilioClient = null;
-      return;
-    }
-
-    const twilio = require('twilio');
-    twilioClient = twilio(smsConfig.accountSid, smsConfig.authToken);
-    console.log('✅ SMS configured from database settings');
-  } catch (error) {
-    console.log('⚠️  SMS initialization failed:', error.message);
-    twilioClient = null;
-  }
+const resolveContact = (student) => {
+  const candidates = [
+    { role: 'father', name: student.father_name, mobile: student.father_mobile, email: student.father_email },
+    { role: 'mother', name: student.mother_name, mobile: student.mother_mobile, email: student.mother_email },
+    { role: 'guardian', name: student.local_guardian_name, mobile: student.local_guardian_mobile, email: student.local_guardian_email }
+  ];
+  const primary = candidates.find((c) => c.mobile || c.email) || candidates[0];
+  const email = primary.email || candidates.find((c) => c.email)?.email || null;
+  const mobile = primary.mobile || candidates.find((c) => c.mobile)?.mobile || null;
+  return { role: primary.role, name: primary.name, mobile, email };
 };
+exports.resolveContact = resolveContact;
 
-/**
- * Initialize both email and SMS on startup
- */
-const initialize = async () => {
-  await initializeEmailTransporter();
-  await initializeTwilioClient();
-};
+// ============================================
+// ADMISSION: email (invoice + admission form) + SMS
+// ============================================
+exports.sendAdmissionNotifications = async (studentId) => {
+  const student = getStudent(studentId);
+  if (!student) return;
 
-// Initialize on module load
-initialize();
-
-/**
- * Re-initialize after settings change
- */
-exports.reinitialize = async () => {
-  console.log('🔄 Reinitializing notification services...');
-  await initialize();
-};
-
-/**
- * Build Email Content using template
- */
-const buildEmailContent = async (student, fee) => {
+  const contact = resolveContact(student);
+  const fee = db.db.prepare(`SELECT * FROM student_fees WHERE student_id = ? ORDER BY fee_date ASC LIMIT 1`).get(studentId);
   const hostelInfo = await settingsService.getHostelInfo() || {};
   const templates = await settingsService.getTemplates();
-  const template = templates.email;
-  const emailConfig = await settingsService.getEmailConfig();
-  
-  // Replace variables
-  let subject = template.subject
-    .replace(/{student_name}/g, student.student_name || '')
-    .replace(/{hostel_name}/g, hostelInfo.hostel_name || '');
 
-  let body = template.body
-    .replace(/{student_name}/g, student.student_name || '')
-    .replace(/{father_name}/g, student.father_name || '')
-    .replace(/{mother_name}/g, student.mother_name || '')
-    .replace(/{fee_amount}/g, fee.penalty_amount > 0
-      ? `${fee.fee_amount} + ₹${fee.penalty_amount} = ₹${fee.fee_amount + fee.penalty_amount}`
-      : fee.fee_amount
-    )
-    .replace(/{due_date}/g, fee.due_date || '')
-    .replace(/{fee_status}/g, fee.fee_status || '')
-    .replace(/{hostel_name}/g, hostelInfo.hostel_name || '')
-    .replace(/{hostel_phone}/g, hostelInfo.phone || '')
-    .replace(/{hostel_email}/g, hostelInfo.email || '');
-  
-  return {
-    subject,
-    body,
-    fromName: emailConfig.fromName || "Hostel Management",
-    fromEmail: emailConfig.fromEmail || emailConfig.user
+  const vars = {
+    student_name: student.student_name,
+    contact_name: contact.name || '',
+    fee_amount: fee ? fmtINR(computeRemaining(fee)) : '0',
+    due_date: fee?.due_date ? formatDate(fee.due_date) : '-',
+    hostel_name: hostelInfo.hostel_name || 'Hostel Management'
   };
-};
 
-/**
- * Build SMS Content using template
- */
-const buildSMSContent = async (student, fee) => {
-  const templates = await settingsService.getTemplates();
-  const template = templates.sms;
-  
-  let message = template.message
-    .replace('{student_name}', student.student_name)
-    .replace('{father_name}', student.father_name)
-    .replace('{mother_name}', student.mother_name || '')
-    .replace('{fee_amount}', fee.fee_amount)
-    .replace('{due_date}', fee.due_date)
-    .replace('{fee_status}', fee.fee_status);
-  
-  return message;
-};
-
-/**
- * Send Email to Father
- */
-exports.sendEmailReminder = async (studentId, feeDetails) => {
-  try {
-    // Re-initialize if not already done
-    if (!emailTransporter) {
-      await initializeEmailTransporter();
-    }
-
-    if (!emailTransporter) {
-      console.log('Email not configured');
-      return { success: false, reason: 'Email not configured' };
-    }
-
-    const student = db.db.prepare(`
-      SELECT s.student_name, s.father_name, s.father_email,
-             sf.fee_amount, sf.paid_amount, sf.due_date, sf.fee_status, sf.fee_id
-      FROM students s
-      JOIN student_fees sf ON s.student_id = sf.student_id
-      WHERE s.student_id = ? AND sf.fee_id = ?
-    `).get(studentId, feeDetails.fee_id);
-
-    if (!student || !student.father_email) {
-      console.log(`No email for student ${studentId}`);
-      return { success: false, reason: 'No email found' };
-    }
-
-    const fee = db.db.prepare(`SELECT * FROM student_fees WHERE fee_id = ?`).get(feeDetails.fee_id);
-    
-    if (!fee) {
-      console.log(`No fee record for fee_id ${feeDetails.fee_id}`);
-      return { success: false, reason: 'No fee record found' };
-    }
-
-    process.env.EMAIL_MODE = 'true';
+  if (contact.email) {
     try {
-      // Get email content from template
-      const { subject, body, fromName, fromEmail } = await buildEmailContent(student, {
-        ...fee,
-        fee_status: String(fee.fee_status || 'DUE')
+      const attachments = [];
+      const admissionFormPath = await admissionFormService.generateAdmissionFormPDF(studentId);
+      attachments.push({ filename: `Admission_Form_${studentId}.pdf`, path: admissionFormPath });
+      if (fee) {
+        const { filePath } = await invoiceService.generateBillPDF(fee.fee_id);
+        attachments.push({ filename: `Invoice_${fee.fee_id}.pdf`, path: filePath });
+      }
+
+      const result = await msg91Service.sendEmail({
+        to: contact.email,
+        toName: contact.name,
+        subject: fillTemplate(templates.admission_email.subject, vars),
+        html: fillTemplate(templates.admission_email.body, vars).replace(/\n/g, '<br>'),
+        attachments
       });
-
-      const invoicePath = await invoiceService.generateInvoicePDF(feeDetails.fee_id, { isPaid: false });
-
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: student.father_email,
-        subject: subject,
-        html: body.replace(/\n/g, '<br>'),
-        attachments: [{
-          filename: `invoice_${feeDetails.fee_id}_UNPAID.pdf`,
-          path: invoicePath
-        }]
-      };
-
-      await emailTransporter.sendMail(mailOptions);
-
-      // Log notification
-      db.db.prepare(`
-        INSERT INTO notification_logs (student_id, notification_type, notification_method, notification_status, notification_message, sent_at)
-        VALUES (?, 'fee_reminder', 'email', 'sent', ?, datetime('now'))
-      `).run(studentId, `Email sent to ${student.father_email}`);
-
-      console.log(`✅ Email sent to ${student.father_email}`);
-      return { success: true, email: student.father_email };
-    } finally {
-      delete process.env.EMAIL_MODE;
+      logNotification(studentId, 'admission', 'email', result.success ? 'sent' : 'failed', result.success ? `Email sent to ${contact.email}` : (result.error || result.reason));
+    } catch (e) {
+      logNotification(studentId, 'admission', 'email', 'failed', e.message);
     }
-  } catch (error) {
-    console.error('Email error:', error.message);
-
-    // Log failed notification
-    db.db.prepare(`
-      INSERT INTO notification_logs (student_id, notification_type, notification_method, notification_status, notification_message, sent_at)
-      VALUES (?, 'fee_reminder', 'email', 'failed', ?, datetime('now'))
-    `).run(studentId, `Email failed: ${error.message}`);
-
-    return { success: false, error: error.message };
+  } else {
+    logNotification(studentId, 'admission', 'email', 'skipped', 'No email on file for father/mother/guardian');
   }
-};
 
-/**
- * Send SMS to Mother
- */
-exports.sendSMSReminder = async (studentId, feeDetails) => {
-  try {
-    // Re-initialize if not already done
-    if (!twilioClient) {
-      await initializeTwilioClient();
-    }
-
-    if (!twilioClient) {
-      console.log('SMS not configured');
-      return { success: false, reason: 'SMS not configured' };
-    }
-
-    const smsConfig = await settingsService.getSmsConfig();
-
-    const student = db.db.prepare(`
-      SELECT s.student_name, s.mother_name, s.mother_mobile, s.father_name,
-             sf.fee_amount, sf.paid_amount, sf.due_date, sf.fee_status
-      FROM students s
-      JOIN student_fees sf ON s.student_id = sf.student_id
-      WHERE s.student_id = ? AND sf.fee_id = ?
-    `).get(studentId, feeDetails.fee_id);
-
-    if (!student || !student.mother_mobile) {
-      console.log(`No mobile for student ${studentId}`);
-      return { success: false, reason: 'No mobile found' };
-    }
-
-    const message = await buildSMSContent(student, student);
-
-    await twilioClient.messages.create({
-      body: message,
-      from: smsConfig.from,
-      to: `+91${student.mother_mobile}`
+  if (contact.mobile) {
+    const config = await settingsService.getMsg91Config();
+    const result = await msg91Service.sendSms({
+      mobile: contact.mobile,
+      templateId: config.sms?.templates?.admission,
+      variables: { VAR1: student.student_name, VAR2: vars.fee_amount, VAR3: vars.due_date }
     });
-
-    // Log notification
-    db.db.prepare(`
-      INSERT INTO notification_logs (student_id, notification_type, notification_method, notification_status, notification_message, sent_at)
-      VALUES (?, 'fee_reminder', 'sms', 'sent', ?, datetime('now'))
-    `).run(studentId, `SMS sent to ${student.mother_mobile}`);
-
-    console.log(`✅ SMS sent to ${student.mother_mobile}`);
-    return { success: true, mobile: student.mother_mobile };
-  } catch (error) {
-    console.error('SMS error:', error.message);
-    
-    // Log failed notification
-    db.db.prepare(`
-      INSERT INTO notification_logs (student_id, notification_type, notification_method, notification_status, notification_message, sent_at)
-      VALUES (?, 'fee_reminder', 'sms', 'failed', ?, datetime('now'))
-    `).run(studentId, `SMS failed: ${error.message}`);
-    
-    return { success: false, error: error.message };
+    logNotification(studentId, 'admission', 'sms', result.success ? 'sent' : 'failed', result.success ? `SMS sent to ${contact.mobile}` : (result.error || result.reason));
+  } else {
+    logNotification(studentId, 'admission', 'sms', 'skipped', 'No mobile on file');
   }
 };
 
-/**
- * Send Both Email and SMS
- */
-exports.sendFeeReminder = async (studentId, feeId) => {
-  const feeDetails = { fee_id: feeId };
-  
-  const [emailResult, smsResult] = await Promise.all([
-    exports.sendEmailReminder(studentId, feeDetails),
-    exports.sendSMSReminder(studentId, feeDetails)
-  ]);
+// ============================================
+// FEE RECEIPT: email (receipt attached) + SMS + WhatsApp (receipt document)
+// ============================================
+exports.sendFeeReceiptNotifications = async ({ studentId, feeId, paymentId }) => {
+  const student = getStudent(studentId);
+  if (!student) return;
 
-  return {
-    email: emailResult,
-    sms: smsResult
+  const payment = paymentId
+    ? db.db.prepare(`SELECT * FROM fee_payments WHERE payment_id = ?`).get(paymentId)
+    : db.db.prepare(`SELECT * FROM fee_payments WHERE fee_id = ? ORDER BY payment_id DESC LIMIT 1`).get(feeId);
+  if (!payment) return;
+
+  const contact = resolveContact(student);
+  const hostelInfo = await settingsService.getHostelInfo() || {};
+  const templates = await settingsService.getTemplates();
+
+  const vars = {
+    student_name: student.student_name,
+    contact_name: contact.name || '',
+    fee_amount: fmtINR(payment.payment_amount),
+    payment_date: formatDate(payment.payment_date),
+    receipt_number: payment.invoice_number || `PAY-${payment.payment_id}`,
+    hostel_name: hostelInfo.hostel_name || 'Hostel Management'
   };
-};
 
-/**
- * Send Bulk Reminders for Overdue Fees
- */
-exports.sendBulkOverdueReminders = async () => {
+  let receiptPath = null;
   try {
-    const overdueFees = db.db.prepare(`
-      SELECT DISTINCT s.student_id, sf.fee_id
-      FROM students s
-      JOIN student_fees sf ON s.student_id = sf.student_id
-      WHERE sf.fee_status = 'OVERDUE'
-      AND s.date_of_leaving IS NULL
-      LIMIT 50
-    `).all();
-
-    console.log(`📧 Sending reminders to ${overdueFees.length} students...`);
-
-    const results = [];
-    for (const fee of overdueFees) {
-      const result = await exports.sendFeeReminder(fee.student_id, fee.fee_id);
-      results.push(result);
-      // Wait 1 second between sends to avoid rate limits
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-
-    return { total: overdueFees.length, results };
-  } catch (error) {
-    console.error('Bulk reminder error:', error.message);
-    throw error;
+    const generated = await invoiceService.generateReceiptForPayment(payment.payment_id);
+    receiptPath = generated.filePath;
+  } catch (e) {
+    console.warn('Receipt PDF generation failed:', e.message);
   }
-};
 
-/**
- * Send Fee Receipt Email
- */
-exports.sendFeeReceiptEmail = async (studentId, feeId) => {
-  try {
-    if (!emailTransporter) {
-      await initializeEmailTransporter();
-    }
-    if (!emailTransporter) {
-      console.log('Email not configured');
-      return { success: false, reason: 'Email not configured' };
-    }
-
-    const student = db.db.prepare(`
-      SELECT s.student_name, s.father_name, s.father_email,
-             sf.fee_amount, sf.paid_amount, sf.due_date, sf.fee_status, sf.fee_id
-      FROM students s
-      JOIN student_fees sf ON s.student_id = sf.student_id
-      WHERE s.student_id = ? AND sf.fee_id = ?
-    `).get(studentId, feeId);
-
-    if (!student || !student.father_email) {
-      console.log(`No email for student ${studentId}`);
-      return { success: false, reason: 'No email found' };
-    }
-
-    const fee = db.db.prepare(`SELECT * FROM student_fees WHERE fee_id = ?`).get(feeId);
-    
-    if (!fee) {
-      console.log(`No fee record for fee_id ${feeId}`);
-      return { success: false, reason: 'No fee record found' };
-    }
-
-    process.env.EMAIL_MODE = 'true';
+  if (contact.email) {
     try {
-      const { subject, body, fromName, fromEmail } = await buildEmailContent(student, fee);
-
-      const invoicePath = await invoiceService.generateInvoicePDF(feeId, { isPaid: true });
-
-      const mailOptions = {
-        from: `"${fromName}" <${fromEmail}>`,
-        to: student.father_email,
-        subject: `Fee Receipt - ${student.student_name}`,
-        html: `Dear ${student.father_name},<br><br>Your payment for fee ID ${feeId} has been received.<br><br>${body.replace(/\n/g, '<br>')}<br><br>Receipt attached.`,
-        attachments: [{
-          filename: `invoice_${feeId}_PAID.pdf`,
-          path: invoicePath
-        }]
-      };
-
-      await emailTransporter.sendMail(mailOptions);
-
-      // Log notification
-      db.db.prepare(`
-        INSERT INTO notification_logs (student_id, notification_type, notification_method, notification_status, notification_message, sent_at)
-        VALUES (?, 'fee_receipt', 'email', 'sent', ?, datetime('now'))
-      `).run(studentId, `Receipt email sent to ${student.father_email}`);
-
-      console.log(`✅ Receipt email sent to ${student.father_email}`);
-      return { success: true, email: student.father_email };
-    } finally {
-      delete process.env.EMAIL_MODE;
+      const result = await msg91Service.sendEmail({
+        to: contact.email,
+        toName: contact.name,
+        subject: fillTemplate(templates.receipt_email.subject, vars),
+        html: fillTemplate(templates.receipt_email.body, vars).replace(/\n/g, '<br>'),
+        attachments: receiptPath ? [{ filename: `Receipt_${vars.receipt_number}.pdf`, path: receiptPath }] : []
+      });
+      logNotification(studentId, 'fee_receipt', 'email', result.success ? 'sent' : 'failed', result.success ? `Email sent to ${contact.email}` : (result.error || result.reason));
+    } catch (e) {
+      logNotification(studentId, 'fee_receipt', 'email', 'failed', e.message);
     }
-  } catch (error) {
-    console.error('Receipt email error:', error.message);
-
-    // Log failed notification
-    db.db.prepare(`
-      INSERT INTO notification_logs (student_id, notification_type, notification_method, notification_status, notification_message, sent_at)
-      VALUES (?, 'fee_receipt', 'email', 'failed', ?, datetime('now'))
-    `).run(studentId, `Receipt email failed: ${error.message}`);
-
-    return { success: false, error: error.message };
-  }
-};
-
-/**
- * ✅ NEW: Send Email with Attachment (for invoices after payment)
- */
-exports.sendEmailWithAttachment = async ({ to, subject, text, html, attachments }) => {
-  try {
-    // Re-initialize if not already done
-    if (!emailTransporter) {
-      await initializeEmailTransporter();
-    }
-
-    if (!emailTransporter) {
-      console.log('⚠️ Email not configured - skipping email');
-      return { success: false, reason: 'Email not configured' };
-    }
-
-    const emailConfig = await settingsService.getEmailConfig();
-    
-    // Handle array of recipients
-    let recipients;
-    if (Array.isArray(to)) {
-      recipients = to.filter(Boolean).join(', ');
-    } else {
-      recipients = to;
-    }
-    
-    if (!recipients) {
-      console.log('⚠️ No valid recipients for email');
-      return { success: false, reason: 'No valid recipients' };
-    }
-
-    const mailOptions = {
-      from: `"${emailConfig.fromName || 'Hostel Management'}" <${emailConfig.fromEmail || emailConfig.user}>`,
-      to: recipients,
-      subject: subject || 'Fee Invoice',
-      text: text || '',
-      html: html || (text ? text.replace(/\n/g, '<br>') : ''),
-      attachments: attachments || []
-    };
-
-    await emailTransporter.sendMail(mailOptions);
-    
-    console.log(`✅ Email with attachment sent to ${recipients}`);
-    return { success: true, email: recipients };
-    
-  } catch (error) {
-    console.error('❌ Email with attachment error:', error.message);
-    return { success: false, error: error.message };
-  }
-};
-
-/**
- * Send Test Email
- */
-exports.sendTestEmail = async (to) => {
-  if (!emailTransporter) {
-    await initializeEmailTransporter();
+  } else {
+    logNotification(studentId, 'fee_receipt', 'email', 'skipped', 'No email on file');
   }
 
-  if (!emailTransporter) {
-    throw new Error("Email not configured");
-  }
-
-  const emailConfig = await settingsService.getEmailConfig();
-
-  await emailTransporter.sendMail({
-    from: `"${emailConfig.fromName}" <${emailConfig.fromEmail || emailConfig.user}>`,
-    to,
-    subject: "Test Email Successful",
-    html: "<b>Email configuration is working correctly.</b>"
-  });
-};
-
-/**
- * Send Test SMS
- */
-exports.sendTestSMS = async (to) => {
-  if (!twilioClient) {
-    await initializeTwilioClient();
-  }
-
-  if (!twilioClient) {
-    throw new Error("SMS not configured. Please configure Twilio settings first.");
-  }
-
-  const smsConfig = await settingsService.getSmsConfig();
-
-  if (!smsConfig.from) {
-    throw new Error("Twilio 'From' number not configured");
-  }
-
-  // Ensure phone number has country code
-  let phoneNumber = to.trim();
-  if (!phoneNumber.startsWith('+')) {
-    phoneNumber = '+91' + phoneNumber.replace(/^0+/, '');
-  }
-
-  await twilioClient.messages.create({
-    body: "Test SMS from Hostel Management System. SMS configuration is working correctly!",
-    from: smsConfig.from,
-    to: phoneNumber
-  });
-
-  console.log(`✅ Test SMS sent to ${phoneNumber}`);
-};
-
-/**
- * Send SMS (generic)
- */
-exports.sendSMS = async (to, message) => {
-  if (!twilioClient) {
-    await initializeTwilioClient();
-  }
-
-  if (!twilioClient) {
-    return { success: false, reason: "SMS not configured" };
-  }
-
-  const smsConfig = await settingsService.getSmsConfig();
-
-  // Ensure phone number has country code
-  let phoneNumber = to.trim();
-  if (!phoneNumber.startsWith('+')) {
-    phoneNumber = '+91' + phoneNumber.replace(/^0+/, '');
-  }
-
-  try {
-    await twilioClient.messages.create({
-      body: message,
-      from: smsConfig.from,
-      to: phoneNumber
+  if (contact.mobile) {
+    const config = await settingsService.getMsg91Config();
+    const result = await msg91Service.sendSms({
+      mobile: contact.mobile,
+      templateId: config.sms?.templates?.fee_receipt,
+      variables: { VAR1: student.student_name, VAR2: vars.fee_amount, VAR3: vars.receipt_number }
     });
+    logNotification(studentId, 'fee_receipt', 'sms', result.success ? 'sent' : 'failed', result.success ? `SMS sent to ${contact.mobile}` : (result.error || result.reason));
+  } else {
+    logNotification(studentId, 'fee_receipt', 'sms', 'skipped', 'No mobile on file');
+  }
 
-    return { success: true, mobile: phoneNumber };
-  } catch (error) {
-    console.error("SMS send error:", error.message);
-    return { success: false, error: error.message };
+  if (contact.mobile && receiptPath) {
+    const config = await settingsService.getMsg91Config();
+    if (config.publicBaseUrl) {
+      try {
+        const token = signedLink.sign(`receipt:${payment.payment_id}`);
+        const documentUrl = `${config.publicBaseUrl.replace(/\/$/, '')}/api/public/receipt/${payment.payment_id}?token=${token}`;
+        const result = await msg91Service.sendWhatsappDocument({
+          mobile: contact.mobile,
+          documentUrl,
+          filename: `Receipt_${vars.receipt_number}.pdf`,
+          bodyParams: [student.student_name, vars.fee_amount, vars.receipt_number]
+        });
+        logNotification(studentId, 'fee_receipt', 'whatsapp', result.success ? 'sent' : 'failed', result.success ? `WhatsApp sent to ${contact.mobile}` : (result.error || result.reason));
+      } catch (e) {
+        logNotification(studentId, 'fee_receipt', 'whatsapp', 'failed', e.message);
+      }
+    } else {
+      logNotification(studentId, 'fee_receipt', 'whatsapp', 'skipped', 'publicBaseUrl not configured');
+    }
   }
 };
+
+// ============================================
+// DUE REMINDER (email only): day 2 and day 4 after invoice generated
+// ============================================
+exports.sendDueReminderEmail = async (studentId, feeId, stage) => {
+  const student = getStudent(studentId);
+  const fee = db.db.prepare(`SELECT * FROM student_fees WHERE fee_id = ?`).get(feeId);
+  if (!student || !fee) return { success: false, reason: 'Not found' };
+
+  const contact = resolveContact(student);
+  if (!contact.email) {
+    logReminder(studentId, feeId, stage, 'email', 'skipped');
+    return { success: false, reason: 'No email on file' };
+  }
+
+  const hostelInfo = await settingsService.getHostelInfo() || {};
+  const templates = await settingsService.getTemplates();
+  const vars = {
+    student_name: student.student_name,
+    contact_name: contact.name || '',
+    fee_amount: fmtINR(computeRemaining(fee)),
+    due_date: formatDate(fee.due_date),
+    hostel_name: hostelInfo.hostel_name || 'Hostel Management'
+  };
+
+  const { filePath } = await invoiceService.generateBillPDF(feeId);
+  const result = await msg91Service.sendEmail({
+    to: contact.email,
+    toName: contact.name,
+    subject: fillTemplate(templates.due_reminder_email.subject, vars),
+    html: fillTemplate(templates.due_reminder_email.body, vars).replace(/\n/g, '<br>'),
+    attachments: [{ filename: `Invoice_${feeId}.pdf`, path: filePath }]
+  });
+
+  logNotification(studentId, 'due_reminder', 'email', result.success ? 'sent' : 'failed', result.success ? `Email sent to ${contact.email}` : (result.error || result.reason));
+  logReminder(studentId, feeId, stage, 'email', result.success ? 'sent' : 'failed');
+  return result;
+};
+
+// ============================================
+// OVERDUE REMINDER (email only, daily): updated penalty invoice attached
+// ============================================
+exports.sendOverdueReminderEmail = async (studentId, feeId) => {
+  const student = getStudent(studentId);
+  const fee = db.db.prepare(`SELECT * FROM student_fees WHERE fee_id = ?`).get(feeId);
+  if (!student || !fee) return { success: false, reason: 'Not found' };
+
+  const contact = resolveContact(student);
+  if (!contact.email) {
+    logReminder(studentId, feeId, 'overdue', 'email', 'skipped');
+    return { success: false, reason: 'No email on file' };
+  }
+
+  const hostelInfo = await settingsService.getHostelInfo() || {};
+  const templates = await settingsService.getTemplates();
+  const vars = {
+    student_name: student.student_name,
+    contact_name: contact.name || '',
+    fee_amount: fmtINR(computeRemaining(fee)),
+    penalty_amount: fmtINR(fee.penalty_amount),
+    due_date: formatDate(fee.due_date),
+    hostel_name: hostelInfo.hostel_name || 'Hostel Management'
+  };
+
+  const { filePath } = await invoiceService.generateBillPDF(feeId);
+  const result = await msg91Service.sendEmail({
+    to: contact.email,
+    toName: contact.name,
+    subject: fillTemplate(templates.overdue_email.subject, vars),
+    html: fillTemplate(templates.overdue_email.body, vars).replace(/\n/g, '<br>'),
+    attachments: [{ filename: `Invoice_${feeId}_OVERDUE.pdf`, path: filePath }]
+  });
+
+  logNotification(studentId, 'overdue_reminder', 'email', result.success ? 'sent' : 'failed', result.success ? `Email sent to ${contact.email}` : (result.error || result.reason));
+  logReminder(studentId, feeId, 'overdue', 'email', result.success ? 'sent' : 'failed');
+  return result;
+};
+
+// ============================================
+// Manual / ad-hoc SMS (used by the admin "send reminder" screen)
+// ============================================
+exports.sendSMS = async (mobile, message) => {
+  const config = await settingsService.getMsg91Config();
+  const templateId = config.sms?.templates?.manual || config.sms?.templates?.admission;
+  return msg91Service.sendSms({ mobile, templateId, variables: { VAR1: message } });
+};
+
+// ============================================
+// Test senders (Settings -> MSG91 configuration screen)
+// ============================================
+exports.sendTestEmail = async (to) => {
+  const config = await settingsService.getMsg91Config();
+  if (!config.enabled || !config.authKey) {
+    throw new Error('MSG91 is not configured');
+  }
+  const result = await msg91Service.sendEmail({
+    to,
+    subject: 'Test Email Successful',
+    html: '<b>MSG91 email configuration is working correctly.</b>'
+  });
+  if (!result.success) throw new Error(result.error || result.reason || 'Send failed');
+  return result;
+};
+
+exports.sendTestSMS = async (to) => {
+  const config = await settingsService.getMsg91Config();
+  if (!config.enabled || !config.authKey) {
+    throw new Error('MSG91 is not configured');
+  }
+  const templateId = config.sms?.templates?.admission || config.sms?.templates?.fee_receipt;
+  if (!templateId) {
+    throw new Error('No MSG91 SMS template configured yet');
+  }
+  const result = await msg91Service.sendSms({
+    mobile: to,
+    templateId,
+    variables: { VAR1: 'Test', VAR2: 'Test SMS', VAR3: '-' }
+  });
+  if (!result.success) throw new Error(result.error || result.reason || 'Send failed');
+  return result;
+};
+
+// ============================================
+// Notification logs (for the admin activity screen)
+// ============================================
+exports.getNotificationLogs = async (query = {}) => {
+  const { student_id, notification_type, limit } = query;
+  const conditions = [];
+  const params = [];
+  if (student_id) { conditions.push('student_id = ?'); params.push(student_id); }
+  if (notification_type) { conditions.push('notification_type = ?'); params.push(notification_type); }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  const cap = Math.min(Number(limit) || 100, 500);
+  return db.db.prepare(`
+    SELECT * FROM notification_logs ${where} ORDER BY sent_at DESC LIMIT ${cap}
+  `).all(...params);
+};
+
+/**
+ * No-op kept for backward compatibility - MSG91 is a stateless HTTP API,
+ * there is no persistent client/transporter to reinitialize.
+ */
+exports.reinitialize = async () => {};
 
 module.exports = exports;

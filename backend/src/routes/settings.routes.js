@@ -26,22 +26,13 @@ router.post('/rules', settingsController.saveRules);
 // Templates
 // =========================
 router.get('/templates', settingsController.getTemplates);
-router.post('/templates/email', settingsController.saveEmailTemplate);
-router.post('/templates/sms', settingsController.saveSmsTemplate);
-router.post('/templates/invoice-email', settingsController.saveInvoiceEmailTemplate);
-router.post('/templates/receipt-email', settingsController.saveReceiptEmailTemplate);
+router.post('/templates/:kind', settingsController.saveTemplate);
 
 // =========================
-// Email Config
+// MSG91 Config (SMS + Email + WhatsApp)
 // =========================
-router.get('/email-config', settingsController.getEmailConfig);
-router.post('/email-config', settingsController.saveEmailConfig);
-
-// =========================
-// SMS Config
-// =========================
-router.get('/sms-config', settingsController.getSmsConfig);
-router.post('/sms-config', settingsController.saveSmsConfig);
+router.get('/msg91-config', settingsController.getMsg91Config);
+router.post('/msg91-config', settingsController.saveMsg91Config);
 
 // =========================
 // Drive Config
