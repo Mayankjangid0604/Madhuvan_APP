@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Download,
   Mail,
@@ -35,6 +36,7 @@ import { Moon, Sun } from "lucide-react";
 import "./settings.css";
 
 const Settings = () => {
+  const navigate = useNavigate();
   const { user, updateAuth } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const isSuperAdmin = true;
@@ -52,7 +54,6 @@ const Settings = () => {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showEmailTemplateModal, setShowEmailTemplateModal] = useState(false);
   const [showSmsTemplateModal, setShowSmsTemplateModal] = useState(false);
-  const [showMsg91ConfigModal, setShowMsg91ConfigModal] = useState(false);
   const [showDriveConfigModal, setShowDriveConfigModal] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [showPenaltyConfigModal, setShowPenaltyConfigModal] = useState(false);
@@ -185,15 +186,6 @@ Thank you,
     message: "Dear {contact_name}, admission of {student_name} at {hostel_name} is confirmed. Fee Rs.{fee_amount} due on {due_date}. - {hostel_name}"
   });
 
-  const [msg91Config, setMsg91Config] = useState({
-    enabled: false,
-    authKey: "",
-    publicBaseUrl: "",
-    sms: { senderId: "", route: "4", templates: { admission: "", fee_receipt: "" } },
-    email: { domain: "", fromEmail: "", fromName: "Hostel Management", templateId: "" },
-    whatsapp: { integratedNumber: "", namespace: "", templates: { receipt: "" } }
-  });
-
   const [driveConfig, setDriveConfig] = useState({
     enabled: false,
     serviceAccountJson: "",
@@ -279,7 +271,6 @@ Thank you,
     setShowPasswordModal(false);
     setShowEmailTemplateModal(false);
     setShowSmsTemplateModal(false);
-    setShowMsg91ConfigModal(false);
     setShowDriveConfigModal(false);
     setShowRulesModal(false);
     setShowPenaltyConfigModal(false);
@@ -296,7 +287,6 @@ Thank you,
     try {
       await Promise.allSettled([
         loadTemplates(),
-        loadMsg91Config(),
         loadDriveConfig(),
         loadPenaltyConfig(),
         loadHostelRules(),
@@ -365,26 +355,6 @@ Thank you,
       showError("Save failed: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadMsg91Config = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/settings/msg91-config`, {
-        headers: getAuthHeaders()
-      });
-
-      if (response.data.success && response.data.data) {
-        setMsg91Config(prev => ({
-          ...prev,
-          ...response.data.data,
-          sms: { ...prev.sms, ...response.data.data.sms },
-          email: { ...prev.email, ...response.data.data.email },
-          whatsapp: { ...prev.whatsapp, ...response.data.data.whatsapp }
-        }));
-      }
-    } catch (error) {
-      console.log('MSG91 config not loaded:', error.message);
     }
   };
 
@@ -647,62 +617,6 @@ Thank you,
     });
   };
 
-  // ==================== NOTIFICATION HANDLERS ====================
-
-  const handleTestEmail = () => {
-    setPromptModal({
-      isOpen: true,
-      title: "Test Email",
-      message: "Enter your email address for test:",
-      placeholder: "example@email.com",
-      defaultValue: "",
-      onConfirm: async (email) => {
-        if (!email) return;
-        setPromptModal(prev => ({ ...prev, isOpen: false }));
-        setLoading(true);
-        try {
-          await axios.post(
-            `${API_URL}/notifications/test-email`,
-            { email },
-            { headers: getAuthHeaders() }
-          );
-          showSuccess("✓ Test email sent successfully!");
-        } catch (error) {
-          showError("Email failed: " + (error.response?.data?.message || error.message));
-        } finally {
-          setLoading(false);
-        }
-      }
-    });
-  };
-
-  const handleTestSms = () => {
-    setPromptModal({
-      isOpen: true,
-      title: "Test SMS",
-      message: "Enter test phone number (with country code):",
-      placeholder: "+919999999999",
-      defaultValue: "+91",
-      onConfirm: async (phone) => {
-        if (!phone) return;
-        setPromptModal(prev => ({ ...prev, isOpen: false }));
-        setLoading(true);
-        try {
-          await axios.post(
-            `${API_URL}/notifications/test-sms`,
-            { phone },
-            { headers: getAuthHeaders() }
-          );
-          showSuccess("✓ Test SMS sent successfully!");
-        } catch (error) {
-          showError("SMS failed: " + (error.response?.data?.message || error.message));
-        } finally {
-          setLoading(false);
-        }
-      }
-    });
-  };
-
   // ==================== USERNAME HANDLER ====================
 
   const handleChangeUsername = async () => {
@@ -803,29 +717,6 @@ Thank you,
       );
       showSuccess("✓ SMS template saved successfully!");
       setShowSmsTemplateModal(false);
-    } catch (error) {
-      showError("Save failed: " + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSaveMsg91Config = async () => {
-    if (msg91Config.enabled && !msg91Config.authKey) {
-      showError("Please fill in your MSG91 Auth Key!");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await axios.post(
-        `${API_URL}/settings/msg91-config`,
-        msg91Config,
-        { headers: getAuthHeaders() }
-      );
-      showSuccess("✓ MSG91 configuration saved successfully!");
-      setShowMsg91ConfigModal(false);
-      await loadMsg91Config();
     } catch (error) {
       showError("Save failed: " + (error.response?.data?.message || error.message));
     } finally {
@@ -1144,47 +1035,34 @@ Thank you,
         </Card>
         )}
 
-        {/* MSG91: SMS + Email + WhatsApp */}
+        {/* Communication Providers (Email / SMS / WhatsApp) */}
         {isSuperAdmin && (
         <Card>
           <div className="card-icon" style={{ backgroundColor: '#3b82f615' }}>
             <Mail size={24} color="#3b82f6" />
           </div>
-          <h3>MSG91 (SMS · Email · WhatsApp)</h3>
-          <p>Admission, fee receipt & due/overdue reminders</p>
-          <div className="status-badge" style={{
-            backgroundColor: msg91Config.enabled ? '#d1fae5' : '#fee2e2',
-            color: msg91Config.enabled ? '#065f46' : '#991b1b'
-          }}>
-            {msg91Config.enabled ? <CheckCircle size={14} /> : <X size={14} />}
-            {msg91Config.enabled ? 'Enabled' : 'Disabled'}
-          </div>
+          <h3>Communication Providers</h3>
+          <p>Configure independent Email, SMS and WhatsApp providers, test sends, and view logs.</p>
           <div className="button-group">
-            <Button
-              onClick={handleTestEmail}
-              loading={loading}
-              disabled={loading || !msg91Config.enabled}
-              variant="secondary"
-              size="sm"
-            >
-              <Mail size={14} />
-              Test Email
-            </Button>
-            <Button
-              onClick={handleTestSms}
-              loading={loading}
-              disabled={loading || !msg91Config.enabled}
-              variant="secondary"
-              size="sm"
-            >
-              <MessageSquare size={14} />
-              Test SMS
-            </Button>
-            <Button onClick={() => setShowMsg91ConfigModal(true)} variant="outline" size="sm">
+            <Button onClick={() => navigate('/settings/communication')} variant="primary" size="sm">
               <SettingsIcon size={14} />
-              Config
+              Manage Providers
+            </Button>
+            <Button onClick={() => navigate('/settings/communication/logs')} variant="outline" size="sm">
+              View Logs
             </Button>
           </div>
+        </Card>
+        )}
+
+        {/* Message Templates */}
+        {isSuperAdmin && (
+        <Card>
+          <div className="card-icon" style={{ backgroundColor: '#8b5cf615' }}>
+            <Edit size={24} color="#8b5cf6" />
+          </div>
+          <h3>Message Templates</h3>
+          <p>Edit the wording used for admission, reminder and receipt messages</p>
           <div className="button-group">
             <Button onClick={() => setShowInvoiceEmailModal(true)} variant="outline" size="sm">
               <Edit size={14} />
@@ -1203,7 +1081,7 @@ Thank you,
               Receipt Email
             </Button>
           </div>
-          <small className="help-text">💡 Overdue reminders & WhatsApp receipts use their built-in default templates.</small>
+          <small className="help-text">💡 Overdue reminders use their built-in default template.</small>
         </Card>
         )}
 
@@ -1636,147 +1514,6 @@ Thank you,
       )}
 
       {/* Email Configuration Modal */}
-      {showMsg91ConfigModal && (
-        <div className="modal-overlay" onClick={() => setShowMsg91ConfigModal(false)}>
-          <div className="modal-content config-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3><Mail size={20} /> MSG91 Configuration</h3>
-              <button className="close-btn" onClick={() => setShowMsg91ConfigModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <div className="form-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={msg91Config.enabled}
-                    onChange={(e) => setMsg91Config({ ...msg91Config, enabled: e.target.checked })}
-                  />
-                  <span>Enable MSG91 (SMS, Email & WhatsApp)</span>
-                </label>
-              </div>
-
-              <div className="form-group">
-                <label>MSG91 Auth Key *</label>
-                <div className="password-input">
-                  <input
-                    type={showPassword.email ? "text" : "password"}
-                    value={msg91Config.authKey}
-                    onChange={(e) => setMsg91Config({ ...msg91Config, authKey: e.target.value })}
-                    placeholder="Your MSG91 auth key"
-                    className="form-input"
-                  />
-                  <button
-                    type="button"
-                    className="toggle-password"
-                    onClick={() => setShowPassword({ ...showPassword, email: !showPassword.email })}
-                  >
-                    {showPassword.email ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>Public Base URL</label>
-                <input
-                  type="text"
-                  value={msg91Config.publicBaseUrl}
-                  onChange={(e) => setMsg91Config({ ...msg91Config, publicBaseUrl: e.target.value })}
-                  placeholder="https://your-server.example.com"
-                  className="form-input"
-                />
-                <small className="help-text">Publicly reachable backend URL - required for WhatsApp to fetch fee receipt PDFs.</small>
-              </div>
-
-              <h4 className="subsection-heading">SMS</h4>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Sender ID</label>
-                  <input type="text" className="form-input" value={msg91Config.sms.senderId}
-                    onChange={(e) => setMsg91Config({ ...msg91Config, sms: { ...msg91Config.sms, senderId: e.target.value } })}
-                    placeholder="MDHVAN" />
-                </div>
-                <div className="form-group">
-                  <label>Route</label>
-                  <input type="text" className="form-input" value={msg91Config.sms.route}
-                    onChange={(e) => setMsg91Config({ ...msg91Config, sms: { ...msg91Config.sms, route: e.target.value } })} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Admission Flow/Template ID</label>
-                  <input type="text" className="form-input" value={msg91Config.sms.templates.admission}
-                    onChange={(e) => setMsg91Config({ ...msg91Config, sms: { ...msg91Config.sms, templates: { ...msg91Config.sms.templates, admission: e.target.value } } })} />
-                </div>
-                <div className="form-group">
-                  <label>Fee Receipt Flow/Template ID</label>
-                  <input type="text" className="form-input" value={msg91Config.sms.templates.fee_receipt}
-                    onChange={(e) => setMsg91Config({ ...msg91Config, sms: { ...msg91Config.sms, templates: { ...msg91Config.sms.templates, fee_receipt: e.target.value } } })} />
-                </div>
-              </div>
-
-              <h4 className="subsection-heading">Email</h4>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Sending Domain</label>
-                  <input type="text" className="form-input" value={msg91Config.email.domain}
-                    onChange={(e) => setMsg91Config({ ...msg91Config, email: { ...msg91Config.email, domain: e.target.value } })}
-                    placeholder="yourdomain.com" />
-                </div>
-                <div className="form-group">
-                  <label>From Email</label>
-                  <input type="email" className="form-input" value={msg91Config.email.fromEmail}
-                    onChange={(e) => setMsg91Config({ ...msg91Config, email: { ...msg91Config.email, fromEmail: e.target.value } })}
-                    placeholder="noreply@yourdomain.com" />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>From Name</label>
-                <input type="text" className="form-input" value={msg91Config.email.fromName}
-                  onChange={(e) => setMsg91Config({ ...msg91Config, email: { ...msg91Config.email, fromName: e.target.value } })}
-                  placeholder="Hostel Management" />
-              </div>
-
-              <h4 className="subsection-heading">WhatsApp (receipt only)</h4>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Integrated Number</label>
-                  <input type="text" className="form-input" value={msg91Config.whatsapp.integratedNumber}
-                    onChange={(e) => setMsg91Config({ ...msg91Config, whatsapp: { ...msg91Config.whatsapp, integratedNumber: e.target.value } })}
-                    placeholder="91XXXXXXXXXX" />
-                </div>
-                <div className="form-group">
-                  <label>Namespace</label>
-                  <input type="text" className="form-input" value={msg91Config.whatsapp.namespace}
-                    onChange={(e) => setMsg91Config({ ...msg91Config, whatsapp: { ...msg91Config.whatsapp, namespace: e.target.value } })} />
-                </div>
-              </div>
-              <div className="form-group">
-                <label>Receipt Template Name</label>
-                <input type="text" className="form-input" value={msg91Config.whatsapp.templates.receipt}
-                  onChange={(e) => setMsg91Config({ ...msg91Config, whatsapp: { ...msg91Config.whatsapp, templates: { ...msg91Config.whatsapp.templates, receipt: e.target.value } } })}
-                  placeholder="fee_receipt" />
-              </div>
-
-              <div className="info-box">
-                <strong>MSG91:</strong> Get your Auth Key, SMS Sender ID/Flow IDs, Email domain and WhatsApp integrated number/template from your <a href="https://control.msg91.com/" target="_blank" rel="noopener noreferrer">MSG91 dashboard</a>.
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <Button variant="secondary" onClick={() => setShowMsg91ConfigModal(false)}>
-                Cancel
-              </Button>
-              <Button variant="success" onClick={handleSaveMsg91Config} loading={loading} disabled={loading}>
-                <Save size={16} /> Save Configuration
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Email Template Modal */}
       {showEmailTemplateModal && (
         <div className="modal-overlay" onClick={() => setShowEmailTemplateModal(false)}>
@@ -2032,7 +1769,7 @@ Thank you,
                   <span className="variable">{'{due_date}'}</span>
                   <span className="variable">{'{hostel_name}'}</span>
                 </div>
-                <small className="help-text">💡 This message maps to MSG91 template VAR1/VAR2/VAR3 (student name, amount, due date). Keep it short.</small>
+                <small className="help-text">💡 Sent through whichever SMS provider is active in Settings → Communication. Keep it short.</small>
               </div>
 
               <div className="form-group">

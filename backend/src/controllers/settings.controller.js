@@ -1,5 +1,4 @@
 const settingsService = require("../services/settings.service");
-const notificationService = require("../services/notification.service");
 const path = require("path");
 const fs = require("fs");
 
@@ -136,49 +135,20 @@ exports.savePhonePeConfig = async (req, res, next) => {
 };
 
 /**
- * GET MSG91 CONFIG (SMS + Email + WhatsApp)
+ * GET/SAVE PUBLIC BASE URL (used to build the WhatsApp receipt document link)
  */
-exports.getMsg91Config = async (req, res, next) => {
+exports.getPublicBaseUrl = async (req, res, next) => {
   try {
-    const config = await settingsService.getMsg91Config();
-    // Don't send the auth key to the frontend
-    if (config.authKey) {
-      config.authKey = '********';
-    }
-    res.json({
-      success: true,
-      data: config
-    });
-  } catch (error) {
-    console.error("Get MSG91 config error:", error);
-    next(error);
-  }
+    const publicBaseUrl = await settingsService.getConfig("communication_public_base_url", "");
+    res.json({ success: true, data: { publicBaseUrl } });
+  } catch (error) { next(error); }
 };
 
-/**
- * SAVE MSG91 CONFIG
- */
-exports.saveMsg91Config = async (req, res, next) => {
+exports.savePublicBaseUrl = async (req, res, next) => {
   try {
-    // Only update the auth key if it's not the masked value
-    if (req.body.authKey === '********') {
-      const currentConfig = await settingsService.getMsg91Config();
-      req.body.authKey = currentConfig.authKey;
-    }
-
-    await settingsService.saveMsg91Config(req.body);
-
-    // Reinitialize notification service with new config
-    await notificationService.reinitialize();
-
-    res.json({
-      success: true,
-      message: "MSG91 configuration saved successfully"
-    });
-  } catch (error) {
-    console.error("Save MSG91 config error:", error);
-    next(error);
-  }
+    await settingsService.saveConfig("communication_public_base_url", req.body.publicBaseUrl || "");
+    res.json({ success: true, message: "Public base URL saved" });
+  } catch (error) { next(error); }
 };
 
 /**

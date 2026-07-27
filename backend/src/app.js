@@ -245,6 +245,7 @@ const routes = [
   { path: "/api/export", module: "./routes/export.routes" },
   { path: "/api/audit", module: "./routes/audit.routes" },
   { path: "/api/notifications", module: "./routes/notification.routes" },
+  { path: "/api/communication", module: "./routes/communication.routes" },
   { path: "/api/backup", module: "./routes/backup.routes" },
   { path: "/api/members", module: "./routes/member.routes" },
   { path: "/api/doc-number", module: "./routes/docNumber.routes" },

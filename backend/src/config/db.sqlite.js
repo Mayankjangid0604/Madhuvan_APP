@@ -543,6 +543,22 @@ function getCoreSchemaDefinitions() {
         sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE
       )
+    `,
+    communication_logs: `
+      CREATE TABLE communication_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        channel TEXT NOT NULL,
+        provider TEXT,
+        recipient TEXT,
+        subject TEXT,
+        message TEXT,
+        status TEXT NOT NULL,
+        error TEXT,
+        provider_response TEXT,
+        sent_by TEXT,
+        student_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
     `
   };
 }

@@ -1,6 +1,6 @@
 const db = require('../config/db.sqlite');
 const settingsService = require('./settings.service');
-const msg91Service = require('./msg91.service');
+const communicationService = require('./communication.service');
 const invoiceService = require('./invoice.service');
 const admissionFormService = require('./admissionForm.service');
 const signedLink = require('../utils/signedLink.util');
@@ -24,17 +24,7 @@ const computeRemaining = (fee) =>
 const getStudent = (studentId) =>
   db.db.prepare(`SELECT * FROM students WHERE student_id = ?`).get(studentId);
 
-const logNotification = (studentId, type, method, status, message) => {
-  try {
-    db.db.prepare(`
-      INSERT INTO notification_logs (student_id, notification_type, notification_method, notification_status, notification_message, sent_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `).run(studentId, type, method, status, message || null);
-  } catch (e) {
-    console.warn('Failed to write notification log:', e.message);
-  }
-};
-
+/** Tracks which due/overdue reminder stages have already fired for a fee today (dedup for the cron). */
 const logReminder = (studentId, feeId, type, method, status) => {
   try {
     db.db.prepare(`
@@ -86,40 +76,36 @@ exports.sendAdmissionNotifications = async (studentId) => {
   };
 
   if (contact.email) {
+    const attachments = [];
     try {
-      const attachments = [];
       const admissionFormPath = await admissionFormService.generateAdmissionFormPDF(studentId);
       attachments.push({ filename: `Admission_Form_${studentId}.pdf`, path: admissionFormPath });
       if (fee) {
         const { filePath } = await invoiceService.generateBillPDF(fee.fee_id);
         attachments.push({ filename: `Invoice_${fee.fee_id}.pdf`, path: filePath });
       }
-
-      const result = await msg91Service.sendEmail({
-        to: contact.email,
-        toName: contact.name,
-        subject: fillTemplate(templates.admission_email.subject, vars),
-        html: fillTemplate(templates.admission_email.body, vars).replace(/\n/g, '<br>'),
-        attachments
-      });
-      logNotification(studentId, 'admission', 'email', result.success ? 'sent' : 'failed', result.success ? `Email sent to ${contact.email}` : (result.error || result.reason));
     } catch (e) {
-      logNotification(studentId, 'admission', 'email', 'failed', e.message);
+      console.warn('Admission attachment generation failed:', e.message);
     }
-  } else {
-    logNotification(studentId, 'admission', 'email', 'skipped', 'No email on file for father/mother/guardian');
+
+    await communicationService.sendEmail({
+      to: contact.email,
+      toName: contact.name,
+      subject: fillTemplate(templates.admission_email.subject, vars),
+      html: fillTemplate(templates.admission_email.body, vars).replace(/\n/g, '<br>'),
+      attachments,
+      sentBy: 'system:admission',
+      studentId
+    });
   }
 
   if (contact.mobile) {
-    const config = await settingsService.getMsg91Config();
-    const result = await msg91Service.sendSms({
+    await communicationService.sendSms({
       mobile: contact.mobile,
-      templateId: config.sms?.templates?.admission,
-      variables: { VAR1: student.student_name, VAR2: vars.fee_amount, VAR3: vars.due_date }
+      message: fillTemplate(templates.admission_sms.message, vars),
+      sentBy: 'system:admission',
+      studentId
     });
-    logNotification(studentId, 'admission', 'sms', result.success ? 'sent' : 'failed', result.success ? `SMS sent to ${contact.mobile}` : (result.error || result.reason));
-  } else {
-    logNotification(studentId, 'admission', 'sms', 'skipped', 'No mobile on file');
   }
 };
 
@@ -157,52 +143,39 @@ exports.sendFeeReceiptNotifications = async ({ studentId, feeId, paymentId }) =>
   }
 
   if (contact.email) {
-    try {
-      const result = await msg91Service.sendEmail({
-        to: contact.email,
-        toName: contact.name,
-        subject: fillTemplate(templates.receipt_email.subject, vars),
-        html: fillTemplate(templates.receipt_email.body, vars).replace(/\n/g, '<br>'),
-        attachments: receiptPath ? [{ filename: `Receipt_${vars.receipt_number}.pdf`, path: receiptPath }] : []
-      });
-      logNotification(studentId, 'fee_receipt', 'email', result.success ? 'sent' : 'failed', result.success ? `Email sent to ${contact.email}` : (result.error || result.reason));
-    } catch (e) {
-      logNotification(studentId, 'fee_receipt', 'email', 'failed', e.message);
-    }
-  } else {
-    logNotification(studentId, 'fee_receipt', 'email', 'skipped', 'No email on file');
+    await communicationService.sendEmail({
+      to: contact.email,
+      toName: contact.name,
+      subject: fillTemplate(templates.receipt_email.subject, vars),
+      html: fillTemplate(templates.receipt_email.body, vars).replace(/\n/g, '<br>'),
+      attachments: receiptPath ? [{ filename: `Receipt_${vars.receipt_number}.pdf`, path: receiptPath }] : [],
+      sentBy: 'system:fee_receipt',
+      studentId
+    });
   }
 
   if (contact.mobile) {
-    const config = await settingsService.getMsg91Config();
-    const result = await msg91Service.sendSms({
+    await communicationService.sendSms({
       mobile: contact.mobile,
-      templateId: config.sms?.templates?.fee_receipt,
-      variables: { VAR1: student.student_name, VAR2: vars.fee_amount, VAR3: vars.receipt_number }
+      message: fillTemplate(templates.receipt_sms.message, vars),
+      sentBy: 'system:fee_receipt',
+      studentId
     });
-    logNotification(studentId, 'fee_receipt', 'sms', result.success ? 'sent' : 'failed', result.success ? `SMS sent to ${contact.mobile}` : (result.error || result.reason));
-  } else {
-    logNotification(studentId, 'fee_receipt', 'sms', 'skipped', 'No mobile on file');
   }
 
   if (contact.mobile && receiptPath) {
-    const config = await settingsService.getMsg91Config();
-    if (config.publicBaseUrl) {
-      try {
-        const token = signedLink.sign(`receipt:${payment.payment_id}`);
-        const documentUrl = `${config.publicBaseUrl.replace(/\/$/, '')}/api/public/receipt/${payment.payment_id}?token=${token}`;
-        const result = await msg91Service.sendWhatsappDocument({
-          mobile: contact.mobile,
-          documentUrl,
-          filename: `Receipt_${vars.receipt_number}.pdf`,
-          bodyParams: [student.student_name, vars.fee_amount, vars.receipt_number]
-        });
-        logNotification(studentId, 'fee_receipt', 'whatsapp', result.success ? 'sent' : 'failed', result.success ? `WhatsApp sent to ${contact.mobile}` : (result.error || result.reason));
-      } catch (e) {
-        logNotification(studentId, 'fee_receipt', 'whatsapp', 'failed', e.message);
-      }
-    } else {
-      logNotification(studentId, 'fee_receipt', 'whatsapp', 'skipped', 'publicBaseUrl not configured');
+    const publicBaseUrl = await settingsService.getConfig('communication_public_base_url', '');
+    if (publicBaseUrl) {
+      const token = signedLink.sign(`receipt:${payment.payment_id}`);
+      const documentUrl = `${publicBaseUrl.replace(/\/$/, '')}/api/public/receipt/${payment.payment_id}?token=${token}`;
+      await communicationService.sendWhatsappDocument({
+        mobile: contact.mobile,
+        documentUrl,
+        filename: `Receipt_${vars.receipt_number}.pdf`,
+        bodyParams: [student.student_name, vars.fee_amount, vars.receipt_number],
+        sentBy: 'system:fee_receipt',
+        studentId
+      });
     }
   }
 };
@@ -232,15 +205,16 @@ exports.sendDueReminderEmail = async (studentId, feeId, stage) => {
   };
 
   const { filePath } = await invoiceService.generateBillPDF(feeId);
-  const result = await msg91Service.sendEmail({
+  const result = await communicationService.sendEmail({
     to: contact.email,
     toName: contact.name,
     subject: fillTemplate(templates.due_reminder_email.subject, vars),
     html: fillTemplate(templates.due_reminder_email.body, vars).replace(/\n/g, '<br>'),
-    attachments: [{ filename: `Invoice_${feeId}.pdf`, path: filePath }]
+    attachments: [{ filename: `Invoice_${feeId}.pdf`, path: filePath }],
+    sentBy: 'system:due_reminder',
+    studentId
   });
 
-  logNotification(studentId, 'due_reminder', 'email', result.success ? 'sent' : 'failed', result.success ? `Email sent to ${contact.email}` : (result.error || result.reason));
   logReminder(studentId, feeId, stage, 'email', result.success ? 'sent' : 'failed');
   return result;
 };
@@ -271,15 +245,16 @@ exports.sendOverdueReminderEmail = async (studentId, feeId) => {
   };
 
   const { filePath } = await invoiceService.generateBillPDF(feeId);
-  const result = await msg91Service.sendEmail({
+  const result = await communicationService.sendEmail({
     to: contact.email,
     toName: contact.name,
     subject: fillTemplate(templates.overdue_email.subject, vars),
     html: fillTemplate(templates.overdue_email.body, vars).replace(/\n/g, '<br>'),
-    attachments: [{ filename: `Invoice_${feeId}_OVERDUE.pdf`, path: filePath }]
+    attachments: [{ filename: `Invoice_${feeId}_OVERDUE.pdf`, path: filePath }],
+    sentBy: 'system:overdue_reminder',
+    studentId
   });
 
-  logNotification(studentId, 'overdue_reminder', 'email', result.success ? 'sent' : 'failed', result.success ? `Email sent to ${contact.email}` : (result.error || result.reason));
   logReminder(studentId, feeId, 'overdue', 'email', result.success ? 'sent' : 'failed');
   return result;
 };
@@ -287,67 +262,6 @@ exports.sendOverdueReminderEmail = async (studentId, feeId) => {
 // ============================================
 // Manual / ad-hoc SMS (used by the admin "send reminder" screen)
 // ============================================
-exports.sendSMS = async (mobile, message) => {
-  const config = await settingsService.getMsg91Config();
-  const templateId = config.sms?.templates?.manual || config.sms?.templates?.admission;
-  return msg91Service.sendSms({ mobile, templateId, variables: { VAR1: message } });
-};
-
-// ============================================
-// Test senders (Settings -> MSG91 configuration screen)
-// ============================================
-exports.sendTestEmail = async (to) => {
-  const config = await settingsService.getMsg91Config();
-  if (!config.enabled || !config.authKey) {
-    throw new Error('MSG91 is not configured');
-  }
-  const result = await msg91Service.sendEmail({
-    to,
-    subject: 'Test Email Successful',
-    html: '<b>MSG91 email configuration is working correctly.</b>'
-  });
-  if (!result.success) throw new Error(result.error || result.reason || 'Send failed');
-  return result;
-};
-
-exports.sendTestSMS = async (to) => {
-  const config = await settingsService.getMsg91Config();
-  if (!config.enabled || !config.authKey) {
-    throw new Error('MSG91 is not configured');
-  }
-  const templateId = config.sms?.templates?.admission || config.sms?.templates?.fee_receipt;
-  if (!templateId) {
-    throw new Error('No MSG91 SMS template configured yet');
-  }
-  const result = await msg91Service.sendSms({
-    mobile: to,
-    templateId,
-    variables: { VAR1: 'Test', VAR2: 'Test SMS', VAR3: '-' }
-  });
-  if (!result.success) throw new Error(result.error || result.reason || 'Send failed');
-  return result;
-};
-
-// ============================================
-// Notification logs (for the admin activity screen)
-// ============================================
-exports.getNotificationLogs = async (query = {}) => {
-  const { student_id, notification_type, limit } = query;
-  const conditions = [];
-  const params = [];
-  if (student_id) { conditions.push('student_id = ?'); params.push(student_id); }
-  if (notification_type) { conditions.push('notification_type = ?'); params.push(notification_type); }
-  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-  const cap = Math.min(Number(limit) || 100, 500);
-  return db.db.prepare(`
-    SELECT * FROM notification_logs ${where} ORDER BY sent_at DESC LIMIT ${cap}
-  `).all(...params);
-};
-
-/**
- * No-op kept for backward compatibility - MSG91 is a stateless HTTP API,
- * there is no persistent client/transporter to reinitialize.
- */
-exports.reinitialize = async () => {};
+exports.sendSMS = async (mobile, message) => communicationService.sendSms({ mobile, message, sentBy: 'admin:manual' });
 
 module.exports = exports;

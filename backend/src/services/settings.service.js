@@ -158,39 +158,196 @@ exports.getConfig = (key, def) => getSetting(key, def);
 exports.saveConfig = (key, data) => setSetting(key, data);
 
 // =========================
-// MSG91 Config (SMS + Email + WhatsApp)
+// Communication Provider Config (Email / SMS / WhatsApp)
+// Each channel stores { activeProvider, providers: { <key>: {...fields, enabled,
+// lastTestedAt, lastTestStatus, lastTestMessage} } }. Secret fields (per
+// providerSchemas.js) are encrypted at rest and only ever leave this module
+// decrypted via getChannelConfig (internal/server-side use).
 // =========================
-exports.getMsg91Config = () =>
-  getCached("msg91_config", async () =>
-    getSetting("msg91_config", {
-      enabled: false,
-      authKey: "",
-      publicBaseUrl: "",
-      sms: {
-        senderId: "",
-        route: "4",
-        templates: {
-          admission: "",
-          fee_receipt: ""
-        }
-      },
-      email: {
-        domain: "",
-        fromEmail: "",
-        fromName: "Hostel Management",
-        templateId: ""
-      },
-      whatsapp: {
-        integratedNumber: "",
-        namespace: "",
-        templates: {
-          receipt: ""
-        }
-      }
-    })
-  );
+const cryptoUtil = require("../utils/crypto.util");
+const providerSchemas = require("../providers/providerSchemas");
 
-exports.saveMsg91Config = (data) => setSetting("msg91_config", data);
+const defaultProviderState = () => ({
+  enabled: false,
+  lastTestedAt: null,
+  lastTestStatus: null,
+  lastTestMessage: null
+});
+
+const emptyChannelConfig = (channel) => {
+  const providers = {};
+  Object.keys(providerSchemas[channel]).forEach((key) => {
+    providers[key] = defaultProviderState();
+  });
+  return { activeProvider: null, providers };
+};
+
+const encryptProviderSecrets = (channel, providerKey, data) => {
+  const schema = providerSchemas[channel]?.[providerKey];
+  if (!schema) return data;
+  const out = { ...data };
+  schema.secretFields.forEach((f) => {
+    if (out[f] !== undefined) out[f] = cryptoUtil.encrypt(out[f]);
+  });
+  return out;
+};
+
+const decryptProviderSecrets = (channel, providerKey, data) => {
+  const schema = providerSchemas[channel]?.[providerKey];
+  if (!schema || !data) return data;
+  const out = { ...data };
+  schema.secretFields.forEach((f) => {
+    if (out[f] !== undefined) out[f] = cryptoUtil.decrypt(out[f]);
+  });
+  return out;
+};
+
+const maskProviderSecrets = (channel, providerKey, data) => {
+  const schema = providerSchemas[channel]?.[providerKey];
+  if (!schema || !data) return data;
+  const out = { ...data };
+  schema.secretFields.forEach((f) => {
+    out[f] = out[f] ? "********" : "";
+  });
+  return out;
+};
+
+// One-time best-effort migration from the old single msg91_config blob
+// (pre-multi-provider) into the new per-channel msg91 provider slot. Seeds
+// field values only - the provider still has to pass Test Connection before
+// it can be activated again under the new rules.
+const seedFromLegacyMsg91Config = async (channel, providers) => {
+  if (providers.msg91 && providers.msg91.authKey) return providers; // already migrated
+  const legacy = await getSetting("msg91_config", null);
+  if (!legacy || !legacy.authKey) return providers;
+
+  const seeded = { ...defaultProviderState(), authKey: legacy.authKey };
+  if (channel === "email") {
+    seeded.domain = legacy.email?.domain || "";
+    seeded.fromEmail = legacy.email?.fromEmail || "";
+    seeded.fromName = legacy.email?.fromName || "Hostel Management";
+  } else if (channel === "sms") {
+    seeded.senderId = legacy.sms?.senderId || "";
+    seeded.templateId = legacy.sms?.templates?.admission || "";
+  } else if (channel === "whatsapp") {
+    seeded.integratedNumber = legacy.whatsapp?.integratedNumber || "";
+    seeded.namespace = legacy.whatsapp?.namespace || "";
+    seeded.templateName = legacy.whatsapp?.templates?.receipt || "";
+  }
+  return { ...providers, msg91: seeded };
+};
+
+/**
+ * Internal/server-side use only - returns decrypted secrets. Never send this
+ * straight to the frontend; use getSafeChannelConfig for that.
+ */
+exports.getChannelConfig = async (channel) => {
+  if (!providerSchemas[channel]) throw new Error(`Unknown channel: ${channel}`);
+  const key = `${channel}_provider_config`;
+  const stored = (await getSetting(key, null)) || emptyChannelConfig(channel);
+  let providers = { ...emptyChannelConfig(channel).providers, ...stored.providers };
+  providers = await seedFromLegacyMsg91Config(channel, providers);
+
+  const decrypted = {};
+  Object.keys(providers).forEach((pk) => {
+    decrypted[pk] = decryptProviderSecrets(channel, pk, providers[pk]);
+  });
+  return { activeProvider: stored.activeProvider || null, providers: decrypted };
+};
+
+/** Frontend-safe version - secret fields are masked, never the real values. */
+exports.getSafeChannelConfig = async (channel) => {
+  const cfg = await exports.getChannelConfig(channel);
+  const providers = {};
+  Object.keys(cfg.providers).forEach((pk) => {
+    providers[pk] = maskProviderSecrets(channel, pk, cfg.providers[pk]);
+  });
+  return { activeProvider: cfg.activeProvider, providers };
+};
+
+exports.saveProviderConfig = async (channel, providerKey, data) => {
+  const schema = providerSchemas[channel]?.[providerKey];
+  if (!schema) throw new Error(`Unknown ${channel} provider: ${providerKey}`);
+
+  const key = `${channel}_provider_config`;
+  const stored = (await getSetting(key, null)) || emptyChannelConfig(channel);
+  stored.providers = stored.providers || {};
+  const existing = stored.providers[providerKey] || defaultProviderState();
+
+  const merged = { ...existing, ...data };
+  let credentialsChanged = false;
+  schema.secretFields.forEach((f) => {
+    if (data[f] === "********" || data[f] === undefined) {
+      merged[f] = existing[f]; // keep the existing encrypted value untouched
+    } else if (data[f] !== cryptoUtil.decrypt(existing[f] || "")) {
+      credentialsChanged = true;
+    }
+  });
+  schema.requiredFields.forEach((f) => {
+    if (!schema.secretFields.includes(f) && data[f] !== undefined && data[f] !== existing[f]) {
+      credentialsChanged = true;
+    }
+  });
+
+  if (credentialsChanged) {
+    merged.lastTestedAt = null;
+    merged.lastTestStatus = null;
+    merged.lastTestMessage = null;
+    merged.enabled = false;
+  }
+
+  stored.providers[providerKey] = encryptProviderSecrets(channel, providerKey, merged);
+  await setSetting(key, stored);
+  return exports.getSafeChannelConfig(channel);
+};
+
+exports.recordProviderTest = async (channel, providerKey, result) => {
+  const key = `${channel}_provider_config`;
+  const stored = (await getSetting(key, null)) || emptyChannelConfig(channel);
+  stored.providers = stored.providers || {};
+  const existing = stored.providers[providerKey] || defaultProviderState();
+  stored.providers[providerKey] = {
+    ...existing,
+    lastTestedAt: new Date().toISOString(),
+    lastTestStatus: result.success ? "success" : "failed",
+    lastTestMessage: (result.message || result.error || "").slice(0, 500)
+  };
+  await setSetting(key, stored);
+  return exports.getSafeChannelConfig(channel);
+};
+
+/**
+ * Only one provider may be active per channel. Activation is refused unless
+ * the provider's last Test Connection succeeded.
+ */
+exports.setActiveProvider = async (channel, providerKey) => {
+  if (!providerSchemas[channel]?.[providerKey]) throw new Error(`Unknown ${channel} provider: ${providerKey}`);
+
+  const key = `${channel}_provider_config`;
+  const stored = (await getSetting(key, null)) || emptyChannelConfig(channel);
+  stored.providers = stored.providers || {};
+  const target = stored.providers[providerKey];
+
+  if (!target || target.lastTestStatus !== "success") {
+    throw new Error("This provider must pass Test Connection successfully before it can be activated");
+  }
+
+  Object.keys(stored.providers).forEach((pk) => {
+    stored.providers[pk].enabled = pk === providerKey;
+  });
+  stored.activeProvider = providerKey;
+  await setSetting(key, stored);
+  return exports.getSafeChannelConfig(channel);
+};
+
+exports.deactivateChannel = async (channel) => {
+  const key = `${channel}_provider_config`;
+  const stored = (await getSetting(key, null)) || emptyChannelConfig(channel);
+  stored.activeProvider = null;
+  Object.keys(stored.providers || {}).forEach((pk) => { stored.providers[pk].enabled = false; });
+  await setSetting(key, stored);
+  return exports.getSafeChannelConfig(channel);
+};
 
 // =========================
 // Drive Config

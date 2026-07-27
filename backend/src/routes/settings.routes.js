@@ -29,10 +29,10 @@ router.get('/templates', settingsController.getTemplates);
 router.post('/templates/:kind', settingsController.saveTemplate);
 
 // =========================
-// MSG91 Config (SMS + Email + WhatsApp)
+// Public base URL (see /api/communication for provider config)
 // =========================
-router.get('/msg91-config', settingsController.getMsg91Config);
-router.post('/msg91-config', settingsController.saveMsg91Config);
+router.get('/public-base-url', settingsController.getPublicBaseUrl);
+router.post('/public-base-url', settingsController.savePublicBaseUrl);
 
 // =========================
 // Drive Config

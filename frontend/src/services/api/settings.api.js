@@ -19,23 +19,14 @@ export const settingsAPI = {
   getTemplates() {
     return api.get("/settings/templates");
   },
-  saveEmailTemplate(data) {
-    return api.post("/settings/templates/email", data);
+  saveTemplate(kind, data) {
+    return api.post(`/settings/templates/${kind}`, data);
   },
-  saveSmsTemplate(data) {
-    return api.post("/settings/templates/sms", data);
+  getPublicBaseUrl() {
+    return api.get("/settings/public-base-url");
   },
-  getEmailConfig() {
-    return api.get("/settings/email-config");
-  },
-  saveEmailConfig(data) {
-    return api.post("/settings/email-config", data);
-  },
-  getSmsConfig() {
-    return api.get("/settings/sms-config");
-  },
-  saveSmsConfig(data) {
-    return api.post("/settings/sms-config", data);
+  savePublicBaseUrl(publicBaseUrl) {
+    return api.post("/settings/public-base-url", { publicBaseUrl });
   },
   getDriveConfig() {
     return api.get("/settings/drive-config");
