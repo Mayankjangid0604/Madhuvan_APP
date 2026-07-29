@@ -646,6 +646,7 @@ const Ledger = () => {
       'mess_supplies': '🍚',
       'hostel_supplies': '📦',
       'refund': '↩️',
+      'building_rent': '🏢',
       'miscellaneous': '📋',
       'other': '📌'
     };
@@ -1344,14 +1345,13 @@ const Ledger = () => {
                   disabled={modalLoading}
                 >
                   <option value="">Select Category</option>
-                  <option value="hostel_fees">🏠 Hostel Fees</option>
                   <option value="maintenance">🔧 Maintenance</option>
                   <option value="electric_bill">⚡ Electric Bill</option>
                   <option value="salary">👤 Salary</option>
                   <option value="mess_supplies">🍚 Mess Supplies</option>
                   <option value="hostel_supplies">📦 Hostel Supplies</option>
                   <option value="refund">↩️ Refund</option>
-                  <option value="miscellaneous">📋 Miscellaneous</option>
+                  <option value="building_rent">🏢 Building Rent</option>
                   <option value="other">📌 Other</option>
                 </select>
                 {formErrors.category && (

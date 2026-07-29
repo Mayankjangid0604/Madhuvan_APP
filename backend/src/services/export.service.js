@@ -267,8 +267,8 @@ exports.getStudentsCSV = async (filters = {}) => {
     params.push(filters.from_date);
   }
   
-  query += ` ORDER BY s.student_name`;
-  
+  query += ` ORDER BY (r.room_no IS NULL), CAST(r.room_no AS INTEGER), r.room_no`;
+
   const [rows] = await db.query(query, params);
   return arrayToCSV(rows);
 };
@@ -319,10 +319,10 @@ exports.getStudentsExcel = async (filters = {}) => {
     query += ` AND s.date_of_leaving IS NULL`;
   }
   
-  query += ` ORDER BY s.student_name`;
-  
+  query += ` ORDER BY (r.room_no IS NULL), CAST(r.room_no AS INTEGER), r.room_no`;
+
   const [rows] = await db.query(query, params);
-  
+
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Students");

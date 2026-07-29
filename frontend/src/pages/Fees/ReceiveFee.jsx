@@ -209,6 +209,7 @@ const ReceiveFee = () => {
   // ── Filter Students ──
   const filtered = useMemo(() => {
     return students
+      .filter(s => s.status !== 'checked_out' && !s.date_of_leaving)
       .filter(s => {
         const search = searchTerm.toLowerCase();
         const matchSearch = !search ||
@@ -534,7 +535,7 @@ const ReceiveFee = () => {
                     <span className="summary-label"><Clock size={13} /> Remaining</span>
                     <strong className="summary-value">{formatCurrency(student.total_remaining)}</strong>
                   </div>
-                  {student.total_advance > 0 && false && (
+                  {student.total_advance > 0 && (
                     <div className="summary-item text-purple">
                       <span className="summary-label"><PiggyBank size={13} /> Advance</span>
                       <strong className="summary-value">{formatCurrency(student.total_advance)}</strong>

@@ -59,18 +59,18 @@ exports.createStudentWithFees = (data) => {
         form_date, student_name, date_of_birth, student_mobile, father_email, mother_email,
         class_or_coaching, institute_name, date_of_joining, father_name, father_mobile,
         mother_name, mother_mobile, local_guardian_name, local_guardian_relation,
-        local_guardian_mobile, id_type, id_number, address_line1, address_line2, address_line3,
+        local_guardian_mobile, local_guardian_email, id_type, id_number, address_line1, address_line2, address_line3,
         photo_url, monthly_fee, security_deposit, fee_start_month, fee_end_month, fee_term_months,
         has_discount, discount_type, discount_value, discount_applicable, discount_months,
         discount_on_full_month,
         fee_type_cycle, next_fee_due_date, original_security_deposit, payment_mode, gender
-      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       formDate, data.student_name, data.date_of_birth || null, data.student_mobile || null,
       data.father_email || null, data.mother_email || null, data.class_or_coaching || null,
       data.institute_name || null, joiningDate, data.father_name || null, data.father_mobile || null,
       data.mother_name || null, data.mother_mobile || null, data.local_guardian_name || null,
-      data.local_guardian_relation || null, data.local_guardian_mobile || null,
+      data.local_guardian_relation || null, data.local_guardian_mobile || null, data.local_guardian_email || null,
       data.id_type || null, data.id_number || null, data.address_line1 || null,
       data.address_line2 || null, data.address_line3 || null, data.photo_url || null,
       Number(data.monthly_fee) || 0, securityDeposit, feeStartMonth, data.fee_end_month || null,
@@ -194,7 +194,7 @@ exports.updateStudent = (id, data) => {
         father_email = ?, mother_email = ?,
         class_or_coaching = ?, institute_name = ?, date_of_joining = ?,
         father_name = ?, father_mobile = ?, mother_name = ?, mother_mobile = ?,
-        local_guardian_name = ?, local_guardian_relation = ?, local_guardian_mobile = ?,
+        local_guardian_name = ?, local_guardian_relation = ?, local_guardian_mobile = ?, local_guardian_email = ?,
         id_type = ?, id_number = ?,
         address_line1 = ?, address_line2 = ?, address_line3 = ?,
         monthly_fee = ?, security_deposit = ?, fee_start_month = ?, fee_end_month = ?,
@@ -224,6 +224,7 @@ exports.updateStudent = (id, data) => {
       data.local_guardian_name !== undefined ? data.local_guardian_name : student.local_guardian_name,
       data.local_guardian_relation !== undefined ? data.local_guardian_relation : student.local_guardian_relation,
       data.local_guardian_mobile !== undefined ? data.local_guardian_mobile : student.local_guardian_mobile,
+      data.local_guardian_email !== undefined ? data.local_guardian_email : student.local_guardian_email,
       data.id_type !== undefined ? data.id_type : student.id_type,
       data.id_number !== undefined ? data.id_number : student.id_number,
       data.address_line1 !== undefined ? data.address_line1 : student.address_line1,

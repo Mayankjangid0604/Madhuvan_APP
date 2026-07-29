@@ -1,18 +1,16 @@
 const cron = require("node-cron");
-const db = require("../config/db.sqlite");
-const notificationService = require("../services/notification.service");
+const feeService = require("../services/fee.service");
 
 /**
- * Runs every day at 00:05 AM
- * 1. Updates fee status
- * 2. Sends reminders for overdue fees
+ * Runs every day at 00:05 AM - flips DUE fees to OVERDUE once due_date has passed
+ * (and recomputes DUE/PARTIAL/PAID as a safety net).
  */
 const startFeeOverdueCron = () => {
-  // Update fee status daily at 00:05 AM
-  cron.schedule("5 0 * * *", async () => {
+  cron.schedule("5 0 * * *", () => {
     console.log("⏳ Running fee overdue cron (scheduled)...");
     try {
-      await updateFeeStatus();
+      const result = feeService.updateAllFeeStatuses();
+      console.log(`✅ Fee statuses updated: ${result.updated}/${result.checked}`);
     } catch (err) {
       console.error("❌ Fee overdue cron failed:", err.message);
     }
@@ -21,23 +19,11 @@ const startFeeOverdueCron = () => {
   console.log("⏰ Fee overdue cron job started");
 
   // Run immediately on startup
-  updateFeeStatus();
-};
-
-/**
- * Update fee status
- */
-const updateFeeStatus = async () => {
-  await db.query(
-    `UPDATE student_fees
-     SET fee_status = 
-       CASE
-         WHEN paid_amount >= fee_amount THEN 'PAID'
-         WHEN date('now') <= date(fee_date, '+5 days') THEN 'DUE'
-         ELSE 'OVERDUE'
-       END`
-  );
-  console.log("✅ Fee overdue status updated");
+  try {
+    feeService.updateAllFeeStatuses();
+  } catch (err) {
+    console.error("❌ Initial fee status update failed:", err.message);
+  }
 };
 
 module.exports = { startFeeOverdueCron };

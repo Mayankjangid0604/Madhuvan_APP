@@ -1,5 +1,6 @@
 // controllers/student.controller.js
 const studentService = require("../services/student.service");
+const notificationService = require("../services/notification.service");
 const { validateStudent, validateStudentId, validateCheckout } = require("../validations/student.validation");
 const asyncHandler = require("../utils/asyncHandler");
 const path = require("path");
@@ -21,7 +22,12 @@ exports.createStudent = asyncHandler(async (req, res) => {
 
   try {
     const result = studentService.createStudentWithFees(req.body);
-    
+
+    // Fire admission notifications (invoice + admission form email, SMS) in the
+    // background - don't let a slow/failed send delay or fail admission itself.
+    notificationService.sendAdmissionNotifications(result.student_id)
+      .catch((e) => console.warn("Admission notification failed:", e.message));
+
     return res.status(201).json({
       success: true,
       message: "Student created successfully",

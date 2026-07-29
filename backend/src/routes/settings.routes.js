@@ -26,22 +26,13 @@ router.post('/rules', settingsController.saveRules);
 // Templates
 // =========================
 router.get('/templates', settingsController.getTemplates);
-router.post('/templates/email', settingsController.saveEmailTemplate);
-router.post('/templates/sms', settingsController.saveSmsTemplate);
-router.post('/templates/invoice-email', settingsController.saveInvoiceEmailTemplate);
-router.post('/templates/receipt-email', settingsController.saveReceiptEmailTemplate);
+router.post('/templates/:kind', settingsController.saveTemplate);
 
 // =========================
-// Email Config
+// Public base URL (see /api/communication for provider config)
 // =========================
-router.get('/email-config', settingsController.getEmailConfig);
-router.post('/email-config', settingsController.saveEmailConfig);
-
-// =========================
-// SMS Config
-// =========================
-router.get('/sms-config', settingsController.getSmsConfig);
-router.post('/sms-config', settingsController.saveSmsConfig);
+router.get('/public-base-url', settingsController.getPublicBaseUrl);
+router.post('/public-base-url', settingsController.savePublicBaseUrl);
 
 // =========================
 // Drive Config

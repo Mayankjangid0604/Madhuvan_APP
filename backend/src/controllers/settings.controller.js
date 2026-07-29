@@ -1,5 +1,4 @@
 const settingsService = require("../services/settings.service");
-const notificationService = require("../services/notification.service");
 const path = require("path");
 const fs = require("fs");
 
@@ -100,49 +99,18 @@ exports.getTemplates = async (req, res, next) => {
 };
 
 /**
- * SAVE EMAIL TEMPLATE
+ * SAVE TEMPLATE (generic - kind is one of: admission_email, admission_sms,
+ * due_reminder_email, overdue_email, receipt_email, receipt_sms)
  */
-exports.saveEmailTemplate = async (req, res, next) => {
+exports.saveTemplate = async (req, res, next) => {
   try {
-    await settingsService.saveEmailTemplate(req.body);
-    res.json({
-      success: true,
-      message: "Email template saved successfully"
-    });
+    const { kind } = req.params;
+    await settingsService.saveTemplate(kind, req.body);
+    res.json({ success: true, message: `${kind} template saved successfully` });
   } catch (error) {
-    console.error("Save email template error:", error);
+    console.error("Save template error:", error);
     next(error);
   }
-};
-
-/**
- * SAVE SMS TEMPLATE
- */
-exports.saveSmsTemplate = async (req, res, next) => {
-  try {
-    await settingsService.saveSmsTemplate(req.body);
-    res.json({
-      success: true,
-      message: "SMS template saved successfully"
-    });
-  } catch (error) {
-    console.error("Save SMS template error:", error);
-    next(error);
-  }
-};
-
-exports.saveInvoiceEmailTemplate = async (req, res, next) => {
-  try {
-    await settingsService.saveTemplate("invoice_email", req.body);
-    res.json({ success: true, message: "Invoice email template saved" });
-  } catch (error) { next(error); }
-};
-
-exports.saveReceiptEmailTemplate = async (req, res, next) => {
-  try {
-    await settingsService.saveTemplate("receipt_email", req.body);
-    res.json({ success: true, message: "Receipt email template saved" });
-  } catch (error) { next(error); }
 };
 
 exports.getPhonePeConfig = async (req, res, next) => {
@@ -167,95 +135,20 @@ exports.savePhonePeConfig = async (req, res, next) => {
 };
 
 /**
- * GET EMAIL CONFIG
+ * GET/SAVE PUBLIC BASE URL (used to build the WhatsApp receipt document link)
  */
-exports.getEmailConfig = async (req, res, next) => {
+exports.getPublicBaseUrl = async (req, res, next) => {
   try {
-    const config = await settingsService.getEmailConfig();
-    // Don't send password to frontend
-    if (config.password) {
-      config.password = '********';
-    }
-    res.json({
-      success: true,
-      data: config
-    });
-  } catch (error) {
-    console.error("Get email config error:", error);
-    next(error);
-  }
+    const publicBaseUrl = await settingsService.getConfig("communication_public_base_url", "");
+    res.json({ success: true, data: { publicBaseUrl } });
+  } catch (error) { next(error); }
 };
 
-/**
- * SAVE EMAIL CONFIG
- */
-exports.saveEmailConfig = async (req, res, next) => {
+exports.savePublicBaseUrl = async (req, res, next) => {
   try {
-    // Only update password if it's not the masked value
-    if (req.body.password === '********') {
-      const currentConfig = await settingsService.getEmailConfig();
-      req.body.password = currentConfig.password;
-    }
-
-    await settingsService.saveEmailConfig(req.body);
-
-    // Reinitialize notification service with new config
-    await notificationService.reinitialize();
-
-    res.json({
-      success: true,
-      message: "Email configuration saved successfully"
-    });
-  } catch (error) {
-    console.error("Save email config error:", error);
-    next(error);
-  }
-};
-
-/**
- * GET SMS CONFIG
- */
-exports.getSmsConfig = async (req, res, next) => {
-  try {
-    const config = await settingsService.getSmsConfig();
-    // Don't send auth token to frontend
-    if (config.authToken) {
-      config.authToken = '********';
-    }
-    res.json({
-      success: true,
-      data: config
-    });
-  } catch (error) {
-    console.error("Get SMS config error:", error);
-    next(error);
-  }
-};
-
-/**
- * SAVE SMS CONFIG
- */
-exports.saveSmsConfig = async (req, res, next) => {
-  try {
-    // Only update auth token if it's not the masked value
-    if (req.body.authToken === '********') {
-      const currentConfig = await settingsService.getSmsConfig();
-      req.body.authToken = currentConfig.authToken;
-    }
-
-    await settingsService.saveSmsConfig(req.body);
-
-    // Reinitialize notification service with new config
-    await notificationService.reinitialize();
-
-    res.json({
-      success: true,
-      message: "SMS configuration saved successfully"
-    });
-  } catch (error) {
-    console.error("Save SMS config error:", error);
-    next(error);
-  }
+    await settingsService.saveConfig("communication_public_base_url", req.body.publicBaseUrl || "");
+    res.json({ success: true, message: "Public base URL saved" });
+  } catch (error) { next(error); }
 };
 
 /**

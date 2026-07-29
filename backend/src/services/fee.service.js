@@ -977,7 +977,7 @@ exports.getStudentFeeSummary = (studentId) => {
     summary: {
       total_due: totalDue,
       total_paid: totalPaid,
-      total_remaining: totalDue - totalPaid,
+      total_remaining: Math.max(0, totalDue - totalPaid) + pending.fines + pending.damages + pending.moneyGiven,
       advance_balance: advance,
       pending_fines: pending.fines,
       pending_damages: pending.damages,

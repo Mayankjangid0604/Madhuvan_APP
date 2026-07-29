@@ -52,6 +52,7 @@ const INITIAL_STUDENT_DATA = {
   local_guardian_name: "",
   local_guardian_relation: "",
   local_guardian_mobile: "",
+  local_guardian_email: "",
   id_type: "Aadhar",
   id_number: "",
   address_line1: "",
@@ -263,6 +264,7 @@ const EditStudent = () => {
         local_guardian_name: student.local_guardian_name || "",
         local_guardian_relation: student.local_guardian_relation || "",
         local_guardian_mobile: student.local_guardian_mobile || "",
+        local_guardian_email: student.local_guardian_email || "",
         id_type: student.id_type || "Aadhar",
         id_number: student.id_number || "",
         address_line1: student.address_line1 || "",
@@ -421,18 +423,20 @@ const EditStudent = () => {
     if (!studentData.father_name.trim()) {
       newErrors.father_name = "Father's name is required";
     }
-    if (!studentData.father_mobile.trim()) {
-      newErrors.father_mobile = "Father's mobile is required";
-    } else if (!/^\d{10}$/.test(studentData.father_mobile)) {
+    if (studentData.father_mobile && !/^\d{10}$/.test(studentData.father_mobile)) {
       newErrors.father_mobile = "Invalid mobile number";
+    }
+    if (!studentData.father_email || !studentData.father_email.trim()) {
+      newErrors.father_email = "Father's email is required";
     }
     if (!studentData.mother_name.trim()) {
       newErrors.mother_name = "Mother's name is required";
     }
-    if (!studentData.mother_mobile.trim()) {
-      newErrors.mother_mobile = "Mother's mobile is required";
-    } else if (!/^\d{10}$/.test(studentData.mother_mobile)) {
+    if (studentData.mother_mobile && !/^\d{10}$/.test(studentData.mother_mobile)) {
       newErrors.mother_mobile = "Invalid mobile number";
+    }
+    if (!studentData.mother_email || !studentData.mother_email.trim()) {
+      newErrors.mother_email = "Mother's email is required";
     }
     if (
       studentData.student_mobile &&
@@ -445,6 +449,12 @@ const EditStudent = () => {
       !/^\d{10}$/.test(studentData.local_guardian_mobile)
     ) {
       newErrors.local_guardian_mobile = "Invalid mobile number";
+    }
+    if (
+      studentData.local_guardian_email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentData.local_guardian_email)
+    ) {
+      newErrors.local_guardian_email = "Invalid email format";
     }
 
     if (feeData.fee_type_cycle === "monthly") {
@@ -1096,7 +1106,7 @@ const EditStudent = () => {
 
                   <div className="form-group">
                     <label htmlFor="father_mobile">
-                      Mobile <span className="required">*</span>
+                      Mobile (Optional)
                     </label>
                     <input
                       type="tel"
@@ -1120,7 +1130,9 @@ const EditStudent = () => {
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="father_email">Email</label>
+                    <label htmlFor="father_email">
+                      Email <span className="required">*</span>
+                    </label>
                     <input
                       type="email"
                       id="father_email"
@@ -1170,7 +1182,7 @@ const EditStudent = () => {
 
                   <div className="form-group">
                     <label htmlFor="mother_mobile">
-                      Mobile <span className="required">*</span>
+                      Mobile (Optional)
                     </label>
                     <input
                       type="tel"
@@ -1194,7 +1206,9 @@ const EditStudent = () => {
                   </div>
 
                   <div className="form-group">
-                    <label htmlFor="mother_email">Email</label>
+                    <label htmlFor="mother_email">
+                      Email <span className="required">*</span>
+                    </label>
                     <input
                       type="email"
                       id="mother_email"
@@ -1266,6 +1280,25 @@ const EditStudent = () => {
                       <span className="error-text">
                         <AlertCircle size={12} />
                         {errors.local_guardian_mobile}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="local_guardian_email">Email</label>
+                    <input
+                      type="email"
+                      id="local_guardian_email"
+                      value={studentData.local_guardian_email}
+                      onChange={(e) => handleStudentDataChange('local_guardian_email', e.target.value)}
+                      className={`form-input ${errors.local_guardian_email ? 'error' : ''}`}
+                      placeholder="guardian@example.com"
+                      disabled={loading}
+                    />
+                    {errors.local_guardian_email && (
+                      <span className="error-text">
+                        <AlertCircle size={12} />
+                        {errors.local_guardian_email}
                       </span>
                     )}
                   </div>

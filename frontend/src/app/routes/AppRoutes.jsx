@@ -11,6 +11,8 @@ import Fees from "../../pages/Fees/ReceiveFee";
 import Ledger from "../../pages/Ledger/Ledger";
 import Reports from "../../pages/Reports/Reports";
 import Settings from "../../pages/Settings/Settings";
+import Communication from "../../pages/Settings/Communication/Communication";
+import CommunicationLogs from "../../pages/Settings/Communication/CommunicationLogs";
 import AddStudent from "../../pages/Students/AddStudent/AddStudent";
 import EditStudent from "../../pages/Students/EditStudent/EditStudent";
 import FeeDetails from "../../pages/Fees/FeeDetails";
@@ -80,6 +82,8 @@ const AppRoutes = () => {
         {/* Other */}
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/settings/communication" element={<Communication />} />
+        <Route path="/settings/communication/logs" element={<CommunicationLogs />} />
         <Route path="/members" element={<Members />} />
       </Route>
     </Routes>

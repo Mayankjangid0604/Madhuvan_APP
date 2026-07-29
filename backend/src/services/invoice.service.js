@@ -204,22 +204,180 @@ async function generateInvoicePDF(invoiceNumber) {
 }
 
 // ============================================
+// GENERATE RECEIPT FOR A SPECIFIC PAYMENT ROW
+// (works even for partial payments that have no invoice_number yet)
+// ============================================
+async function generateReceiptForPayment(paymentId) {
+  const payment = db.db.prepare(`
+    SELECT fp.*, s.student_name, s.father_name, s.student_mobile, s.father_mobile, r.room_no
+    FROM fee_payments fp
+    JOIN students s ON s.student_id = fp.student_id
+    LEFT JOIN room_allocation a ON a.student_id = s.student_id AND a.allocation_status = 'active'
+    LEFT JOIN rooms r ON a.room_id = r.room_id
+    WHERE fp.payment_id = ?
+  `).get(paymentId);
+
+  if (!payment) throw new Error('Payment not found');
+
+  payment.breakdown = payment.breakdown ? JSON.parse(payment.breakdown) : [];
+  payment.invoice_number = payment.invoice_number || `PAY-${payment.payment_id}`;
+
+  const student = {
+    student_id: payment.student_id,
+    student_name: payment.student_name,
+    father_name: payment.father_name,
+    student_mobile: payment.student_mobile,
+    father_mobile: payment.father_mobile,
+    room_no: payment.room_no
+  };
+
+  const hostelInfo = await settingsService.getHostelInfo() || {};
+
+  const appDir = path.join(process.env.APPDATA || process.env.HOME, 'Madhuvan');
+  const dir = path.join(appDir, 'invoices');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  const filePath = path.join(dir, `receipt_payment_${paymentId}.pdf`);
+
+  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+  const stream = fs.createWriteStream(filePath);
+  doc.pipe(stream);
+
+  drawInvoiceCopy(doc, 0, hostelInfo, student, payment, 'ADMIN COPY');
+  doc.moveTo(40, 410).lineTo(555, 410).dash(3).stroke().undash();
+  drawInvoiceCopy(doc, 420, hostelInfo, student, payment, 'STUDENT COPY');
+
+  doc.end();
+
+  await new Promise((resolve, reject) => {
+    stream.on('finish', resolve);
+    stream.on('error', reject);
+  });
+
+  return { filePath, invoiceNumber: payment.invoice_number, payment };
+}
+
+// ============================================
 // GENERATE INVOICE FOR FEE (Legacy support)
 // ============================================
 async function generateInvoiceForFee(feeId) {
   const fee = db.db.prepare('SELECT * FROM student_fees WHERE fee_id = ?').get(feeId);
   if (!fee) throw new Error('Fee not found');
-  
+
   // Find payment for this fee
   const payment = db.db.prepare(`
-    SELECT invoice_number FROM fee_payments 
+    SELECT invoice_number FROM fee_payments
     WHERE student_id = ? AND invoice_number IS NOT NULL
     ORDER BY payment_id DESC LIMIT 1
   `).get(fee.student_id);
-  
+
   if (!payment?.invoice_number) throw new Error('No invoice found for this fee');
-  
+
   return generateInvoicePDF(payment.invoice_number);
 }
 
-module.exports = { generateInvoicePDF, generateInvoiceForFee };
+// ============================================
+// GENERATE BILL PDF (unpaid / due / overdue invoice)
+// Used for: admission invoice, due reminders, overdue reminders
+// (regenerated each time so the penalty amount is always current)
+// ============================================
+async function generateBillPDF(feeId) {
+  const fee = db.db.prepare('SELECT * FROM student_fees WHERE fee_id = ?').get(feeId);
+  if (!fee) throw new Error('Fee not found');
+
+  const student = db.db.prepare(`
+    SELECT s.*, r.room_no
+    FROM students s
+    LEFT JOIN room_allocation a ON a.student_id = s.student_id AND a.allocation_status = 'active'
+    LEFT JOIN rooms r ON a.room_id = r.room_id
+    WHERE s.student_id = ?
+  `).get(fee.student_id);
+  if (!student) throw new Error('Student not found');
+
+  const hostelInfo = await settingsService.getHostelInfo() || {};
+
+  const remaining = toNum(fee.final_amount) + toNum(fee.previous_dues) + toNum(fee.penalty_amount) +
+    toNum(fee.fine_amount) + toNum(fee.property_damage_amount) + toNum(fee.money_given_amount) - toNum(fee.paid_amount);
+
+  const appDir = path.join(process.env.APPDATA || process.env.HOME, 'Madhuvan');
+  const dir = path.join(appDir, 'invoices');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  const filePath = path.join(dir, `bill_${feeId}.pdf`);
+
+  const doc = new PDFDocument({ size: 'A4', margin: 40 });
+  const stream = fs.createWriteStream(filePath);
+  doc.pipe(stream);
+
+  const isOverdue = fee.fee_status === 'OVERDUE';
+
+  doc.fontSize(16).font('Helvetica-Bold')
+    .text(hostelInfo?.hostel_name || 'HOSTEL', { align: 'center' });
+  doc.fontSize(10).font('Helvetica')
+    .text(isOverdue ? 'OVERDUE FEE INVOICE' : 'FEE INVOICE', { align: 'center' });
+  doc.moveDown(1);
+  doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+  doc.moveDown(0.5);
+
+  doc.fontSize(10).font('Helvetica');
+  doc.text(`Invoice For: ${fee.fee_type} - ${formatMonth(fee.fee_month)}`);
+  doc.text(`Invoice Date: ${formatDate(fee.invoice_generated_at || fee.fee_date)}`);
+  doc.text(`Due Date: ${formatDate(fee.due_date)}`);
+  doc.text(`Status: ${fee.fee_status}`);
+  doc.moveDown(0.5);
+
+  doc.text(`Student: ${student.student_name} (ID: ${student.student_id})`);
+  doc.text(`Room: ${student.room_no || 'N/A'}`);
+  doc.text(`Father: ${student.father_name || 'N/A'}  |  Mobile: ${student.father_mobile || 'N/A'}`);
+  doc.text(`Mother: ${student.mother_name || 'N/A'}  |  Mobile: ${student.mother_mobile || 'N/A'}`);
+  doc.moveDown(0.5);
+  doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+  doc.moveDown(0.5);
+
+  doc.font('Helvetica-Bold').text('CHARGES', 40, doc.y);
+  doc.text('AMOUNT', 480, doc.y - doc.currentLineHeight(), { align: 'right', width: 65 });
+  doc.moveDown(0.3);
+  doc.font('Helvetica');
+
+  const rows = [
+    ['Fee Amount', fee.final_amount],
+    ['Previous Dues', fee.previous_dues],
+    ['Fine', fee.fine_amount],
+    ['Property Damage', fee.property_damage_amount],
+    ['Money Given', fee.money_given_amount]
+  ];
+  for (const [label, amount] of rows) {
+    if (toNum(amount) > 0) {
+      doc.text(label, 40, doc.y);
+      doc.text(formatCurrency(amount), 480, doc.y - doc.currentLineHeight(), { align: 'right', width: 65 });
+    }
+  }
+  if (toNum(fee.penalty_amount) > 0) {
+    doc.fillColor('red');
+    doc.text('Late Payment Penalty', 40, doc.y);
+    doc.text(formatCurrency(fee.penalty_amount), 480, doc.y - doc.currentLineHeight(), { align: 'right', width: 65 });
+    doc.fillColor('black');
+  }
+  doc.text('Already Paid', 40, doc.y);
+  doc.text(`-${formatCurrency(fee.paid_amount)}`, 480, doc.y - doc.currentLineHeight(), { align: 'right', width: 65 });
+
+  doc.moveDown(0.5);
+  doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
+  doc.moveDown(0.3);
+
+  doc.font('Helvetica-Bold').fontSize(12).fillColor(isOverdue ? 'red' : 'black');
+  doc.text('TOTAL PAYABLE', 40, doc.y);
+  doc.text(formatCurrency(remaining), 480, doc.y - doc.currentLineHeight(), { align: 'right', width: 65 });
+  doc.fillColor('black');
+
+  doc.end();
+
+  await new Promise((resolve, reject) => {
+    stream.on('finish', resolve);
+    stream.on('error', reject);
+  });
+
+  return { filePath, remaining };
+}
+
+module.exports = { generateInvoicePDF, generateInvoiceForFee, generateBillPDF, generateReceiptForPayment };

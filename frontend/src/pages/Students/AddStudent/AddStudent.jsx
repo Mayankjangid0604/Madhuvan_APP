@@ -80,6 +80,7 @@ const AddStudent = () => {
     local_guardian_name: "",
     local_guardian_relation: "",
     local_guardian_mobile: "",
+    local_guardian_email: "",
     id_type: "Aadhar Card",
     id_number: "",
     address_line1: "",
@@ -373,12 +374,16 @@ const AddStudent = () => {
     if (!studentData.student_name.trim()) newErrors.student_name = "Name is required";
     if (!studentData.date_of_birth) newErrors.date_of_birth = "DOB is required";
     if (!studentData.class_or_coaching.trim()) newErrors.class_or_coaching = "Class/Coaching is required";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
     if (!studentData.father_name.trim()) newErrors.father_name = "Father name is required";
-    if (!studentData.father_mobile.trim()) newErrors.father_mobile = "Father mobile is required";
-    else if (!/^\d{10}$/.test(studentData.father_mobile)) newErrors.father_mobile = "Must be exactly 10 digits";
+    if (studentData.father_mobile && !/^\d{10}$/.test(studentData.father_mobile)) newErrors.father_mobile = "Must be exactly 10 digits";
+    if (!studentData.father_email || !studentData.father_email.trim()) newErrors.father_email = "Father email is required";
+    else if (!emailRegex.test(studentData.father_email)) newErrors.father_email = "Must be a valid email";
     if (!studentData.mother_name.trim()) newErrors.mother_name = "Mother name is required";
-    if (!studentData.mother_mobile.trim()) newErrors.mother_mobile = "Mother mobile is required";
-    else if (!/^\d{10}$/.test(studentData.mother_mobile)) newErrors.mother_mobile = "Must be exactly 10 digits";
+    if (studentData.mother_mobile && !/^\d{10}$/.test(studentData.mother_mobile)) newErrors.mother_mobile = "Must be exactly 10 digits";
+    if (!studentData.mother_email || !studentData.mother_email.trim()) newErrors.mother_email = "Mother email is required";
+    else if (!emailRegex.test(studentData.mother_email)) newErrors.mother_email = "Must be a valid email";
     if (!studentData.institute_name) newErrors.institute_name = "Institute name is required";
     if (studentData.institute_name === "Custom" && !studentData.custom_institute_name) {
       newErrors.custom_institute_name = "Please enter custom institute name";
@@ -388,6 +393,9 @@ const AddStudent = () => {
     }
     if (studentData.local_guardian_mobile && !/^\d{10}$/.test(studentData.local_guardian_mobile)) {
       newErrors.local_guardian_mobile = "Must be exactly 10 digits";
+    }
+    if (studentData.local_guardian_email && !emailRegex.test(studentData.local_guardian_email)) {
+      newErrors.local_guardian_email = "Must be a valid email";
     }
 
     setErrors(newErrors);
@@ -536,6 +544,7 @@ const AddStudent = () => {
         local_guardian_name: studentData.local_guardian_name,
         local_guardian_relation: studentData.local_guardian_relation,
         local_guardian_mobile: studentData.local_guardian_mobile,
+        local_guardian_email: studentData.local_guardian_email || null,
         id_type: studentData.id_type,
         id_number: studentData.id_number,
         address_line1: studentData.address_line1,
@@ -718,6 +727,7 @@ const AddStudent = () => {
       local_guardian_name: "",
       local_guardian_relation: "",
       local_guardian_mobile: "",
+      local_guardian_email: "",
       id_type: "Aadhar Card",
       id_number: "",
       address_line1: "",
@@ -1110,7 +1120,7 @@ const AddStudent = () => {
                     </div>
 
                     <div className="form-group">
-                      <label>Mobile <span className="required">*</span></label>
+                      <label>Mobile (Optional)</label>
                       <input
                         type="text"
                         value={studentData.father_mobile}
@@ -1131,15 +1141,22 @@ const AddStudent = () => {
                     </div>
 
                     <div className="form-group">
-                      <label>Email (Optional)</label>
+                      <label>Email <span className="required">*</span></label>
                       <input
                         type="email"
                         value={studentData.father_email || ""}
                         onChange={(e) => setStudentData({ ...studentData, father_email: e.target.value })}
-                        className="form-input"
+                        className={`form-input ${errors.father_email ? 'error' : ''}`}
                         placeholder="father@example.com"
                       />
-                      <span className="help-text">For fee reminders</span>
+                      {errors.father_email ? (
+                        <span className="error-text">
+                          <AlertCircle size={12} />
+                          {errors.father_email}
+                        </span>
+                      ) : (
+                        <span className="help-text">Used for invoices, receipts & reminders</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1169,7 +1186,7 @@ const AddStudent = () => {
                     </div>
 
                     <div className="form-group">
-                      <label>Mobile <span className="required">*</span></label>
+                      <label>Mobile (Optional)</label>
                       <input
                         type="text"
                         value={studentData.mother_mobile}
@@ -1190,15 +1207,22 @@ const AddStudent = () => {
                     </div>
 
                     <div className="form-group">
-                      <label>Email (Optional)</label>
+                      <label>Email <span className="required">*</span></label>
                       <input
                         type="email"
                         value={studentData.mother_email}
                         onChange={(e) => setStudentData({ ...studentData, mother_email: e.target.value })}
-                        className="form-input"
+                        className={`form-input ${errors.mother_email ? 'error' : ''}`}
                         placeholder="mother@example.com"
                       />
-                      <span className="help-text">For notifications</span>
+                      {errors.mother_email ? (
+                        <span className="error-text">
+                          <AlertCircle size={12} />
+                          {errors.mother_email}
+                        </span>
+                      ) : (
+                        <span className="help-text">Used for invoices, receipts & reminders</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1253,6 +1277,24 @@ const AddStudent = () => {
                         {errors.local_guardian_mobile}
                       </span>
                     )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>Guardian Email</label>
+                    <input
+                      type="email"
+                      value={studentData.local_guardian_email}
+                      onChange={(e) => setStudentData({ ...studentData, local_guardian_email: e.target.value })}
+                      className={`form-input ${errors.local_guardian_email ? 'error' : ''}`}
+                      placeholder="guardian@example.com"
+                    />
+                    {errors.local_guardian_email && (
+                      <span className="error-text">
+                        <AlertCircle size={12} />
+                        {errors.local_guardian_email}
+                      </span>
+                    )}
+                    <span className="help-text">Used only if father & mother have no contact on file</span>
                   </div>
                 </div>
               </div>

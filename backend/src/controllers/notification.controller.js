@@ -1,5 +1,6 @@
 const { query } = require("../config/db.sqlite");
 const notificationService = require("../services/notification.service");
+const communicationService = require("../services/communication.service");
 
 exports.sendManualReminder = async (req, res) => {
   try {
@@ -54,7 +55,7 @@ exports.sendManualReminder = async (req, res) => {
 
 exports.getNotificationLogs = async (req, res) => {
   try {
-    const logs = await notificationService.getNotificationLogs(req.query);
+    const logs = communicationService.getLogs(req.query);
     res.json({
       success: true,
       data: logs

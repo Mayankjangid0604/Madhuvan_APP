@@ -15,6 +15,21 @@ const validateStudent = (data, isUpdate = false) => {
     if (!data.date_of_joining) {
       errors.push("Date of joining is required");
     }
+    // Father's and mother's names and emails are always required (mobile numbers
+    // are not) - father is the default contact for all fee/admission communication,
+    // falling back to mother, then the local guardian, if a channel is missing.
+    if (!data.father_name || data.father_name.trim() === '') {
+      errors.push("Father's name is required");
+    }
+    if (!data.mother_name || data.mother_name.trim() === '') {
+      errors.push("Mother's name is required");
+    }
+    if (!data.father_email || data.father_email.trim() === '') {
+      errors.push("Father's email is required");
+    }
+    if (!data.mother_email || data.mother_email.trim() === '') {
+      errors.push("Mother's email is required");
+    }
   }
 
   // Validate student name if provided
@@ -37,7 +52,7 @@ const validateStudent = (data, isUpdate = false) => {
   });
 
   // Validate email fields
-  const emailFields = ['father_email', 'mother_email'];
+  const emailFields = ['father_email', 'mother_email', 'local_guardian_email'];
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   emailFields.forEach(field => {
     if (data[field] && !emailRegex.test(data[field])) {

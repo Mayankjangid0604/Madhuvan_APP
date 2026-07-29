@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Download,
   Mail,
@@ -35,6 +36,7 @@ import { Moon, Sun } from "lucide-react";
 import "./settings.css";
 
 const Settings = () => {
+  const navigate = useNavigate();
   const { user, updateAuth } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const isSuperAdmin = true;
@@ -51,9 +53,7 @@ const Settings = () => {
   });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showEmailTemplateModal, setShowEmailTemplateModal] = useState(false);
-  const [showEmailConfigModal, setShowEmailConfigModal] = useState(false);
   const [showSmsTemplateModal, setShowSmsTemplateModal] = useState(false);
-  const [showSmsConfigModal, setShowSmsConfigModal] = useState(false);
   const [showDriveConfigModal, setShowDriveConfigModal] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [showPenaltyConfigModal, setShowPenaltyConfigModal] = useState(false);
@@ -182,27 +182,8 @@ Thank you,
     } finally { setLoading(false); }
   };
 
-  const [emailConfig, setEmailConfig] = useState({
-    enabled: false,
-    service: "gmail",
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    user: "",
-    password: "",
-    fromName: "Hostel Management",
-    fromEmail: ""
-  });
-
   const [smsTemplate, setSmsTemplate] = useState({
-    message: "Dear {mother_name}, Fee of Rs.{fee_amount} for {student_name} is due on {due_date}. Please pay soon. - {hostel_name}"
-  });
-
-  const [smsConfig, setSmsConfig] = useState({
-    enabled: false,
-    accountSid: "",
-    authToken: "",
-    fromNumber: ""
+    message: "Dear {contact_name}, admission of {student_name} at {hostel_name} is confirmed. Fee Rs.{fee_amount} due on {due_date}. - {hostel_name}"
   });
 
   const [driveConfig, setDriveConfig] = useState({
@@ -289,9 +270,7 @@ Thank you,
     setShowUsernameModal(false);
     setShowPasswordModal(false);
     setShowEmailTemplateModal(false);
-    setShowEmailConfigModal(false);
     setShowSmsTemplateModal(false);
-    setShowSmsConfigModal(false);
     setShowDriveConfigModal(false);
     setShowRulesModal(false);
     setShowPenaltyConfigModal(false);
@@ -308,8 +287,6 @@ Thank you,
     try {
       await Promise.allSettled([
         loadTemplates(),
-        loadEmailConfig(),
-        loadSmsConfig(),
         loadDriveConfig(),
         loadPenaltyConfig(),
         loadHostelRules(),
@@ -329,14 +306,14 @@ Thank you,
       });
 
       if (response.data.success && response.data.data) {
-        if (response.data.data.email) {
-          setEmailTemplate(prev => ({ ...prev, ...response.data.data.email }));
+        if (response.data.data.due_reminder_email) {
+          setEmailTemplate(prev => ({ ...prev, ...response.data.data.due_reminder_email }));
         }
-        if (response.data.data.sms) {
-          setSmsTemplate(prev => ({ ...prev, ...response.data.data.sms }));
+        if (response.data.data.admission_sms) {
+          setSmsTemplate(prev => ({ ...prev, ...response.data.data.admission_sms }));
         }
-        if (response.data.data.invoice_email) {
-          setInvoiceEmailTemplate(prev => ({ ...prev, ...response.data.data.invoice_email }));
+        if (response.data.data.admission_email) {
+          setInvoiceEmailTemplate(prev => ({ ...prev, ...response.data.data.admission_email }));
         }
         if (response.data.data.receipt_email) {
           setReceiptEmailTemplate(prev => ({ ...prev, ...response.data.data.receipt_email }));
@@ -351,11 +328,11 @@ Thank you,
     setLoading(true);
     try {
       await axios.post(
-        `${API_URL}/settings/templates/invoice-email`,
+        `${API_URL}/settings/templates/admission_email`,
         invoiceEmailTemplate,
         { headers: getAuthHeaders() }
       );
-      showSuccess("✓ Invoice email template saved!");
+      showSuccess("✓ Admission invoice email template saved!");
       setShowInvoiceEmailModal(false);
     } catch (err) {
       showError("Save failed: " + (err.response?.data?.message || err.message));
@@ -368,7 +345,7 @@ Thank you,
     setLoading(true);
     try {
       await axios.post(
-        `${API_URL}/settings/templates/receipt-email`,
+        `${API_URL}/settings/templates/receipt_email`,
         receiptEmailTemplate,
         { headers: getAuthHeaders() }
       );
@@ -378,34 +355,6 @@ Thank you,
       showError("Save failed: " + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadEmailConfig = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/settings/email-config`, {
-        headers: getAuthHeaders()
-      });
-
-      if (response.data.success && response.data.data) {
-        setEmailConfig(prev => ({ ...prev, ...response.data.data }));
-      }
-    } catch (error) {
-      console.log('Email config not loaded:', error.message);
-    }
-  };
-
-  const loadSmsConfig = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/settings/sms-config`, {
-        headers: getAuthHeaders()
-      });
-
-      if (response.data.success && response.data.data) {
-        setSmsConfig(prev => ({ ...prev, ...response.data.data }));
-      }
-    } catch (error) {
-      console.log('SMS config not loaded:', error.message);
     }
   };
 
@@ -668,62 +617,6 @@ Thank you,
     });
   };
 
-  // ==================== NOTIFICATION HANDLERS ====================
-
-  const handleTestEmail = () => {
-    setPromptModal({
-      isOpen: true,
-      title: "Test Email",
-      message: "Enter your email address for test:",
-      placeholder: "example@email.com",
-      defaultValue: "",
-      onConfirm: async (email) => {
-        if (!email) return;
-        setPromptModal(prev => ({ ...prev, isOpen: false }));
-        setLoading(true);
-        try {
-          await axios.post(
-            `${API_URL}/notifications/test-email`,
-            { email },
-            { headers: getAuthHeaders() }
-          );
-          showSuccess("✓ Test email sent successfully!");
-        } catch (error) {
-          showError("Email failed: " + (error.response?.data?.message || error.message));
-        } finally {
-          setLoading(false);
-        }
-      }
-    });
-  };
-
-  const handleTestSms = () => {
-    setPromptModal({
-      isOpen: true,
-      title: "Test SMS",
-      message: "Enter test phone number (with country code):",
-      placeholder: "+919999999999",
-      defaultValue: "+91",
-      onConfirm: async (phone) => {
-        if (!phone) return;
-        setPromptModal(prev => ({ ...prev, isOpen: false }));
-        setLoading(true);
-        try {
-          await axios.post(
-            `${API_URL}/notifications/test-sms`,
-            { phone },
-            { headers: getAuthHeaders() }
-          );
-          showSuccess("✓ Test SMS sent successfully!");
-        } catch (error) {
-          showError("SMS failed: " + (error.response?.data?.message || error.message));
-        } finally {
-          setLoading(false);
-        }
-      }
-    });
-  };
-
   // ==================== USERNAME HANDLER ====================
 
   const handleChangeUsername = async () => {
@@ -801,35 +694,12 @@ Thank you,
     setLoading(true);
     try {
       await axios.post(
-        `${API_URL}/settings/templates/email`,
+        `${API_URL}/settings/templates/due_reminder_email`,
         emailTemplate,
         { headers: getAuthHeaders() }
       );
-      showSuccess("✓ Email template saved successfully!");
+      showSuccess("✓ Due reminder email template saved successfully!");
       setShowEmailTemplateModal(false);
-    } catch (error) {
-      showError("Save failed: " + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSaveEmailConfig = async () => {
-    if (emailConfig.enabled && (!emailConfig.user || !emailConfig.password)) {
-      showError("Please fill in email and password!");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      await axios.post(
-        `${API_URL}/settings/email-config`,
-        emailConfig,
-        { headers: getAuthHeaders() }
-      );
-      showSuccess("✓ Email configuration saved successfully!");
-      setShowEmailConfigModal(false);
-      await loadEmailConfig();
     } catch (error) {
       showError("Save failed: " + (error.response?.data?.message || error.message));
     } finally {
@@ -841,30 +711,12 @@ Thank you,
     setLoading(true);
     try {
       await axios.post(
-        `${API_URL}/settings/templates/sms`,
+        `${API_URL}/settings/templates/admission_sms`,
         smsTemplate,
         { headers: getAuthHeaders() }
       );
       showSuccess("✓ SMS template saved successfully!");
       setShowSmsTemplateModal(false);
-    } catch (error) {
-      showError("Save failed: " + (error.response?.data?.message || error.message));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSaveSmsConfig = async () => {
-    setLoading(true);
-    try {
-      await axios.post(
-        `${API_URL}/settings/sms-config`,
-        smsConfig,
-        { headers: getAuthHeaders() }
-      );
-      showSuccess("✓ SMS configuration saved successfully!");
-      setShowSmsConfigModal(false);
-      await loadSmsConfig();
     } catch (error) {
       showError("Save failed: " + (error.response?.data?.message || error.message));
     } finally {
@@ -1183,88 +1035,53 @@ Thank you,
         </Card>
         )}
 
-        {/* Email Notifications */}
+        {/* Communication Providers (Email / SMS / WhatsApp) */}
         {isSuperAdmin && (
         <Card>
           <div className="card-icon" style={{ backgroundColor: '#3b82f615' }}>
             <Mail size={24} color="#3b82f6" />
           </div>
-          <h3>Email Notifications</h3>
-          <p>Configure and test email reminders</p>
-          <div className="status-badge" style={{
-            backgroundColor: emailConfig.enabled ? '#d1fae5' : '#fee2e2',
-            color: emailConfig.enabled ? '#065f46' : '#991b1b'
-          }}>
-            {emailConfig.enabled ? <CheckCircle size={14} /> : <X size={14} />}
-            {emailConfig.enabled ? 'Enabled' : 'Disabled'}
-          </div>
+          <h3>Communication Providers</h3>
+          <p>Configure independent Email, SMS and WhatsApp providers, test sends, and view logs.</p>
           <div className="button-group">
-            <Button
-              onClick={handleTestEmail}
-              loading={loading}
-              disabled={loading || !emailConfig.enabled}
-              variant="secondary"
-              size="sm"
-            >
-              <Mail size={14} />
-              Test
-            </Button>
-            <Button onClick={() => setShowEmailConfigModal(true)} variant="outline" size="sm">
+            <Button onClick={() => navigate('/settings/communication')} variant="primary" size="sm">
               <SettingsIcon size={14} />
-              Config
+              Manage Providers
             </Button>
-            <Button onClick={() => setShowEmailTemplateModal(true)} variant="outline" size="sm">
-              <Edit size={14} />
-              Reminder
-            </Button>
-            <Button onClick={() => setShowInvoiceEmailModal(true)} variant="outline" size="sm">
-              <Edit size={14} />
-              Invoice
-            </Button>
-            <Button onClick={() => setShowReceiptEmailModal(true)} variant="outline" size="sm">
-              <Edit size={14} />
-              Receipt
+            <Button onClick={() => navigate('/settings/communication/logs')} variant="outline" size="sm">
+              View Logs
             </Button>
           </div>
-          <small className="help-text">💡 Templates: Fee Reminder · Invoice Email · Receipt Email</small>
         </Card>
         )}
 
-        {/* SMS Notifications */}
+        {/* Message Templates */}
         {isSuperAdmin && (
         <Card>
-          <div className="card-icon" style={{ backgroundColor: '#f59e0b15' }}>
-            <MessageSquare size={24} color="#f59e0b" />
+          <div className="card-icon" style={{ backgroundColor: '#8b5cf615' }}>
+            <Edit size={24} color="#8b5cf6" />
           </div>
-          <h3>SMS Notifications</h3>
-          <p>Configure Twilio and send SMS</p>
-          <div className="status-badge" style={{
-            backgroundColor: smsConfig.enabled ? '#d1fae5' : '#fee2e2',
-            color: smsConfig.enabled ? '#065f46' : '#991b1b'
-          }}>
-            {smsConfig.enabled ? <CheckCircle size={14} /> : <X size={14} />}
-            {smsConfig.enabled ? 'Enabled' : 'Disabled'}
-          </div>
+          <h3>Message Templates</h3>
+          <p>Edit the wording used for admission, reminder and receipt messages</p>
           <div className="button-group">
-            <Button
-              onClick={handleTestSms}
-              loading={loading}
-              disabled={loading || !smsConfig.enabled}
-              variant="secondary"
-              size="sm"
-            >
-              <MessageSquare size={14} />
-              Test
-            </Button>
-            <Button onClick={() => setShowSmsConfigModal(true)} variant="outline" size="sm">
-              <SettingsIcon size={14} />
-              Config
+            <Button onClick={() => setShowInvoiceEmailModal(true)} variant="outline" size="sm">
+              <Edit size={14} />
+              Admission Email
             </Button>
             <Button onClick={() => setShowSmsTemplateModal(true)} variant="outline" size="sm">
               <Edit size={14} />
-              Template
+              Admission SMS
+            </Button>
+            <Button onClick={() => setShowEmailTemplateModal(true)} variant="outline" size="sm">
+              <Edit size={14} />
+              Due Reminder
+            </Button>
+            <Button onClick={() => setShowReceiptEmailModal(true)} variant="outline" size="sm">
+              <Edit size={14} />
+              Receipt Email
             </Button>
           </div>
+          <small className="help-text">💡 Overdue reminders use their built-in default template.</small>
         </Card>
         )}
 
@@ -1697,141 +1514,12 @@ Thank you,
       )}
 
       {/* Email Configuration Modal */}
-      {showEmailConfigModal && (
-        <div className="modal-overlay" onClick={() => setShowEmailConfigModal(false)}>
-          <div className="modal-content config-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3><Mail size={20} /> Email Configuration (SMTP)</h3>
-              <button className="close-btn" onClick={() => setShowEmailConfigModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <div className="form-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={emailConfig.enabled}
-                    onChange={(e) => setEmailConfig({ ...emailConfig, enabled: e.target.checked })}
-                  />
-                  <span>Enable Email Notifications</span>
-                </label>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Service Provider</label>
-                  <select
-                    value={emailConfig.service}
-                    onChange={(e) => {
-                      const service = e.target.value;
-                      const configs = {
-                        gmail: { host: 'smtp.gmail.com', port: 587, secure: false },
-                        outlook: { host: 'smtp-mail.outlook.com', port: 587, secure: false },
-                        yahoo: { host: 'smtp.mail.yahoo.com', port: 465, secure: true },
-                        custom: { host: '', port: 587, secure: false }
-                      };
-                      setEmailConfig({ ...emailConfig, service, ...configs[service] });
-                    }}
-                    className="form-input"
-                  >
-                    <option value="gmail">Gmail</option>
-                    <option value="outlook">Outlook</option>
-                    <option value="yahoo">Yahoo</option>
-                    <option value="custom">Custom SMTP</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Port</label>
-                  <input
-                    type="number"
-                    value={emailConfig.port}
-                    onChange={(e) => setEmailConfig({ ...emailConfig, port: parseInt(e.target.value) || 587 })}
-                    className="form-input"
-                  />
-                </div>
-              </div>
-
-              {emailConfig.service === 'custom' && (
-                <div className="form-group">
-                  <label>SMTP Host</label>
-                  <input
-                    type="text"
-                    value={emailConfig.host}
-                    onChange={(e) => setEmailConfig({ ...emailConfig, host: e.target.value })}
-                    placeholder="smtp.example.com"
-                    className="form-input"
-                  />
-                </div>
-              )}
-
-              <div className="form-group">
-                <label>Email Address *</label>
-                <input
-                  type="email"
-                  value={emailConfig.user}
-                  onChange={(e) => setEmailConfig({ ...emailConfig, user: e.target.value, fromEmail: e.target.value })}
-                  placeholder="your-email@gmail.com"
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Password / App Password *</label>
-                <div className="password-input">
-                  <input
-                    type={showPassword.email ? "text" : "password"}
-                    value={emailConfig.password}
-                    onChange={(e) => setEmailConfig({ ...emailConfig, password: e.target.value })}
-                    placeholder="Your password or app password"
-                    className="form-input"
-                  />
-                  <button
-                    type="button"
-                    className="toggle-password"
-                    onClick={() => setShowPassword({ ...showPassword, email: !showPassword.email })}
-                  >
-                    {showPassword.email ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>From Name</label>
-                <input
-                  type="text"
-                  value={emailConfig.fromName}
-                  onChange={(e) => setEmailConfig({ ...emailConfig, fromName: e.target.value })}
-                  placeholder="Hostel Management"
-                  className="form-input"
-                />
-              </div>
-
-              <div className="info-box">
-                <strong>Gmail Users:</strong> Enable 2-Factor Authentication and create an App Password from your Google Account settings.
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <Button variant="secondary" onClick={() => setShowEmailConfigModal(false)}>
-                Cancel
-              </Button>
-              <Button variant="success" onClick={handleSaveEmailConfig} loading={loading} disabled={loading}>
-                <Save size={16} /> Save Configuration
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Email Template Modal */}
       {showEmailTemplateModal && (
         <div className="modal-overlay" onClick={() => setShowEmailTemplateModal(false)}>
           <div className="modal-content template-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3><Mail size={20} /> Edit Email Template</h3>
+              <h3><Mail size={20} /> Edit Due Reminder Email Template</h3>
               <button className="close-btn" onClick={() => setShowEmailTemplateModal(false)}>
                 <X size={20} />
               </button>
@@ -1842,13 +1530,12 @@ Thank you,
                 <strong>Available Variables:</strong>
                 <div className="variables-list">
                   <span className="variable">{'{student_name}'}</span>
-                  <span className="variable">{'{father_name}'}</span>
-                  <span className="variable">{'{mother_name}'}</span>
+                  <span className="variable">{'{contact_name}'}</span>
                   <span className="variable">{'{fee_amount}'}</span>
                   <span className="variable">{'{due_date}'}</span>
-                  <span className="variable">{'{fee_status}'}</span>
                   <span className="variable">{'{hostel_name}'}</span>
                 </div>
+                <small className="help-text">💡 {'{contact_name}'} resolves to father, then mother, then guardian.</small>
               </div>
 
               <div className="form-group">
@@ -1891,7 +1578,7 @@ Thank you,
         <div className="modal-overlay" onClick={() => setShowInvoiceEmailModal(false)}>
           <div className="modal-content template-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3><Mail size={20} /> Edit Invoice Email Template</h3>
+              <h3><Mail size={20} /> Edit Admission Invoice Email Template</h3>
               <button className="close-btn" onClick={() => setShowInvoiceEmailModal(false)}>
                 <X size={20} />
               </button>
@@ -1901,13 +1588,12 @@ Thank you,
                 <strong>Available Variables:</strong>
                 <div className="variables-list">
                   <span className="variable">{'{student_name}'}</span>
-                  <span className="variable">{'{father_name}'}</span>
-                  <span className="variable">{'{invoice_number}'}</span>
+                  <span className="variable">{'{contact_name}'}</span>
                   <span className="variable">{'{fee_amount}'}</span>
                   <span className="variable">{'{due_date}'}</span>
-                  <span className="variable">{'{period}'}</span>
                   <span className="variable">{'{hostel_name}'}</span>
                 </div>
+                <small className="help-text">💡 Sent at admission with the admission form and fee invoice attached.</small>
               </div>
               <div className="form-group">
                 <label>Subject *</label>
@@ -2026,11 +1712,10 @@ Thank you,
                 <strong>Available Variables:</strong>
                 <div className="variables-list">
                   <span className="variable">{'{student_name}'}</span>
-                  <span className="variable">{'{father_name}'}</span>
+                  <span className="variable">{'{contact_name}'}</span>
                   <span className="variable">{'{receipt_number}'}</span>
-                  <span className="variable">{'{amount_paid}'}</span>
+                  <span className="variable">{'{fee_amount}'}</span>
                   <span className="variable">{'{payment_date}'}</span>
-                  <span className="variable">{'{period}'}</span>
                   <span className="variable">{'{hostel_name}'}</span>
                 </div>
               </div>
@@ -2068,7 +1753,7 @@ Thank you,
         <div className="modal-overlay" onClick={() => setShowSmsTemplateModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3><MessageSquare size={20} /> Edit SMS Template</h3>
+              <h3><MessageSquare size={20} /> Edit Admission SMS Template</h3>
               <button className="close-btn" onClick={() => setShowSmsTemplateModal(false)}>
                 <X size={20} />
               </button>
@@ -2079,12 +1764,12 @@ Thank you,
                 <strong>Available Variables:</strong>
                 <div className="variables-list">
                   <span className="variable">{'{student_name}'}</span>
-                  <span className="variable">{'{mother_name}'}</span>
+                  <span className="variable">{'{contact_name}'}</span>
                   <span className="variable">{'{fee_amount}'}</span>
                   <span className="variable">{'{due_date}'}</span>
                   <span className="variable">{'{hostel_name}'}</span>
                 </div>
-                <small className="help-text">💡 Keep SMS under 160 characters</small>
+                <small className="help-text">💡 Sent through whichever SMS provider is active in Settings → Communication. Keep it short.</small>
               </div>
 
               <div className="form-group">
@@ -2106,79 +1791,6 @@ Thank you,
               </Button>
               <Button variant="success" onClick={handleSaveSmsTemplate} loading={loading} disabled={loading}>
                 <Save size={16} /> Save Template
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* SMS Config Modal */}
-      {showSmsConfigModal && (
-        <div className="modal-overlay" onClick={() => setShowSmsConfigModal(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3><MessageSquare size={20} /> SMS Configuration (Twilio)</h3>
-              <button className="close-btn" onClick={() => setShowSmsConfigModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <div className="form-group checkbox">
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={smsConfig.enabled}
-                    onChange={(e) => setSmsConfig({ ...smsConfig, enabled: e.target.checked })}
-                  />
-                  <span>Enable SMS Notifications</span>
-                </label>
-              </div>
-
-              <div className="form-group">
-                <label>Twilio Account SID</label>
-                <input
-                  type="text"
-                  value={smsConfig.accountSid}
-                  onChange={(e) => setSmsConfig({ ...smsConfig, accountSid: e.target.value })}
-                  placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Twilio Auth Token</label>
-                <input
-                  type="password"
-                  value={smsConfig.authToken}
-                  onChange={(e) => setSmsConfig({ ...smsConfig, authToken: e.target.value })}
-                  placeholder="Your auth token"
-                  className="form-input"
-                />
-              </div>
-
-              <div className="form-group">
-                <label>Twilio Phone Number</label>
-                <input
-                  type="text"
-                  value={smsConfig.fromNumber}
-                  onChange={(e) => setSmsConfig({ ...smsConfig, fromNumber: e.target.value })}
-                  placeholder="+1234567890"
-                  className="form-input"
-                />
-              </div>
-
-              <div className="info-box">
-                <strong>Note:</strong> Get your Twilio credentials from <a href="https://www.twilio.com/console" target="_blank" rel="noopener noreferrer">Twilio Console</a>
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <Button variant="secondary" onClick={() => setShowSmsConfigModal(false)}>
-                Cancel
-              </Button>
-              <Button variant="success" onClick={handleSaveSmsConfig} loading={loading} disabled={loading}>
-                <Save size={16} /> Save Configuration
               </Button>
             </div>
           </div>

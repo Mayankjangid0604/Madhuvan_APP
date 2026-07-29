@@ -4,7 +4,9 @@
   "main": "src/app.js",
   "private": true,
   "scripts": {
-    "start": "node src/app.js"
+    "start": "node src/app.js",
+    "test": "node --test test/providers/*.test.js",
+    "test:integration": "node --test test/integration/*.test.js"
   },
   "build": {
     "asar": true,

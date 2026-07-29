@@ -192,6 +192,7 @@ function getCoreSchemaDefinitions() {
         local_guardian_name TEXT,
         local_guardian_relation TEXT,
         local_guardian_mobile TEXT,
+        local_guardian_email TEXT,
         id_type TEXT,
         id_number TEXT,
         address_line1 TEXT,
@@ -541,6 +542,22 @@ function getCoreSchemaDefinitions() {
         reminder_status TEXT NOT NULL,
         sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE
+      )
+    `,
+    communication_logs: `
+      CREATE TABLE communication_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        channel TEXT NOT NULL,
+        provider TEXT,
+        recipient TEXT,
+        subject TEXT,
+        message TEXT,
+        status TEXT NOT NULL,
+        error TEXT,
+        provider_response TEXT,
+        sent_by TEXT,
+        student_id INTEGER,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `
   };
@@ -1086,6 +1103,7 @@ function removeCheckConstraints() {
               local_guardian_name TEXT,
               local_guardian_relation TEXT,
               local_guardian_mobile TEXT,
+              local_guardian_email TEXT,
               id_type TEXT,
               id_number TEXT,
               address_line1 TEXT,
@@ -1313,6 +1331,7 @@ function runMigrations() {
   safeAddColumn('students', 'discount_on_full_month', 'INTEGER DEFAULT 1');
   safeAddColumn('students', 'payment_mode', "TEXT DEFAULT 'cash'");
   safeAddColumn('students', 'gender', "TEXT DEFAULT 'Girl'");
+  safeAddColumn('students', 'local_guardian_email', 'TEXT');
 
   // One-time migration for existing rows: default payment mode = cash, gender = Girl.
   try {

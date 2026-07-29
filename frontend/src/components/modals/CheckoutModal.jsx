@@ -18,7 +18,10 @@ import Button from "../buttons/Button";
 import RefundReceiptModal from "./RefundReceiptModal";
 import DateInput from "../common/DateInput";
 import { fineAPI } from "../../services/api/fine.api";
+import { feeAPI } from "../../services/api/fee.api";
 import "./checkoutModal.css";
+
+const toNumber = (v) => Number(v) || 0;
 
 const CheckoutStudent = ({ student, onClose, onConfirm }) => {
   const [loading, setLoading] = useState(false);
@@ -26,6 +29,10 @@ const CheckoutStudent = ({ student, onClose, onConfirm }) => {
   const [error, setError] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [securityInfo, setSecurityInfo] = useState(null);
+  const [feeSummary, setFeeSummary] = useState(null);
+  const [feeSummaryLoading, setFeeSummaryLoading] = useState(true);
+  const [exitPreview, setExitPreview] = useState(null);
+  const [feeRefundApplied, setFeeRefundApplied] = useState(false);
   const [successModal, setSuccessModal] = useState({
     show: false,
     refund_amount: 0,
@@ -58,6 +65,47 @@ const CheckoutStudent = ({ student, onClose, onConfirm }) => {
         .catch(err => console.error("Failed to fetch security info:", err));
     }
   }, [student?.student_id]);
+
+  // Fetch pending/due fee records so the admin can see what's outstanding
+  // before checkout writes off any unpaid fees.
+  useEffect(() => {
+    if (student?.student_id) {
+      setFeeSummaryLoading(true);
+      feeAPI.getStudentFeeSummary(student.student_id)
+        .then(res => setFeeSummary(res.data?.data || null))
+        .catch(err => console.error("Failed to fetch fee summary:", err))
+        .finally(() => setFeeSummaryLoading(false));
+    }
+  }, [student?.student_id]);
+
+  // Auto-calculate a refund for unused days already paid for, whenever the
+  // checkout date changes.
+  useEffect(() => {
+    if (student?.student_id && checkoutData.checkout_date) {
+      feeAPI.getEarlyExitInvoice(student.student_id, checkoutData.checkout_date)
+        .then(res => setExitPreview(res.data?.data || null))
+        .catch(err => console.error("Failed to compute exit fee refund:", err));
+      setFeeRefundApplied(false);
+    }
+  }, [student?.student_id, checkoutData.checkout_date]);
+
+  const pendingFeeRows = (feeSummary?.fees || []).filter(f => f.remaining > 0);
+  const pendingOtherTotal = toNumber(feeSummary?.summary?.pending_fines) +
+    toNumber(feeSummary?.summary?.pending_damages) +
+    toNumber(feeSummary?.summary?.pending_money_given);
+  const totalPendingDue = pendingFeeRows.reduce((sum, f) => sum + toNumber(f.remaining), 0) +
+    pendingOtherTotal;
+
+  const feeRefund = exitPreview?.refund;
+
+  const applyFeeRefund = () => {
+    if (!feeRefund?.applicable) return;
+    setCheckoutData(prev => ({
+      ...prev,
+      refund_amount: String(Number(prev.refund_amount || 0) + feeRefund.amount)
+    }));
+    setFeeRefundApplied(true);
+  };
 
   const checkoutReasons = [
     { value: "", label: "-- Select Reason --" },
@@ -277,6 +325,101 @@ const CheckoutStudent = ({ student, onClose, onConfirm }) => {
                   placeholder="Any additional notes about the checkout..."
                 />
               </div>
+            </div>
+
+            {/* Pending / Due Fees Section */}
+            <div className="checkout-section refund-section">
+              <h4>
+                <AlertTriangle size={18} />
+                Pending &amp; Due Fees
+              </h4>
+
+              {feeSummaryLoading ? (
+                <p style={{ fontSize: 13, color: "#64748b" }}>Loading fee records...</p>
+              ) : totalPendingDue > 0 ? (
+                <div style={{
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  marginBottom: "16px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                    <AlertTriangle size={18} style={{ color: "#dc2626" }} />
+                    <strong style={{ color: "#dc2626", fontSize: "14px" }}>
+                      ₹{totalPendingDue.toLocaleString("en-IN")} outstanding
+                    </strong>
+                  </div>
+                  {pendingFeeRows.length > 0 && (
+                    <div style={{ fontSize: "12px", color: "#64748b" }}>
+                      {pendingFeeRows.map((f) => (
+                        <div key={f.fee_id} style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
+                          <span>
+                            {f.fee_type}
+                            {f.fee_month ? ` - ${new Date(f.fee_month).toLocaleDateString("en-IN", { month: "short", year: "numeric" })}` : ""}
+                            {" "}({f.fee_status})
+                          </span>
+                          <span style={{ color: "#dc2626" }}>₹{Number(f.remaining).toLocaleString("en-IN")}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {pendingOtherTotal > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#dc2626", padding: "2px 0" }}>
+                      <span>Pending fines / damages / money given</span>
+                      <span>₹{pendingOtherTotal.toLocaleString("en-IN")}</span>
+                    </div>
+                  )}
+                  <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px solid #fecaca", fontSize: "12px", color: "#991b1b" }}>
+                    <Info size={12} style={{ verticalAlign: "-2px", marginRight: 4 }} />
+                    Checking out now will write off this outstanding amount. Collect payment first if it should not be waived.
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: "8px",
+                  padding: "10px 16px",
+                  marginBottom: "16px",
+                  fontSize: "13px",
+                  color: "#166534"
+                }}>
+                  <CheckCircle size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />
+                  No pending or due fees for this student.
+                </div>
+              )}
+
+              {feeRefund?.applicable && (
+                <div style={{
+                  background: "#f5f3ff",
+                  border: "1px solid #ddd6fe",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  marginBottom: "16px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap" }}>
+                    <div>
+                      <strong style={{ color: "#6d28d9", fontSize: "14px" }}>
+                        ₹{feeRefund.amount.toLocaleString("en-IN")} fee refund available
+                      </strong>
+                      <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>
+                        This period is already fully paid through {new Date(feeRefund.period_end).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} -
+                        {" "}{feeRefund.days_remaining} unused day{feeRefund.days_remaining > 1 ? "s" : ""} remain.
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={feeRefundApplied}
+                      onClick={applyFeeRefund}
+                    >
+                      {feeRefundApplied ? "Added" : "Add to Refund"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Security Deposit Refund Section */}
