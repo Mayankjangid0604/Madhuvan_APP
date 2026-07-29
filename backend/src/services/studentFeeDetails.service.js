@@ -184,9 +184,55 @@ exports.computeEarlyExitInvoice = ({ studentId, exit_date }) => {
 
   const grand = proratedAccommodation + proratedMess + accCgst + accSgst + messCgst + messSgst;
 
+  // ── Refund for unused days already paid for ──
+  // If the rent fee covering the exit date is fully paid but the student is
+  // leaving before that period ends, the unused days should be refunded
+  // (the opposite case of the proration above, which covers additional
+  // amount owed for a period that was NOT fully paid in advance).
+  const exitStr = exit.toISOString().split("T")[0];
+  const currentFee = db.db.prepare(`
+    SELECT * FROM student_fees
+    WHERE student_id = ?
+      AND fee_type IN ('Monthly Rent', 'Half-Yearly Rent', 'Yearly Rent')
+      AND fee_period_start IS NOT NULL AND fee_period_end IS NOT NULL
+      AND fee_period_start <= ? AND fee_period_end >= ?
+    ORDER BY fee_period_start DESC LIMIT 1
+  `).get(studentId, exitStr, exitStr);
+
+  let refund = {
+    applicable: false,
+    fee_id: null,
+    period_start: null,
+    period_end: null,
+    total_days_in_period: 0,
+    days_remaining: 0,
+    amount: 0,
+  };
+
+  if (currentFee && toNum(currentFee.paid_amount) >= toNum(currentFee.final_amount)) {
+    const periodStart = new Date(currentFee.fee_period_start);
+    const periodEnd = new Date(currentFee.fee_period_end);
+    const totalDaysInPeriod = Math.max(1, Math.round((periodEnd - periodStart) / 86400000) + 1);
+    const daysUsed = Math.max(0, Math.round((exit - periodStart) / 86400000) + 1);
+    const daysRemaining = Math.max(0, totalDaysInPeriod - daysUsed);
+
+    if (daysRemaining > 0) {
+      const perDay = toNum(currentFee.final_amount) / totalDaysInPeriod;
+      refund = {
+        applicable: true,
+        fee_id: currentFee.fee_id,
+        period_start: currentFee.fee_period_start,
+        period_end: currentFee.fee_period_end,
+        total_days_in_period: totalDaysInPeriod,
+        days_remaining: daysRemaining,
+        amount: Math.round(perDay * daysRemaining),
+      };
+    }
+  }
+
   return {
     student_id: studentId,
-    exit_date: exit.toISOString().split("T")[0],
+    exit_date: exitStr,
     days_stayed: daysStayed,
     days_left_in_period: daysLeftInPeriod,
     accommodation_remaining: proratedAccommodation,
@@ -199,6 +245,7 @@ exports.computeEarlyExitInvoice = ({ studentId, exit_date }) => {
     mess_sgst: messSgst,
     grand_total: Math.round(grand * 100) / 100,
     applies: daysStayed < 90,
+    refund,
   };
 };
 
