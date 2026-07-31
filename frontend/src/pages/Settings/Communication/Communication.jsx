@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Mail, MessageSquare, MessagesSquare, CheckCircle, XCircle, X, Save, Send,
-  Settings as SettingsIcon, ArrowLeft, ScrollText, Eye, EyeOff, Edit
+  Settings as SettingsIcon, ArrowLeft, ScrollText, Eye, EyeOff, Edit, Bell
 } from "lucide-react";
 import Button from "../../../components/buttons/Button";
 import Card from "../../../components/cards/Card";
@@ -66,6 +66,61 @@ const Communication = () => {
     message: "Dear {contact_name}, admission of {student_name} at {hostel_name} is confirmed. Fee Rs.{fee_amount} due on {due_date}. - {hostel_name}"
   });
 
+  const DEFAULT_NOTIF_PREFS = {
+    email: {
+      on_admission: { enabled: false, recipient: 'father' },
+      on_fee_payment: { enabled: false, recipient: 'father' },
+      monthly_invoice: { enabled: false, recipient: 'father', day_of_month: 1 },
+      due_reminder: { enabled: false, recipient: 'father', days_before: 5 },
+      overdue_reminder: { enabled: false, recipient: 'father', days_after: 3 },
+    },
+    sms: {
+      on_admission: { enabled: false, recipient: 'father' },
+      on_fee_payment: { enabled: false, recipient: 'father' },
+      monthly_invoice: { enabled: false, recipient: 'father', day_of_month: 1 },
+      due_reminder: { enabled: false, recipient: 'father', days_before: 5 },
+      overdue_reminder: { enabled: false, recipient: 'father', days_after: 3 },
+    },
+    whatsapp: {
+      on_admission: { enabled: false, recipient: 'father' },
+      on_fee_payment: { enabled: false, recipient: 'father' },
+      monthly_invoice: { enabled: false, recipient: 'father', day_of_month: 1 },
+      due_reminder: { enabled: false, recipient: 'father', days_before: 5 },
+      overdue_reminder: { enabled: false, recipient: 'father', days_after: 3 },
+    }
+  };
+  const [notifPrefs, setNotifPrefs] = useState(DEFAULT_NOTIF_PREFS);
+  const [savingNotifPrefs, setSavingNotifPrefs] = useState(false);
+
+  const loadNotifPrefs = async () => {
+    try {
+      const r = await axios.get(`${API_URL}/settings/notification-preferences`, { headers: getAuthHeaders() });
+      if (r.data.success && r.data.data) setNotifPrefs(r.data.data);
+    } catch { /* silent */ }
+  };
+
+  const handleSaveNotifPrefs = async () => {
+    setSavingNotifPrefs(true);
+    try {
+      await axios.post(`${API_URL}/settings/notification-preferences`, notifPrefs, { headers: getAuthHeaders() });
+      showSuccess("Notification preferences saved!");
+    } catch (err) {
+      showError("Save failed: " + (err.response?.data?.message || err.message));
+    } finally {
+      setSavingNotifPrefs(false);
+    }
+  };
+
+  const updateNotifPref = (channel, event, field, value) => {
+    setNotifPrefs(prev => ({
+      ...prev,
+      [channel]: {
+        ...prev[channel],
+        [event]: { ...prev[channel][event], [field]: value }
+      }
+    }));
+  };
+
   const showSuccess = (msg) => { setSuccessMessage(msg); setTimeout(() => setSuccessMessage(""), 4000); };
   const showError = (msg) => { setErrorMessage(msg); setTimeout(() => setErrorMessage(""), 6000); };
 
@@ -108,6 +163,7 @@ const Communication = () => {
       );
       setConfigs(Object.fromEntries(entries));
       await loadTemplates();
+      await loadNotifPrefs();
     } catch (err) {
       showError(err.response?.data?.message || "Failed to load communication settings");
     } finally {
@@ -381,6 +437,79 @@ const Communication = () => {
           </div>
         </div>
       )}
+
+      <h2 style={{ marginTop: '2rem', marginBottom: '0.5rem' }}><Bell size={20} style={{ verticalAlign: 'middle', marginRight: 6 }} />Notification Preferences</h2>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+        Configure when and to whom notifications are sent automatically.
+      </p>
+
+      <div className="notif-prefs-table-wrap" style={{ overflowX: 'auto', marginBottom: '1.5rem' }}>
+        <table className="notif-prefs-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+          <thead>
+            <tr style={{ background: 'var(--bg-secondary, #f8fafc)', textAlign: 'left' }}>
+              <th style={{ padding: '10px 12px', borderBottom: '2px solid var(--border, #e2e8f0)' }}>Trigger Event</th>
+              {['email', 'sms', 'whatsapp'].map(ch => (
+                <th key={ch} style={{ padding: '10px 12px', borderBottom: '2px solid var(--border, #e2e8f0)', textAlign: 'center' }}>
+                  {ch === 'email' ? <Mail size={14} style={{ marginRight: 4 }} /> : ch === 'sms' ? <MessageSquare size={14} style={{ marginRight: 4 }} /> : <MessagesSquare size={14} style={{ marginRight: 4 }} />}
+                  {ch.charAt(0).toUpperCase() + ch.slice(1)}
+                </th>
+              ))}
+              <th style={{ padding: '10px 12px', borderBottom: '2px solid var(--border, #e2e8f0)' }}>Recipient</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { key: 'on_admission', label: 'On Admission (with first invoice)' },
+              { key: 'on_fee_payment', label: 'On Fee Payment (receipt)' },
+              { key: 'monthly_invoice', label: 'Monthly Invoice (1st of month)', extra: 'day_of_month' },
+              { key: 'due_reminder', label: 'Due Reminder (before due date)', extra: 'days_before' },
+              { key: 'overdue_reminder', label: 'Overdue Reminder (after due date)', extra: 'days_after' },
+            ].map(evt => (
+              <tr key={evt.key} style={{ borderBottom: '1px solid var(--border, #e2e8f0)' }}>
+                <td style={{ padding: '10px 12px' }}>
+                  <strong>{evt.label}</strong>
+                  {evt.extra === 'day_of_month' && notifPrefs.email[evt.key]?.enabled && (
+                    <div style={{ marginTop: 4, fontSize: '0.8rem' }}>
+                      Day of month: <input type="number" min={1} max={28} value={notifPrefs.email[evt.key]?.day_of_month || 1} onChange={(e) => { const v = parseInt(e.target.value) || 1; ['email','sms','whatsapp'].forEach(ch => updateNotifPref(ch, evt.key, 'day_of_month', v)); }} style={{ width: 50, padding: '2px 4px' }} className="form-input" />
+                    </div>
+                  )}
+                  {evt.extra === 'days_before' && notifPrefs.email[evt.key]?.enabled && (
+                    <div style={{ marginTop: 4, fontSize: '0.8rem' }}>
+                      Days before: <input type="number" min={1} max={30} value={notifPrefs.email[evt.key]?.days_before || 5} onChange={(e) => { const v = parseInt(e.target.value) || 5; ['email','sms','whatsapp'].forEach(ch => updateNotifPref(ch, evt.key, 'days_before', v)); }} style={{ width: 50, padding: '2px 4px' }} className="form-input" />
+                    </div>
+                  )}
+                  {evt.extra === 'days_after' && notifPrefs.email[evt.key]?.enabled && (
+                    <div style={{ marginTop: 4, fontSize: '0.8rem' }}>
+                      Days after: <input type="number" min={1} max={30} value={notifPrefs.email[evt.key]?.days_after || 3} onChange={(e) => { const v = parseInt(e.target.value) || 3; ['email','sms','whatsapp'].forEach(ch => updateNotifPref(ch, evt.key, 'days_after', v)); }} style={{ width: 50, padding: '2px 4px' }} className="form-input" />
+                    </div>
+                  )}
+                </td>
+                {['email', 'sms', 'whatsapp'].map(ch => (
+                  <td key={ch} style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    <label style={{ cursor: 'pointer' }}>
+                      <input type="checkbox" checked={notifPrefs[ch]?.[evt.key]?.enabled || false} onChange={(e) => updateNotifPref(ch, evt.key, 'enabled', e.target.checked)} />
+                    </label>
+                  </td>
+                ))}
+                <td style={{ padding: '10px 12px' }}>
+                  <select value={notifPrefs.email[evt.key]?.recipient || 'father'} onChange={(e) => { ['email','sms','whatsapp'].forEach(ch => updateNotifPref(ch, evt.key, 'recipient', e.target.value)); }} className="form-input" style={{ fontSize: '0.8rem', padding: '4px 6px' }}>
+                    <option value="father">Father</option>
+                    <option value="mother">Mother</option>
+                    <option value="both">Both</option>
+                    <option value="guardian">Guardian</option>
+                  </select>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
+        <Button variant="success" onClick={handleSaveNotifPrefs} loading={savingNotifPrefs} disabled={savingNotifPrefs}>
+          <Save size={16} /> Save Notification Preferences
+        </Button>
+      </div>
 
       {configModalChannel && (
         <ProviderConfigModal

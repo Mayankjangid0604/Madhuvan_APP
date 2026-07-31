@@ -16,7 +16,7 @@ if (!fs.existsSync(DATA_DIR)) {
 // ============================================
 // SCHEMA VERSION
 // ============================================
-const CURRENT_SCHEMA_VERSION = 26;
+const CURRENT_SCHEMA_VERSION = 27;
 
 // ============================================
 // DATABASE REPAIR FUNCTION
@@ -411,9 +411,11 @@ function getCoreSchemaDefinitions() {
         reference_no TEXT,
         description TEXT,
         student_id INTEGER,
+        vendor_id INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE SET NULL
+        FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE SET NULL,
+        FOREIGN KEY (vendor_id) REFERENCES vendors(vendor_id) ON DELETE SET NULL
       )
     `,
     settings: `
@@ -558,6 +560,20 @@ function getCoreSchemaDefinitions() {
         sent_by TEXT,
         student_id INTEGER,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `,
+    vendors: `
+      CREATE TABLE vendors (
+        vendor_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        contact_person TEXT,
+        mobile TEXT,
+        email TEXT,
+        address TEXT,
+        gst_number TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
     `
   };
@@ -1315,6 +1331,13 @@ function runMigrations() {
     } catch (e) {
       console.warn('  ⚠️ v26 migration skipped:', e.message);
     }
+  }
+
+  // ✅ v27: Add vendors table and vendor_id to ledger_entries
+  if (currentVersion < 27) {
+    safeCreateTable('vendors', getCoreSchemaDefinitions().vendors);
+    safeAddColumn('ledger_entries', 'vendor_id', 'INTEGER');
+    console.log('  ✅ v27: Vendors table and ledger vendor_id added');
   }
 
   // ============================================

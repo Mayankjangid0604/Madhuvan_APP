@@ -282,26 +282,27 @@ exports.createManualExpenseEntry = ({
   amount,
   payment_mode,
   reference_no,
-  description
+  description,
+  vendor_id
 }) => {
   const numAmount = Number(amount);
   if (!entry_date || !category || !numAmount || numAmount <= 0) {
     throw new Error('Entry date, category, and valid amount are required');
   }
-  
+
   const currentBalance = getCurrentBalance();
   const newBalance = currentBalance - numAmount;
-  
+
   const result = db.db.prepare(`
     INSERT INTO ledger_entries (
       entry_date, entry_type, category, amount, debit, credit, balance,
-      payment_mode, reference_no, description
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      payment_mode, reference_no, description, vendor_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     entry_date, 'expense', category, numAmount, 0, numAmount, newBalance,
-    payment_mode || 'CASH', reference_no, description
+    payment_mode || 'CASH', reference_no, description, vendor_id || null
   );
-  
+
   return result.lastInsertRowid;
 };
 
@@ -384,9 +385,10 @@ exports.getMemberSalaryStatus = (memberId, month, year) => {
 // ============================================
 exports.getAllEntries = (filters = {}) => {
   let sql = `
-    SELECT le.*, s.student_name, s.father_name
+    SELECT le.*, s.student_name, s.father_name, v.name AS vendor_name
     FROM ledger_entries le
     LEFT JOIN students s ON le.student_id = s.student_id
+    LEFT JOIN vendors v ON le.vendor_id = v.vendor_id
     WHERE 1=1
   `;
   const params = [];

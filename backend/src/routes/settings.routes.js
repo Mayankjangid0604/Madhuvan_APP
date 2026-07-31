@@ -47,6 +47,12 @@ router.get('/penalty-config', settingsController.getPenaltyConfig);
 router.post('/penalty-config', settingsController.savePenaltyConfig);
 
 // =========================
+// Notification Preferences
+// =========================
+router.get('/notification-preferences', settingsController.getNotificationPreferences);
+router.post('/notification-preferences', settingsController.saveNotificationPreferences);
+
+// =========================
 // PhonePe Gateway Config
 // =========================
 router.get('/phonepe-config', settingsController.getPhonePeConfig);

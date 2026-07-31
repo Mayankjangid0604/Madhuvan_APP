@@ -249,6 +249,7 @@ const routes = [
   { path: "/api/backup", module: "./routes/backup.routes" },
   { path: "/api/members", module: "./routes/member.routes" },
   { path: "/api/doc-number", module: "./routes/docNumber.routes" },
+  { path: "/api/vendors", module: "./routes/vendor.routes" },
   { path: "/api/webhooks", module: "./routes/webhook.routes" },
   { path: "/api/public", module: "./routes/public.routes" }
 ];

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useRef, Fragment } from "react";
 import { ledgerAPI } from "../../services/api/ledger.api";
+import { vendorAPI } from "../../services/api/vendor.api";
 import DateInput from "../../components/common/DateInput";
 import {
   Plus,
@@ -27,7 +28,8 @@ import {
   Printer,
   Eye,
   FileText,
-  Building2
+  Building2,
+  Store
 } from "lucide-react";
 import { printElement } from "../../utils/printUtil";
 import { printReceipt, printBill } from "../../utils/feeDocuments";
@@ -76,10 +78,14 @@ const Ledger = () => {
   const [filters, setFilters] = useState(getCurrentMonthRange());
   const [hostelInfo, setHostelInfo] = useState({});
   const [copyChooser, setCopyChooser] = useState({ open: false, row: null });
+  const [vendors, setVendors] = useState([]);
 
   useEffect(() => {
     settingsAPI.getHostelInfo()
       .then((r) => { if (r.data?.success) setHostelInfo(r.data.data || {}); })
+      .catch(() => {});
+    vendorAPI.getAll()
+      .then((r) => { if (r.data?.success) setVendors(r.data.data || []); })
       .catch(() => {});
   }, []);
 
@@ -133,7 +139,8 @@ const Ledger = () => {
     payment_mode: "",
     reference_no: "",
     description: "",
-    student_id: ""
+    student_id: "",
+    vendor_id: ""
   });
 
   const [manualEntry, setManualEntry] = useState(getInitialManualEntry());
@@ -1011,6 +1018,9 @@ const Ledger = () => {
                         </td>
                         <td className="description-cell">
                           <span className="description-text">{row.description || '-'}</span>
+                          {row.vendor_name && (
+                            <span className="reference-tag"><Store size={10} /> {row.vendor_name}</span>
+                          )}
                           {row.reference_no && (
                             <span className="reference-tag">Ref: {row.reference_no}</span>
                           )}
@@ -1358,6 +1368,28 @@ const Ledger = () => {
                   <span className="error-text">{formErrors.category}</span>
                 )}
               </div>
+
+              {manualEntry.entry_type === 'expense' && (
+                <div className="form-group">
+                  <label>
+                    <Store size={14} />
+                    Vendor / Supplier <span className="optional">(Optional)</span>
+                  </label>
+                  <select
+                    value={manualEntry.vendor_id}
+                    onChange={(e) => setManualEntry({ ...manualEntry, vendor_id: e.target.value })}
+                    className="form-input"
+                    disabled={modalLoading}
+                  >
+                    <option value="">Select Vendor</option>
+                    {vendors.map(v => (
+                      <option key={v.vendor_id} value={v.vendor_id}>
+                        {v.name}{v.mobile ? ` (${v.mobile})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className={`form-group ${formErrors.description ? 'has-error' : ''}`}>
                 <label>
