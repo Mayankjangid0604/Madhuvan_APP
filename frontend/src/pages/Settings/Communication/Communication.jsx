@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Mail, MessageSquare, MessagesSquare, CheckCircle, XCircle, X, Save, Send,
-  Settings as SettingsIcon, ArrowLeft, ScrollText, Eye, EyeOff
+  Settings as SettingsIcon, ArrowLeft, ScrollText, Eye, EyeOff, Edit
 } from "lucide-react";
 import Button from "../../../components/buttons/Button";
 import Card from "../../../components/cards/Card";
 import { communicationAPI } from "../../../services/api/communication.api";
 import { fieldMeta } from "./fieldMeta";
+import axios from "axios";
 import "../settings.css";
 import "./communication.css";
 
@@ -26,18 +27,72 @@ const formatTimestamp = (iso) => {
   }
 };
 
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return { Authorization: `Bearer ${token}` };
+};
+
 const Communication = () => {
   const navigate = useNavigate();
   const [catalog, setCatalog] = useState(null);
   const [configs, setConfigs] = useState({});
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [configModalChannel, setConfigModalChannel] = useState(null);
   const [testModalChannel, setTestModalChannel] = useState(null);
 
+  // Message template modals
+  const [showInvoiceEmailModal, setShowInvoiceEmailModal] = useState(false);
+  const [showSmsTemplateModal, setShowSmsTemplateModal] = useState(false);
+  const [showEmailTemplateModal, setShowEmailTemplateModal] = useState(false);
+  const [showReceiptEmailModal, setShowReceiptEmailModal] = useState(false);
+
+  const [emailTemplate, setEmailTemplate] = useState({
+    subject: "Fee Payment Reminder - {student_name}",
+    body: "Dear {father_name},\n\nThis is a reminder that the hostel fee for {student_name} is due.\n\nFee Details:\n- Amount: ₹{fee_amount}\n- Due Date: {due_date}\n- Status: {fee_status}\n\nPlease make the payment at the earliest.\n\nThank you,\n{hostel_name}"
+  });
+  const [invoiceEmailTemplate, setInvoiceEmailTemplate] = useState({
+    subject: "Invoice #{invoice_number} - {student_name}",
+    body: "Dear {father_name},\n\nPlease find attached the invoice for {student_name} for the period {period}.\n\nAmount Payable: ₹{fee_amount}\nDue Date: {due_date}\n\nKindly make the payment on or before the due date.\n\nRegards,\n{hostel_name}"
+  });
+  const [receiptEmailTemplate, setReceiptEmailTemplate] = useState({
+    subject: "Payment Receipt #{receipt_number} - {student_name}",
+    body: "Dear {father_name},\n\nWe have received your payment of ₹{amount_paid} for {student_name}.\n\nReceipt No: {receipt_number}\nPayment Date: {payment_date}\nFor Period: {period}\n\nPlease retain this receipt for your records.\n\nThank you,\n{hostel_name}"
+  });
+  const [smsTemplate, setSmsTemplate] = useState({
+    message: "Dear {contact_name}, admission of {student_name} at {hostel_name} is confirmed. Fee Rs.{fee_amount} due on {due_date}. - {hostel_name}"
+  });
+
   const showSuccess = (msg) => { setSuccessMessage(msg); setTimeout(() => setSuccessMessage(""), 4000); };
   const showError = (msg) => { setErrorMessage(msg); setTimeout(() => setErrorMessage(""), 6000); };
+
+  const loadTemplates = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/settings/templates`, { headers: getAuthHeaders() });
+      if (response.data.success && response.data.data) {
+        if (response.data.data.due_reminder_email) setEmailTemplate(prev => ({ ...prev, ...response.data.data.due_reminder_email }));
+        if (response.data.data.admission_sms) setSmsTemplate(prev => ({ ...prev, ...response.data.data.admission_sms }));
+        if (response.data.data.admission_email) setInvoiceEmailTemplate(prev => ({ ...prev, ...response.data.data.admission_email }));
+        if (response.data.data.receipt_email) setReceiptEmailTemplate(prev => ({ ...prev, ...response.data.data.receipt_email }));
+      }
+    } catch { /* silent */ }
+  };
+
+  const handleSaveTemplate = async (key, data, setModal) => {
+    setSaving(true);
+    try {
+      await axios.post(`${API_URL}/settings/templates/${key}`, data, { headers: getAuthHeaders() });
+      showSuccess("Template saved successfully!");
+      setModal(false);
+    } catch (err) {
+      showError("Save failed: " + (err.response?.data?.message || err.message));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const loadAll = async () => {
     setLoading(true);
@@ -52,6 +107,7 @@ const Communication = () => {
         })
       );
       setConfigs(Object.fromEntries(entries));
+      await loadTemplates();
     } catch (err) {
       showError(err.response?.data?.message || "Failed to load communication settings");
     } finally {
@@ -124,6 +180,207 @@ const Communication = () => {
           );
         })}
       </div>
+
+      <h2 style={{ marginTop: '2rem', marginBottom: '0.5rem' }}>Message Templates</h2>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem' }}>Customize the email and SMS templates sent to parents/guardians.</p>
+
+      <div className="settings-grid comm-grid">
+        <Card>
+          <div className="card-icon" style={{ backgroundColor: "#3b82f615" }}>
+            <Mail size={24} color="#3b82f6" />
+          </div>
+          <h3>Admission Email</h3>
+          <p>Email sent on admission with invoice</p>
+          <Button variant="outline" size="sm" onClick={() => setShowInvoiceEmailModal(true)}>
+            <Edit size={14} /> Edit Template
+          </Button>
+        </Card>
+
+        <Card>
+          <div className="card-icon" style={{ backgroundColor: "#10b98115" }}>
+            <MessageSquare size={24} color="#10b981" />
+          </div>
+          <h3>Admission SMS</h3>
+          <p>SMS sent on student admission</p>
+          <Button variant="outline" size="sm" onClick={() => setShowSmsTemplateModal(true)}>
+            <Edit size={14} /> Edit Template
+          </Button>
+        </Card>
+
+        <Card>
+          <div className="card-icon" style={{ backgroundColor: "#f59e0b15" }}>
+            <Mail size={24} color="#f59e0b" />
+          </div>
+          <h3>Due Reminder</h3>
+          <p>Fee payment reminder email</p>
+          <Button variant="outline" size="sm" onClick={() => setShowEmailTemplateModal(true)}>
+            <Edit size={14} /> Edit Template
+          </Button>
+        </Card>
+
+        <Card>
+          <div className="card-icon" style={{ backgroundColor: "#8b5cf615" }}>
+            <Mail size={24} color="#8b5cf6" />
+          </div>
+          <h3>Receipt Email</h3>
+          <p>Email sent after fee payment</p>
+          <Button variant="outline" size="sm" onClick={() => setShowReceiptEmailModal(true)}>
+            <Edit size={14} /> Edit Template
+          </Button>
+        </Card>
+      </div>
+
+      {/* Due Reminder Email Template Modal */}
+      {showEmailTemplateModal && (
+        <div className="modal-overlay" onClick={() => setShowEmailTemplateModal(false)}>
+          <div className="modal-content template-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><Mail size={20} /> Edit Due Reminder Email Template</h3>
+              <button className="close-btn" onClick={() => setShowEmailTemplateModal(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="template-info">
+                <strong>Available Variables:</strong>
+                <div className="variables-list">
+                  <span className="variable">{'{student_name}'}</span>
+                  <span className="variable">{'{contact_name}'}</span>
+                  <span className="variable">{'{fee_amount}'}</span>
+                  <span className="variable">{'{due_date}'}</span>
+                  <span className="variable">{'{hostel_name}'}</span>
+                </div>
+                <small className="help-text">{'{contact_name}'} resolves to father, then mother, then guardian.</small>
+              </div>
+              <div className="form-group">
+                <label>Subject *</label>
+                <input type="text" value={emailTemplate.subject} onChange={(e) => setEmailTemplate({ ...emailTemplate, subject: e.target.value })} className="form-input" />
+              </div>
+              <div className="form-group">
+                <label>Message Body *</label>
+                <textarea value={emailTemplate.body} onChange={(e) => setEmailTemplate({ ...emailTemplate, body: e.target.value })} className="form-textarea" rows={12} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <Button variant="secondary" onClick={() => setShowEmailTemplateModal(false)}>Cancel</Button>
+              <Button variant="success" onClick={() => handleSaveTemplate('due_reminder_email', emailTemplate, setShowEmailTemplateModal)} loading={saving} disabled={saving}>
+                <Save size={16} /> Save Template
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admission Invoice Email Template Modal */}
+      {showInvoiceEmailModal && (
+        <div className="modal-overlay" onClick={() => setShowInvoiceEmailModal(false)}>
+          <div className="modal-content template-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><Mail size={20} /> Edit Admission Invoice Email Template</h3>
+              <button className="close-btn" onClick={() => setShowInvoiceEmailModal(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="template-info">
+                <strong>Available Variables:</strong>
+                <div className="variables-list">
+                  <span className="variable">{'{student_name}'}</span>
+                  <span className="variable">{'{contact_name}'}</span>
+                  <span className="variable">{'{fee_amount}'}</span>
+                  <span className="variable">{'{due_date}'}</span>
+                  <span className="variable">{'{hostel_name}'}</span>
+                </div>
+                <small className="help-text">Sent at admission with the admission form and fee invoice attached.</small>
+              </div>
+              <div className="form-group">
+                <label>Subject *</label>
+                <input type="text" value={invoiceEmailTemplate.subject} onChange={(e) => setInvoiceEmailTemplate({ ...invoiceEmailTemplate, subject: e.target.value })} className="form-input" />
+              </div>
+              <div className="form-group">
+                <label>Message Body *</label>
+                <textarea value={invoiceEmailTemplate.body} onChange={(e) => setInvoiceEmailTemplate({ ...invoiceEmailTemplate, body: e.target.value })} className="form-textarea" rows={12} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <Button variant="secondary" onClick={() => setShowInvoiceEmailModal(false)}>Cancel</Button>
+              <Button variant="success" onClick={() => handleSaveTemplate('admission_email', invoiceEmailTemplate, setShowInvoiceEmailModal)} loading={saving} disabled={saving}>
+                <Save size={16} /> Save Template
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt Email Template Modal */}
+      {showReceiptEmailModal && (
+        <div className="modal-overlay" onClick={() => setShowReceiptEmailModal(false)}>
+          <div className="modal-content template-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><Mail size={20} /> Edit Receipt Email Template</h3>
+              <button className="close-btn" onClick={() => setShowReceiptEmailModal(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="template-info">
+                <strong>Available Variables:</strong>
+                <div className="variables-list">
+                  <span className="variable">{'{student_name}'}</span>
+                  <span className="variable">{'{contact_name}'}</span>
+                  <span className="variable">{'{receipt_number}'}</span>
+                  <span className="variable">{'{fee_amount}'}</span>
+                  <span className="variable">{'{payment_date}'}</span>
+                  <span className="variable">{'{hostel_name}'}</span>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Subject *</label>
+                <input type="text" value={receiptEmailTemplate.subject} onChange={(e) => setReceiptEmailTemplate({ ...receiptEmailTemplate, subject: e.target.value })} className="form-input" />
+              </div>
+              <div className="form-group">
+                <label>Message Body *</label>
+                <textarea value={receiptEmailTemplate.body} onChange={(e) => setReceiptEmailTemplate({ ...receiptEmailTemplate, body: e.target.value })} className="form-textarea" rows={12} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <Button variant="secondary" onClick={() => setShowReceiptEmailModal(false)}>Cancel</Button>
+              <Button variant="success" onClick={() => handleSaveTemplate('receipt_email', receiptEmailTemplate, setShowReceiptEmailModal)} loading={saving} disabled={saving}>
+                <Save size={16} /> Save Template
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Admission SMS Template Modal */}
+      {showSmsTemplateModal && (
+        <div className="modal-overlay" onClick={() => setShowSmsTemplateModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3><MessageSquare size={20} /> Edit Admission SMS Template</h3>
+              <button className="close-btn" onClick={() => setShowSmsTemplateModal(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="template-info">
+                <strong>Available Variables:</strong>
+                <div className="variables-list">
+                  <span className="variable">{'{student_name}'}</span>
+                  <span className="variable">{'{contact_name}'}</span>
+                  <span className="variable">{'{fee_amount}'}</span>
+                  <span className="variable">{'{due_date}'}</span>
+                  <span className="variable">{'{hostel_name}'}</span>
+                </div>
+                <small className="help-text">Sent through whichever SMS provider is active. Keep it short.</small>
+              </div>
+              <div className="form-group">
+                <label>SMS Message * ({smsTemplate.message.length}/160)</label>
+                <textarea value={smsTemplate.message} onChange={(e) => setSmsTemplate({ ...smsTemplate, message: e.target.value })} className="form-textarea" rows={5} maxLength={160} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <Button variant="secondary" onClick={() => setShowSmsTemplateModal(false)}>Cancel</Button>
+              <Button variant="success" onClick={() => handleSaveTemplate('admission_sms', smsTemplate, setShowSmsTemplateModal)} loading={saving} disabled={saving}>
+                <Save size={16} /> Save Template
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {configModalChannel && (
         <ProviderConfigModal

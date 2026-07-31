@@ -24,7 +24,8 @@ import {
   Sparkles,
   Info,
   Clock,
-  ChevronRight
+  ChevronRight,
+  Printer
 } from "lucide-react";
 import { printElement } from "../../utils/printUtil";
 import axios from "axios";
@@ -45,6 +46,9 @@ const Reports = () => {
   const [showColumnModal, setShowColumnModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState(null);
   const [selectedColumns, setSelectedColumns] = useState([]);
+
+  // GST preview modal
+  const [gstPreview, setGstPreview] = useState({ show: false, html: '', styles: '' });
 
   // Toast notification state
   const [toast, setToast] = useState({ show: false, type: '', message: '' });
@@ -137,8 +141,8 @@ const Reports = () => {
         .rpt th { background: #1e40af; color: #fff; font-size: 10px; text-align: left; }
         .r { text-align: right; font-variant-numeric: tabular-nums; }
       `;
-      printElement(html, "GST Report", styles);
-      showToast("success", "GST report generated");
+      setGstPreview({ show: true, html, styles });
+      showToast("success", "GST report preview ready");
     } catch (err) {
       console.error(err);
       showToast("error", err.response?.data?.message || err.message || "Failed to generate GST report");
@@ -812,6 +816,59 @@ const Reports = () => {
                     <span>Export {selectedColumns.length} Columns</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GST Report Preview Modal */}
+      {gstPreview.show && (
+        <div className="modal-overlay" onClick={() => setGstPreview({ show: false, html: '', styles: '' })}>
+          <div
+            className="modal-content glass-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 1100, width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+          >
+            <div className="modal-header">
+              <div className="modal-title">
+                <div className="modal-icon" style={{ background: 'linear-gradient(135deg, #059669, #10b981)' }}>
+                  <FileText size={20} />
+                </div>
+                <div>
+                  <h3>GST Report Preview</h3>
+                  <p>Review before printing</p>
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setGstPreview({ show: false, html: '', styles: '' })}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="modal-body" style={{ flex: 1, overflow: 'auto', padding: 0 }}>
+              <div
+                style={{ padding: 20, background: '#fff', minHeight: 300 }}
+                dangerouslySetInnerHTML={{ __html: gstPreview.html }}
+              />
+            </div>
+
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setGstPreview({ show: false, html: '', styles: '' })}
+              >
+                Close
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  printElement(gstPreview.html, "GST Report", gstPreview.styles);
+                  setGstPreview({ show: false, html: '', styles: '' });
+                }}
+                style={{ background: 'linear-gradient(135deg, #059669, #10b981)' }}
+              >
+                <Printer size={18} />
+                <span>Print Report</span>
               </button>
             </div>
           </div>

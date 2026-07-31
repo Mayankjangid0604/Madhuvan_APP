@@ -20,6 +20,7 @@ import Login from "../../pages/Auth/Login";
 import AllocateRoom from "../../pages/Rooms/AllocateRoom";
 import FinePage from "../../pages/fine/FinePage";
 import Members from "../../pages/members/Members";
+import MemberDetailsPage from "../../pages/members/MemberDetailsPage";
 
 // ✅ Reset body styles on route change
 const resetBodyStyles = () => {
@@ -85,6 +86,7 @@ const AppRoutes = () => {
         <Route path="/settings/communication" element={<Communication />} />
         <Route path="/settings/communication/logs" element={<CommunicationLogs />} />
         <Route path="/members" element={<Members />} />
+        <Route path="/members/:id" element={<MemberDetailsPage />} />
       </Route>
     </Routes>
   );

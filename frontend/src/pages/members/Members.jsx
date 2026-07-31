@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { memberAPI } from "../../services/api/member.api";
 import { getFileUrl } from "../../utils/imageSrc";
 import MemberForm from "./MemberForm";
-import MemberDetails from "./MemberDetails";
 import SalaryPayment from "./SalaryPayment";
 import "./member.css";
 
@@ -19,11 +19,11 @@ const ID_TYPE_LABELS = {
 };
 
 const Members = () => {
+  const navigate = useNavigate();
   const [members, setMembers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [pageLoading, setPageLoading] = useState(true);
   const [showFormModal, setShowFormModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showSalaryModal, setShowSalaryModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -32,7 +32,6 @@ const Members = () => {
 
   useEffect(() => {
     setShowFormModal(false);
-    setShowDetailsModal(false);
     setShowSalaryModal(false);
     setSelectedMember(null);
     setIsEditing(false);
@@ -87,7 +86,7 @@ const Members = () => {
 
   const handleAddMember = () => { setSelectedMember(null); setIsEditing(false); setShowFormModal(true); };
   const handleEditMember = (member) => { setSelectedMember(member); setIsEditing(true); setShowFormModal(true); };
-  const handleViewDetails = (member) => { setSelectedMember(member); setShowDetailsModal(true); };
+  const handleViewDetails = (member) => { navigate(`/members/${member.member_id}`); };
   const handlePaySalary = (member) => { setSelectedMember(member); setShowSalaryModal(true); };
 
   const handleDeleteMember = (member) => {
@@ -312,16 +311,6 @@ const Members = () => {
 
       {showFormModal && (
         <MemberForm member={selectedMember} isEditing={isEditing} onClose={() => setShowFormModal(false)} onSuccess={handleFormSuccess} showToast={showToast} />
-      )}
-      {showDetailsModal && selectedMember && (
-        <MemberDetails
-          member={selectedMember}
-          onClose={() => setShowDetailsModal(false)}
-          onEdit={() => { setShowDetailsModal(false); handleEditMember(selectedMember); }}
-          onPaySalary={() => { setShowDetailsModal(false); handlePaySalary(selectedMember); }}
-          onDelete={() => { setShowDetailsModal(false); handleDeleteMember(selectedMember); }}
-          showToast={showToast}
-        />
       )}
       {showSalaryModal && selectedMember && (
         <SalaryPayment member={selectedMember} onClose={() => setShowSalaryModal(false)} onSuccess={handleSalarySuccess} showToast={showToast} />
