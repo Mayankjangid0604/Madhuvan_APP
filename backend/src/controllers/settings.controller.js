@@ -240,4 +240,59 @@ exports.uploadLogo = async (req, res, next) => {
   }
 };
 
+// =========================
+// Notification Preferences
+// =========================
+
+function getDefaultNotificationPreferences() {
+  return {
+    email: {
+      on_admission: { enabled: false, recipient: 'father' },
+      on_fee_payment: { enabled: false, recipient: 'father' },
+      monthly_invoice: { enabled: false, recipient: 'father', day_of_month: 1 },
+      due_reminder: { enabled: false, recipient: 'father', days_before: 5 },
+      overdue_reminder: { enabled: false, recipient: 'father', days_after: 3 },
+    },
+    sms: {
+      on_admission: { enabled: false, recipient: 'father' },
+      on_fee_payment: { enabled: false, recipient: 'father' },
+      monthly_invoice: { enabled: false, recipient: 'father', day_of_month: 1 },
+      due_reminder: { enabled: false, recipient: 'father', days_before: 5 },
+      overdue_reminder: { enabled: false, recipient: 'father', days_after: 3 },
+    },
+    whatsapp: {
+      on_admission: { enabled: false, recipient: 'father' },
+      on_fee_payment: { enabled: false, recipient: 'father' },
+      monthly_invoice: { enabled: false, recipient: 'father', day_of_month: 1 },
+      due_reminder: { enabled: false, recipient: 'father', days_before: 5 },
+      overdue_reminder: { enabled: false, recipient: 'father', days_after: 3 },
+    }
+  };
+}
+
+exports.getNotificationPreferences = async (req, res, next) => {
+  try {
+    const data = await settingsService.getSetting('notification_preferences');
+    res.json({
+      success: true,
+      data: data || getDefaultNotificationPreferences()
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.saveNotificationPreferences = async (req, res, next) => {
+  try {
+    await settingsService.saveSetting('notification_preferences', req.body);
+    res.json({
+      success: true,
+      message: "Notification preferences saved",
+      data: req.body
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = exports;

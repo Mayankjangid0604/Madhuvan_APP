@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { feeAPI } from "../../services/api/fee.api";
+import { memberAPI } from "../../services/api/member.api";
 import { settingsAPI } from "../../services/api/settings.api";
 import { getFileUrl } from "../../utils/imageSrc";
 import {
   ArrowLeft, User, IndianRupee, CheckCircle, AlertCircle, Clock,
   Loader2, Receipt, AlertTriangle, PiggyBank, Home, FileText,
   Calendar, CreditCard, Phone, ChevronDown, ChevronUp, Eye,
-  Printer, Download, X
+  Printer, Download, X, Shield
 } from "lucide-react";
 import FeeInvoiceModal from "../../components/fees/FeeInvoiceModal";
 import {
@@ -30,12 +31,78 @@ const FeeDetails = () => {
   const [copyChooser, setCopyChooser] = useState({ open: false, fee: null, payment: null });
   const [waiverModal, setWaiverModal] = useState({ open: false, fee: null, amount: '', reason: '', loading: false, error: '' });
 
+  // Inline payment modal state
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [payFee, setPayFee] = useState(null);
+  const [paymentData, setPaymentData] = useState({ amount: '', mode: 'CASH', reference: '' });
+  const [paying, setPaying] = useState(false);
+  const [receivedBy, setReceivedBy] = useState('');
+  const [members, setMembers] = useState([]);
+  const [toast, setToast] = useState({ show: false, type: '', message: '' });
+
   useEffect(() => {
     loadData();
     settingsAPI.getHostelInfo().then((r) => {
       if (r.data.success) setHostelInfo(r.data.data || {});
     }).catch(() => {});
+    memberAPI.getActive()
+      .then(res => setMembers(res.data.data || []))
+      .catch(() => {});
   }, [studentId]);
+
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => setToast({ show: false, type: '', message: '' }), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast.show]);
+
+  const openPayModal = (fee) => {
+    const remaining = Number(fee.remaining || fee.final_amount || 0);
+    setPayFee(fee);
+    setPaymentData({
+      amount: remaining > 0 ? Math.round(remaining).toString() : '',
+      mode: 'CASH',
+      reference: ''
+    });
+    setReceivedBy('');
+    setShowPayModal(true);
+  };
+
+  const handlePayment = async () => {
+    const amount = parseFloat(paymentData.amount);
+    if (!amount || amount <= 0) {
+      setToast({ show: true, type: 'error', message: 'Enter a valid amount' });
+      return;
+    }
+    if (paymentData.mode !== 'CASH' && !receivedBy) {
+      setToast({ show: true, type: 'error', message: 'Select a receiving account' });
+      return;
+    }
+    try {
+      setPaying(true);
+      const res = await feeAPI.payFee({
+        student_id: Number(studentId),
+        payment_amount: amount,
+        payment_mode: paymentData.mode,
+        reference_no: paymentData.reference,
+        received_by: 'ADMIN',
+        received_member_id: paymentData.mode !== 'CASH' && receivedBy !== 'ADMIN' ? receivedBy : null,
+        fee_type: payFee.fee_type,
+        fee_id: payFee.fee_id
+      });
+      if (res.data.success) {
+        const result = res.data.data;
+        setToast({ show: true, type: 'success', message: `₹${result.total_paid || amount} payment recorded!` });
+        setShowPayModal(false);
+        await loadData();
+      }
+    } catch (err) {
+      setToast({ show: true, type: 'error', message: err.response?.data?.message || 'Payment failed' });
+    } finally {
+      setPaying(false);
+    }
+  };
 
   const fetchDocNumber = async (type) => {
     try {
@@ -627,15 +694,7 @@ const FeeDetails = () => {
                                     className="fd-view-invoice-btn"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      navigate('/fees', {
-                                        state: {
-                                          autoPay: true,
-                                          studentId: student.student_id,
-                                          feeType: fee.fee_type,
-                                          feeId: fee.fee_id,
-                                          amountToPay: fee.remaining
-                                        }
-                                      });
+                                      openPayModal(fee);
                                     }}
                                     style={{ background: '#059669', color: '#fff' }}
                                   >
@@ -948,6 +1007,154 @@ const FeeDetails = () => {
                 style={{ padding: '12px 20px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#374151', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Toast */}
+      {toast.show && (
+        <div style={{
+          position: 'fixed', top: 20, right: 20, zIndex: 10000,
+          padding: '12px 20px', borderRadius: 10,
+          background: toast.type === 'success' ? '#059669' : '#dc2626',
+          color: '#fff', fontWeight: 600, fontSize: 14,
+          display: 'flex', alignItems: 'center', gap: 8,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+        }}>
+          {toast.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+          {toast.message}
+          <button onClick={() => setToast({ show: false, type: '', message: '' })}
+            style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', marginLeft: 8 }}>
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Inline Payment Modal */}
+      {showPayModal && payFee && (
+        <div
+          onClick={() => !paying && setShowPayModal(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+          }}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: 16, maxWidth: 480, width: '100%',
+              padding: 0, boxShadow: '0 20px 40px rgba(0,0,0,0.25)', overflow: 'hidden'
+            }}>
+            <div style={{
+              padding: '20px 24px', borderBottom: '1px solid #e2e8f0',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <CreditCard size={20} color="#059669" />
+                <h3 style={{ margin: 0, fontSize: 18, color: '#1e293b' }}>Receive Fee</h3>
+              </div>
+              <button onClick={() => !paying && setShowPayModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '20px 24px' }}>
+              <div style={{
+                padding: '12px 16px', background: '#f8fafc', borderRadius: 10, marginBottom: 16,
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <span style={{ fontSize: 13, color: '#64748b' }}>{payFee.fee_type} - {formatMonth(payFee.fee_month, payFee.fee_type)}</span>
+                <strong style={{ color: '#dc2626' }}>{formatCurrency(payFee.remaining || payFee.final_amount)}</strong>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151' }}>
+                  Amount <span style={{ color: '#dc2626' }}>*</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 600 }}>₹</span>
+                  <input
+                    type="number"
+                    value={paymentData.amount}
+                    onChange={(e) => setPaymentData(p => ({ ...p, amount: e.target.value }))}
+                    placeholder="Enter amount"
+                    min="1"
+                    style={{ width: '100%', padding: '10px 12px 10px 28px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151' }}>
+                    Payment Mode <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <select
+                    value={paymentData.mode}
+                    onChange={(e) => setPaymentData(p => ({ ...p, mode: e.target.value }))}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                  >
+                    <option value="CASH">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="BANK">Bank Transfer</option>
+                    <option value="CHEQUE">Cheque</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151' }}>
+                    Reference No.
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentData.reference}
+                    onChange={(e) => setPaymentData(p => ({ ...p, reference: e.target.value }))}
+                    placeholder="Transaction ID"
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                  />
+                </div>
+              </div>
+
+              {paymentData.mode !== 'CASH' && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151' }}>
+                    Received In <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <select
+                    value={receivedBy}
+                    onChange={(e) => setReceivedBy(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                  >
+                    <option value="">Select Account</option>
+                    <option value="ADMIN">Admin Account</option>
+                    {members.map(m => (
+                      <option key={m.member_id} value={m.member_id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div style={{
+              padding: '16px 24px', borderTop: '1px solid #e2e8f0',
+              display: 'flex', gap: 10, justifyContent: 'flex-end'
+            }}>
+              <button
+                onClick={() => setShowPayModal(false)}
+                disabled={paying}
+                style={{ padding: '10px 20px', border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', color: '#374151', fontWeight: 600, cursor: 'pointer', fontSize: 14 }}
+              >Cancel</button>
+              <button
+                onClick={handlePayment}
+                disabled={paying}
+                style={{
+                  padding: '10px 20px', border: 'none', borderRadius: 8,
+                  background: '#059669', color: '#fff', fontWeight: 700,
+                  cursor: paying ? 'not-allowed' : 'pointer', fontSize: 14,
+                  opacity: paying ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 8
+                }}
+              >
+                {paying ? <><Loader2 size={16} className="fd-spin" /> Processing...</> : <><CreditCard size={16} /> Pay {formatCurrency(parseFloat(paymentData.amount) || 0)}</>}
               </button>
             </div>
           </div>

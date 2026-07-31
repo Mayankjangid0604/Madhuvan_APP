@@ -475,3 +475,4 @@ const clearCache = () => {
 exports.clearCache = clearCache;
 
 exports.getSetting = getSetting;
+exports.saveSetting = setSetting;

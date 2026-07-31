@@ -297,15 +297,6 @@ const ReceiveFee = () => {
         const result = res.data.data;
         showToast("success", `₹${result.total_paid || amount} payment recorded successfully!`);
         setShowPayModal(false);
-
-        if (result.invoice_number) {
-          try {
-            const invoiceRes = await feeAPI.getPaymentByInvoice(result.invoice_number);
-            setInvoiceData({ payment: invoiceRes.data.data, student: selectedStudent, breakdown: breakdownSnapshot });
-            setShowInvoice(true);
-          } catch { /* Invoice fetch failed, payment still succeeded */ }
-        }
-
         fetchData();
       }
     } catch (err) {
