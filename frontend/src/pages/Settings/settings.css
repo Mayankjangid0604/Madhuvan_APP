@@ -1504,8 +1504,14 @@ input:checked + .toggle-slider:before {
   .button-group,
   .modal-overlay,
   .message-banner,
-  .refresh-btn {
+  .refresh-btn,
+  .account-actions {
     display: none !important;
+  }
+
+  .settings-grid .card {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
 /* ===============================
@@ -1701,20 +1707,3 @@ button:disabled,
   }
 }
 
-/* Print Improvements */
-@media print {
-  .modal-overlay,
-  .message-banner,
-  .button-group,
-  .refresh-btn,
-  .account-actions {
-    display: none !important;
-  }
-  
-  .settings-grid .card {
-    break-inside: avoid;
-    page-break-inside: avoid;
-    border: 1px solid #ddd !important;
-    box-shadow: none !important;
-  }
-}

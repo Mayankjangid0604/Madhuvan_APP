@@ -120,7 +120,6 @@ const Ledger = () => {
       student: { student_name: row.description?.split(' - ')[0] || 'Received From', student_id: row.student_id || '-' },
       receipt_no,
       payment_date: row.entry_date,
-      amount_received: row.amount,
       payment_mode: paymentMode,
       reference_no: row.reference_no,
       notes: row.description,

@@ -169,7 +169,7 @@ const MemberDetailsPage = () => {
   if (loading) {
     return (
       <div className="member-page">
-        <div className="empty-state">
+        <div className="member-empty-state">
           <div className="empty-state-icon">Loading...</div>
         </div>
       </div>
@@ -179,10 +179,10 @@ const MemberDetailsPage = () => {
   if (!member) {
     return (
       <div className="member-page">
-        <div className="empty-state">
+        <div className="member-empty-state">
           <div className="empty-state-icon">{Icons.user}</div>
           <h3>Member not found</h3>
-          <button className="btn btn-primary" onClick={() => navigate("/members")}>
+          <button className="btn member-btn-primary" onClick={() => navigate("/members")}>
             {Icons.back} Back to Members
           </button>
         </div>
@@ -239,26 +239,26 @@ const MemberDetailsPage = () => {
 
       {/* Summary Cards */}
       <div className="member-stats">
-        <div className="stat-card paid">
+        <div className="member-stat-card paid">
           <div className="stat-value">{formatCurrency((summary?.total_fee_collected || 0) + (summary?.total_manual_paid || 0))}</div>
           <div className="stat-label">Total Salary Paid</div>
         </div>
-        <div className="stat-card salary">
+        <div className="member-stat-card salary">
           <div className="stat-value">{formatCurrency(member.salary || 0)}</div>
           <div className="stat-label">Monthly Salary</div>
         </div>
-        <div className="stat-card total">
+        <div className="member-stat-card total">
           <div className="stat-value">{summary?.salary_payment_count || 0}</div>
           <div className="stat-label">Salary Payments</div>
         </div>
-        <div className="stat-card" style={{ borderTop: '3px solid #f59e0b' }}>
+        <div className="member-stat-card" style={{ borderTop: '3px solid #f59e0b' }}>
           <div className="stat-value" style={{ color: summary?.remaining_this_month > 0 ? '#d97706' : '#16a34a' }}>
             {formatCurrency(summary?.remaining_this_month)}
           </div>
           <div className="stat-label">Remaining This Month</div>
         </div>
         {summary?.total_remaining_salary > 0 && (
-          <div className="stat-card" style={{ borderTop: '3px solid #ef4444' }}>
+          <div className="member-stat-card" style={{ borderTop: '3px solid #ef4444' }}>
             <div className="stat-value" style={{ color: '#dc2626' }}>
               {formatCurrency(summary?.total_remaining_salary)}
             </div>
@@ -266,7 +266,7 @@ const MemberDetailsPage = () => {
           </div>
         )}
         {summary?.advance_paid > 0 && (
-          <div className="stat-card" style={{ borderTop: '3px solid #7c3aed' }}>
+          <div className="member-stat-card" style={{ borderTop: '3px solid #7c3aed' }}>
             <div className="stat-value" style={{ color: '#7c3aed' }}>
               {formatCurrency(summary?.advance_paid)}
             </div>
@@ -279,15 +279,15 @@ const MemberDetailsPage = () => {
       <div className="member-toolbar" style={{ marginBottom: 0 }}>
         <div style={{ display: 'flex', gap: 4 }}>
           <button
-            className={`btn btn-sm ${activeTab === 'info' ? 'btn-primary' : 'btn-secondary'}`}
+            className={`btn btn-sm ${activeTab === 'info' ? 'member-btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('info')}
           >{Icons.user} Info</button>
           <button
-            className={`btn btn-sm ${activeTab === 'salary' ? 'btn-primary' : 'btn-secondary'}`}
+            className={`btn btn-sm ${activeTab === 'salary' ? 'member-btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('salary')}
           >{Icons.money} Manual Salary Payments</button>
           <button
-            className={`btn btn-sm ${activeTab === 'transactions' ? 'btn-primary' : 'btn-secondary'}`}
+            className={`btn btn-sm ${activeTab === 'transactions' ? 'member-btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('transactions')}
           >Fees Collected</button>
         </div>
@@ -315,7 +315,7 @@ const MemberDetailsPage = () => {
         {activeTab === "salary" && (
           <div>
             {salaryHistory.length === 0 ? (
-              <div className="empty-state">
+              <div className="member-empty-state">
                 <div className="empty-state-icon">{Icons.money}</div>
                 <h3>No salary payments</h3>
                 <p>Click "Pay Salary" to make the first payment</p>
@@ -343,7 +343,7 @@ const MemberDetailsPage = () => {
                         <td><code>{payment.receipt_number}</code></td>
                         <td>
                           <div className="table-actions">
-                            <button className="btn btn-sm btn-primary" onClick={() => handleViewReceipt(payment)}>
+                            <button className="btn btn-sm member-btn-primary" onClick={() => handleViewReceipt(payment)}>
                               {Icons.print}
                             </button>
                             <button className="btn btn-sm btn-danger" onClick={() => handleDeleteSalary(payment.payment_id)}>
@@ -363,7 +363,7 @@ const MemberDetailsPage = () => {
         {activeTab === "transactions" && (
           <div>
             {transactions.length === 0 ? (
-              <div className="empty-state">
+              <div className="member-empty-state">
                 <div className="empty-state-icon">📊</div>
                 <h3>No fee collections</h3>
                 <p>This member hasn't collected any fees yet</p>

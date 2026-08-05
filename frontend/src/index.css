@@ -204,6 +204,8 @@ textarea::placeholder {
 }
 :root[data-theme="dark"] .card,
 :root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .ledger-stat-card,
+:root[data-theme="dark"] .member-stat-card,
 :root[data-theme="dark"] .glass-card,
 :root[data-theme="dark"] .fine-form-card,
 :root[data-theme="dark"] .history-container,
@@ -268,7 +270,9 @@ textarea::placeholder {
   background-color: #0b1120 !important;
   color: #e5e7eb;
 }
-:root[data-theme="dark"] .modal-overlay {
+:root[data-theme="dark"] .modal-overlay,
+:root[data-theme="dark"] .ledger-modal-overlay,
+:root[data-theme="dark"] .member-modal-overlay {
   background-color: rgba(2, 6, 23, 0.75) !important;
 }
 :root[data-theme="dark"] .search-input,
@@ -415,7 +419,9 @@ body {
 
 /* Only lock when modal is present */
 body.modal-open,
-body:has(.modal-overlay) {
+body:has(.modal-overlay),
+body:has(.ledger-modal-overlay),
+body:has(.member-modal-overlay) {
   overflow: hidden !important;
 }
 
@@ -425,7 +431,7 @@ body.modal-open {
 }
 
 /* When no modal overlay exists, force unlock */
-body:not(:has(.modal-overlay)) {
+body:not(:has(.modal-overlay)):not(:has(.ledger-modal-overlay)):not(:has(.member-modal-overlay)) {
   overflow: auto !important;
   pointer-events: auto !important;
   padding-right: 0 !important;

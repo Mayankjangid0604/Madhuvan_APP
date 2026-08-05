@@ -36,7 +36,6 @@ import {
   Trash2,
   RefreshCw,
 } from "lucide-react";
-import axios from "axios";
 import { imageUrlToBase64 } from "../../utils/imageToBase64";
 import { getFileUrl } from "../../utils/imageSrc";
 import { printElement } from "../../utils/printUtil";

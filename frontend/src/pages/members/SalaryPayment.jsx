@@ -168,7 +168,7 @@ const SalaryPayment = ({ member, onClose, onSuccess, showToast }) => {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="member-modal-overlay" onClick={onClose}>
       <div className="modal-container" onClick={e => e.stopPropagation()}>
         <div className="modal-header success">
           <div className="modal-title">

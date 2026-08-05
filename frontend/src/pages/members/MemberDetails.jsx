@@ -126,7 +126,7 @@ const MemberDetails = ({ member, onClose, onEdit, onPaySalary, onDelete, showToa
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="member-modal-overlay" onClick={onClose}>
       <div className="modal-container large" onClick={e => e.stopPropagation()}>
         {/* ✅ FIX: Custom Confirm Dialog */}
         <ConfirmModal
@@ -167,7 +167,7 @@ const MemberDetails = ({ member, onClose, onEdit, onPaySalary, onDelete, showToa
         <div className="modal-body">
           {loading ? (
             <div className="loading-container">
-              <div className="loading-spinner"></div>
+              <div className="member-loading-spinner"></div>
               <p>Loading...</p>
             </div>
           ) : (
@@ -282,7 +282,7 @@ const MemberDetails = ({ member, onClose, onEdit, onPaySalary, onDelete, showToa
               {activeTab === "salary" && (
                 <div className="salary-tab">
                   {salaryHistory.length === 0 ? (
-                    <div className="empty-state small">
+                    <div className="member-empty-state small">
                       <div className="empty-icon">{Icons.money}</div>
                       <h4>No salary payments</h4>
                       <p>Click "Pay Salary" to make the first payment</p>
@@ -310,7 +310,7 @@ const MemberDetails = ({ member, onClose, onEdit, onPaySalary, onDelete, showToa
                               <td><code>{payment.receipt_number}</code></td>
                               <td>
                                 <div className="table-actions">
-                                  <button className="btn btn-sm btn-primary" onClick={() => handleViewReceipt(payment)}>
+                                  <button className="btn btn-sm member-btn-primary" onClick={() => handleViewReceipt(payment)}>
                                     {Icons.print}
                                   </button>
                                   <button className="btn btn-sm btn-danger" onClick={() => handleDeleteSalary(payment.payment_id)}>
@@ -331,7 +331,7 @@ const MemberDetails = ({ member, onClose, onEdit, onPaySalary, onDelete, showToa
               {activeTab === "transactions" && (
                 <div className="transactions-tab">
                   {transactions.length === 0 ? (
-                    <div className="empty-state small">
+                    <div className="member-empty-state small">
                       <div className="empty-icon">📊</div>
                       <h4>No fee collections</h4>
                       <p>This member hasn't collected any fees yet</p>

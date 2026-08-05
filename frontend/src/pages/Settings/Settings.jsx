@@ -213,8 +213,6 @@ const Settings = () => {
     // Close all modals on mount - prevents modal persistence bug
     setShowUsernameModal(false);
     setShowPasswordModal(false);
-    setShowEmailTemplateModal(false);
-    setShowSmsTemplateModal(false);
     setShowDriveConfigModal(false);
     setShowRulesModal(false);
     setShowPenaltyConfigModal(false);
@@ -1428,7 +1426,7 @@ const Settings = () => {
                     type="text"
                     value={newRule}
                     onChange={(e) => setNewRule(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAddRule()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddRule()}
                     placeholder="Enter new rule and press Enter"
                     className="form-input"
                   />

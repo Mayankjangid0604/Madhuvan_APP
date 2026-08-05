@@ -392,10 +392,10 @@ const SalaryReceipt = ({ payment, member, onClose }) => {
 
   if (loading) {
     return (
-      <div className="modal-overlay">
+      <div className="member-modal-overlay">
         <div className="modal-container">
           <div className="loading-container">
-            <div className="loading-spinner"></div>
+            <div className="member-loading-spinner"></div>
             <p>Loading receipt...</p>
           </div>
         </div>
@@ -404,7 +404,7 @@ const SalaryReceipt = ({ payment, member, onClose }) => {
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="member-modal-overlay" onClick={onClose}>
       <div className="modal-container receipt-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">
@@ -416,7 +416,7 @@ const SalaryReceipt = ({ payment, member, onClose }) => {
 
         <div className="modal-body receipt-body">
           <div className="receipt-actions">
-            <button className="btn btn-primary" onClick={handlePrint}>
+            <button className="btn member-btn-primary" onClick={handlePrint}>
               {Icons.print} Print Receipt
             </button>
           </div>

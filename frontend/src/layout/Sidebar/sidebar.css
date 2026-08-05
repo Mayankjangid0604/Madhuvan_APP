@@ -1,15 +1,4 @@
-/* ===============================
-   CSS VARIABLES
-================================ */
-:root {
-  --sidebar-width: 72px;
-  --sidebar-expanded-width: 260px;
-  --sidebar-collapsed-width: 72px;
-  --sidebar-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --sidebar-bg: #ffffff;
-  --sidebar-hover-bg: #f1f5f9;
-  --sidebar-border: #e2e8f0;
-}
+/* CSS Variables are now consolidated in index.css */
 
 /* ===============================
    SIDEBAR - WHITE BACKGROUND

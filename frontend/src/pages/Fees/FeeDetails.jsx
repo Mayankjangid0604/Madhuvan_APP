@@ -178,13 +178,6 @@ const FeeDetails = () => {
       const res = await feeAPI.getStudentFeeDetails(studentId);
       setData(res.data.data);
 
-      // Auto-expand first unpaid fee
-      if (res.data.data?.fees) {
-        const unpaidFee = res.data.data.fees.find(f => f.fee_status !== 'PAID');
-        if (unpaidFee) {
-          setExpandedFees({ [unpaidFee.fee_id]: true });
-        }
-      }
     } catch (err) {
       console.error("Failed to load fee details", err);
     } finally {
@@ -244,13 +237,6 @@ const FeeDetails = () => {
   };
 
   const toNum = (v) => Number(v) || 0;
-
-  const toggleFeeExpand = (feeId) => {
-    setExpandedFees(prev => ({
-      ...prev,
-      [feeId]: !prev[feeId]
-    }));
-  };
 
   const openInvoice = (payment, fee = null) => {
     let breakdown = null;

@@ -212,7 +212,7 @@ const Communication = () => {
               </div>
               <h3>{label}</h3>
               <p>Current Provider: {activeProviderMeta ? activeProviderMeta.label : "Not configured"}</p>
-              <div className={`status-badge ${isActive ? "ok" : "warn"}`} style={{
+              <div className={`comm-status-badge ${isActive ? "ok" : "warn"}`} style={{
                 backgroundColor: isActive ? "#d1fae5" : "#fee2e2",
                 color: isActive ? "#065f46" : "#991b1b"
               }}>

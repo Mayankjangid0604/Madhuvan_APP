@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import {
   AlertTriangle,
   Banknote,
@@ -18,8 +18,7 @@ import {
   Hammer,
   ArrowRightLeft,
   Shield,
-  ShieldOff,
-  Check
+  ShieldOff
 } from "lucide-react";
 import fineAPI from "../../services/api/fine.api";
 import { feeAPI } from "../../services/api/fee.api"; // ✅ FIX: Import feeAPI instead of undefined 'api'
@@ -101,9 +100,6 @@ const Toast = ({ toast, onClose }) => {
     </div>
   );
 };
-
-import ConfirmModal from "../../components/modals/ConfirmModal";
-
 
 const LoadingState = () => (
   <div className="loading-state">

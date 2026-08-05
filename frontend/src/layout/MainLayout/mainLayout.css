@@ -1,12 +1,4 @@
-/* ===============================
-   CSS VARIABLES
-================================ */
-:root {
-  --sidebar-collapsed-width: 72px;
-  --sidebar-expanded-width: 260px;
-  --sidebar-transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --header-height: 70px;
-}
+/* CSS Variables are now consolidated in index.css */
 
 /* ===============================
    LAYOUT ROOT - CLEAR BACKGROUND IMAGE
