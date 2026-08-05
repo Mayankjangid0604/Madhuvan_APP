@@ -25,7 +25,6 @@ const FeeDetails = () => {
   const [data, setData] = useState(null);
   const [showInvoice, setShowInvoice] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
-  const [expandedFees, setExpandedFees] = useState({});
   const [activeTab, setActiveTab] = useState("fees"); // 'fees' or 'transactions'
   const [hostelInfo, setHostelInfo] = useState({});
   const [copyChooser, setCopyChooser] = useState({ open: false, fee: null, payment: null });
@@ -177,7 +176,6 @@ const FeeDetails = () => {
     try {
       setLoading(true);
       const res = await feeAPI.getStudentFeeDetails(studentId);
-      console.log("📦 Fee details response:", res.data);
       setData(res.data.data);
 
       // Auto-expand first unpaid fee
@@ -584,8 +582,7 @@ const FeeDetails = () => {
                         </div>
                       </div>
 
-                      {/* Fee Details — always shown */}
-                      {true && (
+                      {/* Fee Details */}
                         <div className="fd-fee-body">
                           {/* Fee Breakdown */}
                           <div className="fd-fee-breakdown">
@@ -774,7 +771,6 @@ const FeeDetails = () => {
                             )}
                           </div>
                         </div>
-                      )}
                     </div>
                   );
                 })}

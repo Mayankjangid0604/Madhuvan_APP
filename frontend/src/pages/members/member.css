@@ -55,7 +55,7 @@
   margin-bottom: 24px;
 }
 
-.stat-card {
+.member-stat-card {
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(10px);
   border-radius: 12px;
@@ -65,18 +65,18 @@
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
-.stat-card.total { border-top: 4px solid #2563eb; }
-.stat-card.collection { border-top: 4px solid #16a34a; }
-.stat-card.salary { border-top: 4px solid #f59e0b; }
-.stat-card.paid { border-top: 4px solid #8b5cf6; }
+.member-stat-card.total { border-top: 4px solid #2563eb; }
+.member-stat-card.collection { border-top: 4px solid #16a34a; }
+.member-stat-card.salary { border-top: 4px solid #f59e0b; }
+.member-stat-card.paid { border-top: 4px solid #8b5cf6; }
 
-.stat-card .stat-value {
+.member-stat-card .stat-value {
   font-size: 20px;
   font-weight: 700;
   color: #0f172a;
 }
 
-.stat-card .stat-label {
+.member-stat-card .stat-label {
   font-size: 12px;
   color: #64748b;
   margin-top: 4px;
@@ -351,13 +351,13 @@
   font-size: 12px;
 }
 
-.btn-primary {
+.member-btn-primary {
   background: linear-gradient(135deg, #2563eb, #1d4ed8);
   color: #fff;
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
-.btn-primary:hover {
+.member-btn-primary:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
 }
@@ -402,7 +402,7 @@
 /* ===============================
    MODAL
 ================================ */
-.modal-overlay {
+.member-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -854,13 +854,13 @@
 /* ===============================
    EMPTY STATE
 ================================ */
-.empty-state {
+.member-empty-state {
   text-align: center;
   padding: 60px 20px;
 }
 
-.empty-state .empty-state-icon,
-.empty-state .empty-icon {
+.member-empty-state .empty-state-icon,
+.member-empty-state .empty-icon {
   width: 80px;
   height: 80px;
   background: #f1f5f9;
@@ -872,24 +872,24 @@
   font-size: 32px;
 }
 
-.empty-state h3, .empty-state h4 {
+.member-empty-state h3, .member-empty-state h4 {
   font-size: 18px;
   font-weight: 600;
   color: #0f172a;
   margin: 0 0 8px 0;
 }
 
-.empty-state p {
+.member-empty-state p {
   font-size: 14px;
   color: #64748b;
   margin: 0;
 }
 
-.empty-state.small {
+.member-empty-state.small {
   padding: 40px 20px;
 }
 
-.empty-state.small .empty-icon {
+.member-empty-state.small .empty-icon {
   width: 60px;
   height: 60px;
   font-size: 24px;
@@ -906,7 +906,7 @@
   padding: 60px 20px;
 }
 
-.loading-spinner {
+.member-loading-spinner {
   width: 48px;
   height: 48px;
   border: 4px solid #e2e8f0;
