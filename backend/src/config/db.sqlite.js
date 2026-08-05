@@ -1499,32 +1499,35 @@ function runDataCleanup() {
     // 2. MIGRATION: Convert pending_fines, property_damages, and money_given directly into student_fees.
     // This makes them explicitly show up as their own rows identically to Rent.
     
-    // Fines
-    db.prepare(`
-      INSERT INTO student_fees (student_id, fee_type, fee_month, fee_amount, final_amount, fee_status, fee_date, due_date, fee_period_start, fee_period_end)
-      SELECT student_id, 'Fine', date(created_at, 'start of month'), amount, amount, 'DUE', date(created_at), date(created_at, '+5 days'), date(created_at), date(created_at)
-      FROM pending_fines
-      WHERE status = 'PENDING'
-    `).run();
-    db.prepare(`UPDATE pending_fines SET status = 'TRANSFERRED' WHERE status = 'PENDING'`).run();
+    const migrate = db.transaction(() => {
+      // Fines
+      db.prepare(`
+        INSERT INTO student_fees (student_id, fee_type, fee_month, fee_amount, final_amount, fee_status, fee_date, due_date, fee_period_start, fee_period_end)
+        SELECT student_id, 'Fine', date(created_at, 'start of month'), amount, amount, 'DUE', date(created_at), date(created_at, '+5 days'), date(created_at), date(created_at)
+        FROM pending_fines
+        WHERE status = 'PENDING'
+      `).run();
+      db.prepare(`UPDATE pending_fines SET status = 'TRANSFERRED' WHERE status = 'PENDING'`).run();
 
-    // Property Damage
-    db.prepare(`
-      INSERT INTO student_fees (student_id, fee_type, fee_month, fee_amount, final_amount, fee_status, fee_date, due_date, fee_period_start, fee_period_end)
-      SELECT student_id, 'Property Damage', date(created_at, 'start of month'), amount, amount, 'DUE', date(created_at), date(created_at, '+5 days'), date(created_at), date(created_at)
-      FROM property_damage_records
-      WHERE status = 'PENDING'
-    `).run();
-    db.prepare(`UPDATE property_damage_records SET status = 'TRANSFERRED' WHERE status = 'PENDING'`).run();
+      // Property Damage
+      db.prepare(`
+        INSERT INTO student_fees (student_id, fee_type, fee_month, fee_amount, final_amount, fee_status, fee_date, due_date, fee_period_start, fee_period_end)
+        SELECT student_id, 'Property Damage', date(created_at, 'start of month'), amount, amount, 'DUE', date(created_at), date(created_at, '+5 days'), date(created_at), date(created_at)
+        FROM property_damage_records
+        WHERE status = 'PENDING'
+      `).run();
+      db.prepare(`UPDATE property_damage_records SET status = 'TRANSFERRED' WHERE status = 'PENDING'`).run();
 
-    // Money Given
-    db.prepare(`
-      INSERT INTO student_fees (student_id, fee_type, fee_month, fee_amount, final_amount, fee_status, fee_date, due_date, fee_period_start, fee_period_end)
-      SELECT student_id, 'Money Given', date(created_at, 'start of month'), amount, amount, 'DUE', date(created_at), date(created_at, '+5 days'), date(created_at), date(created_at)
-      FROM money_given_records
-      WHERE status = 'PENDING'
-    `).run();
-    db.prepare(`UPDATE money_given_records SET status = 'TRANSFERRED' WHERE status = 'PENDING'`).run();
+      // Money Given
+      db.prepare(`
+        INSERT INTO student_fees (student_id, fee_type, fee_month, fee_amount, final_amount, fee_status, fee_date, due_date, fee_period_start, fee_period_end)
+        SELECT student_id, 'Money Given', date(created_at, 'start of month'), amount, amount, 'DUE', date(created_at), date(created_at, '+5 days'), date(created_at), date(created_at)
+        FROM money_given_records
+        WHERE status = 'PENDING'
+      `).run();
+      db.prepare(`UPDATE money_given_records SET status = 'TRANSFERRED' WHERE status = 'PENDING'`).run();
+    });
+    migrate();
     
     console.log('✅ Applied data cleanup for older generic fee labels and converted pending items to native fees');
   } catch(e) {

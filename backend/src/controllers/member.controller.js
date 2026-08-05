@@ -654,7 +654,6 @@ exports.paySalary = (req, res, next) => {
           );
         }
 
-        console.log(`📦 Created advance of ₹${newExcess} for ${member.name} → ${nextMonth} ${nextYear}`);
       }
 
       // Create ledger entry

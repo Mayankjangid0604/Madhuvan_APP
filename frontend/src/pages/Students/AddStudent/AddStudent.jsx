@@ -458,9 +458,7 @@ const AddStudent = () => {
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `Student_Admission_Form_${createdStudentData?.student_id}`,
-    onAfterPrint: () => {
-      console.log("Print completed");
-    },
+    onAfterPrint: () => {},
   });
 
   const handlePhotoChange = (e) => {
@@ -570,7 +568,6 @@ const AddStudent = () => {
       };
 
       // Create student (JSON)
-      console.log("📝 Sending Student Payload to Backend:", JSON.stringify(studentPayload, null, 2));
       const response = await studentAPI.createStudent(studentPayload);
 
       if (response.data.success) {

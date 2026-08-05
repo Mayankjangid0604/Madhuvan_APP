@@ -28,10 +28,10 @@ import Button from "../../components/buttons/Button";
 import Card from "../../components/cards/Card";
 import ConfirmModal from "../../components/modals/ConfirmModal";
 import PromptModal from "../../components/modals/PromptModal";
-import axios from "axios";
 import { useAuth } from "../../contexts/AuthContext";
 import { useTheme } from "../../contexts/ThemeContext";
 import { authAPI } from "../../services/api/auth.api";
+import { settingsAPI } from "../../services/api/settings.api";
 import { Moon, Sun } from "lucide-react";
 import "./settings.css";
 
@@ -114,7 +114,7 @@ const Settings = () => {
 
   const loadPhonePeConfig = async () => {
     try {
-      const r = await axios.get(`${API_URL}/settings/phonepe-config`, { headers: getAuthHeaders() });
+      const r = await settingsAPI.getPhonePeConfig();
       if (r.data?.success && r.data?.data) setPhonePeConfig(prev => ({ ...prev, ...r.data.data }));
     } catch (err) { /* silent */ }
   };
@@ -122,7 +122,7 @@ const Settings = () => {
   const handleSavePhonePeConfig = async () => {
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/settings/phonepe-config`, phonePeConfig, { headers: getAuthHeaders() });
+      await settingsAPI.savePhonePeConfig(phonePeConfig);
       showSuccess("✓ PhonePe configuration saved");
       setShowPhonePeModal(false);
     } catch (err) {
@@ -174,12 +174,6 @@ const Settings = () => {
   const showError = (message) => {
     setErrorMessage(message);
     setTimeout(() => setErrorMessage(""), 5000);
-  };
-
-  // Get auth headers
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
-    return { Authorization: `Bearer ${token}` };
   };
 
   // ==================== UTILITY HELPERS ====================
@@ -243,9 +237,7 @@ const Settings = () => {
 
   const loadDriveConfig = async () => {
     try {
-      const response = await axios.get(`${API_URL}/settings/drive-config`, {
-        headers: getAuthHeaders()
-      });
+      const response = await settingsAPI.getDriveConfig();
 
       if (response.data.success && response.data.data) {
         const d = response.data.data;
@@ -258,29 +250,25 @@ const Settings = () => {
         });
       }
     } catch (error) {
-      console.log('Drive config not loaded:', error.message);
+      console.warn('Drive config not loaded:', error.message);
     }
   };
 
   const loadPenaltyConfig = async () => {
     try {
-      const response = await axios.get(`${API_URL}/settings/penalty-config`, {
-        headers: getAuthHeaders()
-      });
+      const response = await settingsAPI.getPenaltyConfig();
 
       if (response.data.success && response.data.data) {
         setPenaltyConfig(prev => ({ ...prev, ...response.data.data }));
       }
     } catch (error) {
-      console.log('Penalty config not loaded:', error.message);
+      console.warn('Penalty config not loaded:', error.message);
     }
   };
 
   const loadHostelRules = async () => {
     try {
-      const response = await axios.get(`${API_URL}/settings/rules`, {
-        headers: getAuthHeaders()
-      });
+      const response = await settingsAPI.getRules();
 
       if (response.data.success) {
         const rules = response.data.data;
@@ -298,22 +286,20 @@ const Settings = () => {
         }
       }
     } catch (error) {
-      console.log("Rules not loaded:", error.message);
+      console.warn("Rules not loaded:", error.message);
       setHostelRules([]);
     }
   };
 
   const loadHostelInfo = async () => {
     try {
-      const response = await axios.get(`${API_URL}/settings/hostel-info`, {
-        headers: getAuthHeaders()
-      });
+      const response = await settingsAPI.getHostelInfo();
 
       if (response.data.success && response.data.data) {
         setHostelInfo(prev => ({ ...prev, ...response.data.data }));
       }
     } catch (error) {
-      console.log("Hostel info not loaded:", error.message);
+      console.warn("Hostel info not loaded:", error.message);
     }
   };
 
@@ -328,11 +314,7 @@ const Settings = () => {
         setConfirmModal({ ...confirmModal, isOpen: false });
         setLoading(true);
         try {
-          const response = await axios.post(
-            `${API_URL}/backup/create`,
-            {},
-            { headers: getAuthHeaders() }
-          );
+          const response = await settingsAPI.createBackup();
           showSuccess(`✓ Backup created successfully! ${response.data.message || ''}`);
         } catch (error) {
           showError("Backup failed: " + (error.response?.data?.message || error.message));
@@ -347,10 +329,7 @@ const Settings = () => {
     setShowBackupListModal(true);
     setLoadingBackups(true);
     try {
-      const response = await axios.get(
-        `${API_URL}/backup/list`,
-        { headers: getAuthHeaders() }
-      );
+      const response = await settingsAPI.getBackupList();
       if (response.data.success && Array.isArray(response.data.data)) {
         setBackupList(response.data.data);
       } else {
@@ -389,16 +368,7 @@ const Settings = () => {
             const formData = new FormData();
             formData.append('backup', file);
 
-            const response = await axios.post(
-              `${API_URL}/backup/upload-restore`,
-              formData,
-              {
-                headers: {
-                  ...getAuthHeaders(),
-                  'Content-Type': 'multipart/form-data'
-                }
-              }
-            );
+            const response = await settingsAPI.uploadBackup(formData);
 
             if (response.data.success) {
               setConfirmModal({
@@ -440,12 +410,8 @@ const Settings = () => {
       onConfirm: async () => {
         setLoading(true);
         try {
-          const response = await fetch(`${API_URL}/backup/restore/${filename}`, {
-            method: "POST",
-            headers: getAuthHeaders()
-          });
-
-          const result = await response.json();
+          const response = await settingsAPI.restoreBackup(filename);
+          const result = response.data;
 
           if (result.success) {
             setConfirmModal({
@@ -485,10 +451,7 @@ const Settings = () => {
         setConfirmModal({ ...confirmModal, isOpen: false });
         setLoading(true);
         try {
-          await axios.delete(
-            `${API_URL}/backup/${encodeURIComponent(filename)}`,
-            { headers: getAuthHeaders() }
-          );
+          await settingsAPI.deleteBackup(filename);
           setBackupList(prev => prev.filter(b => b.filename !== filename));
           showSuccess(`✓ Backup "${filename}" deleted successfully!`);
         } catch (error) {
@@ -553,14 +516,10 @@ const Settings = () => {
 
     setLoading(true);
     try {
-      await axios.post(
-        `${API_URL}/auth/change-password`,
-        {
-          currentPassword: passwordData.currentPassword,
-          newPassword: passwordData.newPassword
-        },
-        { headers: getAuthHeaders() }
-      );
+      await authAPI.changePassword({
+        currentPassword: passwordData.currentPassword,
+        newPassword: passwordData.newPassword
+      });
       showSuccess("✓ Password changed successfully!");
       setShowPasswordModal(false);
       setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
@@ -585,11 +544,7 @@ const Settings = () => {
         autoBackup: driveConfig.autoBackup,
         backupSchedule: driveConfig.backupSchedule
       };
-      await axios.post(
-        `${API_URL}/settings/drive-config`,
-        payload,
-        { headers: getAuthHeaders() }
-      );
+      await settingsAPI.saveDriveConfig(payload);
       showSuccess("✓ Google Drive configuration saved successfully!");
       setShowDriveConfigModal(false);
       await loadDriveConfig();
@@ -623,11 +578,7 @@ const Settings = () => {
 
     setLoading(true);
     try {
-      await axios.post(
-        `${API_URL}/settings/penalty-config`,
-        payload,
-        { headers: getAuthHeaders() }
-      );
+      await settingsAPI.savePenaltyConfig(payload);
       showSuccess("✓ Penalty configuration saved successfully!");
       setShowPenaltyConfigModal(false);
       await loadPenaltyConfig();
@@ -656,16 +607,7 @@ const Settings = () => {
         formData.append("logo_right", logoRightFile);
       }
 
-      const response = await axios.post(
-        `${API_URL}/settings/hostel-info`,
-        formData,
-        {
-          headers: {
-            ...getAuthHeaders(),
-            "Content-Type": "multipart/form-data"
-          }
-        }
-      );
+      const response = await settingsAPI.saveHostelInfo(formData);
 
       if (response.data.success) {
         showSuccess("✓ Hostel information saved successfully!");
@@ -689,11 +631,7 @@ const Settings = () => {
   const handleSaveRules = async () => {
     setLoading(true);
     try {
-      await axios.post(
-        `${API_URL}/settings/rules`,
-        hostelRules,
-        { headers: getAuthHeaders() }
-      );
+      await settingsAPI.saveRules(hostelRules);
       showSuccess("✓ Hostel rules saved successfully!");
       setShowRulesModal(false);
       await loadHostelRules();

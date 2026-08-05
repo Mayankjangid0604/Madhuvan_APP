@@ -904,6 +904,34 @@ exports.payFee = (data) => {
 // ============================================
 // GET FEE BY ID
 // ============================================
+exports.findUnpaidFee = ({ student_id, fee_id, fee_type }) => {
+  if (fee_id) {
+    return db.db.prepare(`
+      SELECT fee_id, fee_type FROM student_fees
+      WHERE fee_id = ? AND student_id = ? AND fee_status != 'PAID'
+    `).get(fee_id, student_id) || null;
+  }
+
+  const targetFeeType = fee_type || 'Monthly Rent';
+  const specific = db.db.prepare(`
+    SELECT fee_id, fee_type FROM student_fees
+    WHERE student_id = ? AND fee_status != 'PAID' AND fee_type = ?
+    ORDER BY fee_month ASC LIMIT 1
+  `).get(student_id, targetFeeType);
+
+  if (specific) return specific;
+
+  if (!fee_type) {
+    return db.db.prepare(`
+      SELECT fee_id, fee_type FROM student_fees
+      WHERE student_id = ? AND fee_status != 'PAID'
+      ORDER BY fee_month ASC LIMIT 1
+    `).get(student_id) || null;
+  }
+
+  return null;
+};
+
 exports.getFeeById = (feeId) => {
   const fee = db.db.prepare(`
     SELECT sf.*, s.student_name, s.father_name, s.student_mobile, r.room_no, b.bed_no

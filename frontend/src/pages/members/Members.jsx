@@ -2,15 +2,22 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { memberAPI } from "../../services/api/member.api";
 import { getFileUrl } from "../../utils/imageSrc";
+import {
+  Search, Plus, Pencil, Eye, Trash2, DollarSign, Phone, Calendar,
+  User, Users, CreditCard, CheckCircle, XCircle, ClipboardList, X,
+  Inbox, Banknote, Package
+} from "lucide-react";
 import MemberForm from "./MemberForm";
 import SalaryPayment from "./SalaryPayment";
 import "./member.css";
 
 const Icons = {
-  search: "🔍", plus: "➕", edit: "✏️", view: "👁️", delete: "🗑️",
-  money: "💰", phone: "📱", calendar: "📅", user: "👤", father: "👨",
-  id: "🪪", success: "✓", error: "✕", empty: "📋", close: "✕",
-  collected: "📥", salary: "💵", carryForward: "📦"
+  search: <Search size={16} />, plus: <Plus size={16} />, edit: <Pencil size={14} />,
+  view: <Eye size={14} />, delete: <Trash2 size={14} />, money: <DollarSign size={16} />,
+  phone: <Phone size={14} />, calendar: <Calendar size={14} />, user: <User size={16} />,
+  father: <Users size={14} />, id: <CreditCard size={14} />, success: <CheckCircle size={16} />,
+  error: <XCircle size={16} />, empty: <ClipboardList size={40} />, close: <X size={16} />,
+  collected: <Inbox size={16} />, salary: <Banknote size={16} />, carryForward: <Package size={16} />
 };
 
 const ID_TYPE_LABELS = {

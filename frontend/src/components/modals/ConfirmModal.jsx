@@ -51,7 +51,6 @@ const ConfirmModal = ({
                         variant={type === 'danger' ? 'danger' : 'primary'}
                         onClick={() => {
                             onConfirm();
-                            onCancel();
                         }}
                     >
                         {confirmText}

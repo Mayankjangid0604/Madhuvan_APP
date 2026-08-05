@@ -88,7 +88,6 @@ exports.exitStudent = (req, res, next) => {
  */
 exports.checkoutStudent = (req, res, next) => {
   try {
-    console.log('Checkout request body:', req.body);
     const result = allocationService.checkoutStudent(req.body);
     res.json(result);
   } catch (err) {
@@ -149,8 +148,6 @@ exports.createRoom = (req, res, next) => {
   try {
     const { room_no, floor_no, room_type } = req.body;
 
-    console.log('📦 createRoom received:', { room_no, floor_no, room_type });
-
     // Validate required fields
     if (!room_no) {
       return res.status(400).json({
@@ -190,8 +187,6 @@ exports.createRoom = (req, res, next) => {
         });
       }
     }
-
-    console.log('📦 Converted floor_no:', floor_no, '→', numericFloor);
 
     const roomId = allocationService.createRoom({
       room_no,

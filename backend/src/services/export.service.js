@@ -396,19 +396,42 @@ exports.getOccupancyExcel = async (filters = {}) => {
 };
 
 // CUSTOM REPORT
+const ALLOWED_TABLES = {
+  students: ['student_id','name','father_name','mobile','email','dob','gender','address','city','state','pincode','id_type','id_number','student_status','admission_date','exit_date','payment_mode','fee_type_cycle','accommodation_amount','mess_amount','total_amount','security_deposit','advance_amount','branch_id'],
+  rooms: ['room_id','room_no','floor_no','room_type','room_status'],
+  beds: ['bed_id','room_id','bed_no','bed_status'],
+  student_fees: ['fee_id','student_id','fee_type','fee_month','fee_amount','final_amount','fee_status','fee_date','due_date','paid_date','fee_period_start','fee_period_end'],
+  fee_payments: ['payment_id','fee_id','student_id','payment_amount','payment_mode','payment_date','reference_no','invoice_number','received_by','received_member_id'],
+  room_allocation: ['allocation_id','student_id','room_id','bed_id','allocation_date','checkout_date','allocation_status'],
+  members: ['member_id','name','father_name','mobile','email','dob','role','salary','id_type','id_number','joining_date','status'],
+  ledger_entries: ['entry_id','entry_type','category','party_name','description','debit','credit','entry_date','student_id','member_id'],
+  vendors: ['vendor_id','name','contact_person','mobile','email','address','category','status'],
+};
+
 exports.getCustomReport = async (config) => {
   const { table, columns, filters, format } = config;
-  
-  let query = `SELECT ${columns.join(', ')} FROM ${table} WHERE 1=1`;
+
+  const allowedCols = ALLOWED_TABLES[table];
+  if (!allowedCols) {
+    throw new Error(`Table "${table}" is not available for custom reports`);
+  }
+
+  const safeCols = columns.filter(c => allowedCols.includes(c));
+  if (safeCols.length === 0) {
+    throw new Error(`No valid columns specified for table "${table}"`);
+  }
+
+  let query = `SELECT ${safeCols.join(', ')} FROM ${table} WHERE 1=1`;
   const params = [];
-  
+
   if (filters) {
     Object.entries(filters).forEach(([key, value]) => {
+      if (!allowedCols.includes(key)) return;
       query += ` AND ${key} = ?`;
       params.push(value);
     });
   }
-  
+
   const [rows] = await db.query(query, params);
   
   if (format === 'csv') {

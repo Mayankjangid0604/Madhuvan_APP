@@ -151,70 +151,14 @@ exports.payFee = asyncHandler(async (req, res) => {
   }
 
   try {
-    const { db: database } = require("../config/db.sqlite");
-
-    // ✅ FIX ISSUE 3: Monthly Rent and Security Deposit are separate
-    // If fee_type is specified (e.g. 'Security Deposit'), find that specific fee
-    // Otherwise default to Monthly Rent only (FIFO by month)
-    const targetFeeType = fee_type || 'Monthly Rent';
-    
-    let unpaidFee;
-    
-    if (fee_id) {
-      unpaidFee = database.prepare(`
-        SELECT fee_id, fee_type FROM student_fees 
-        WHERE fee_id = ? AND student_id = ? AND fee_status != 'PAID'
-      `).get(fee_id, student_id);
-    } else {
-      unpaidFee = database.prepare(`
-        SELECT fee_id, fee_type FROM student_fees 
-        WHERE student_id = ? AND fee_status != 'PAID' AND fee_type = ?
-        ORDER BY fee_month ASC 
-        LIMIT 1
-      `).get(student_id, targetFeeType);
-    }
+    const unpaidFee = feeService.findUnpaidFee({ student_id, fee_id, fee_type });
 
     if (!unpaidFee) {
-      // If no Monthly Rent fee found and no explicit type requested, check if any fee exists
-      if (!fee_type) {
-        const anyUnpaidFee = database.prepare(`
-          SELECT fee_id, fee_type FROM student_fees 
-          WHERE student_id = ? AND fee_status != 'PAID'
-          ORDER BY fee_month ASC 
-          LIMIT 1
-        `).get(student_id);
-
-        if (!anyUnpaidFee) {
-          return res.status(400).json({
-            success: false,
-            message: "No unpaid fees found for this student"
-          });
-        }
-
-        // Fall back to whatever fee exists (could be security deposit)
-        const result = feeService.payFee({
-          fee_id: anyUnpaidFee.fee_id,
-          student_id,
-          payment_amount: Number(payment_amount),
-          payment_mode: payment_mode || 'CASH',
-          reference_no,
-          received_by,
-          received_member_id
-        });
-
-        notificationService.sendFeeReceiptNotifications({ studentId: student_id, feeId: anyUnpaidFee.fee_id })
-          .catch((e) => console.warn("Fee receipt notification failed:", e.message));
-
-        return res.json({
-          success: true,
-          message: "Payment recorded successfully",
-          data: result
-        });
-      }
-
       return res.status(400).json({
         success: false,
-        message: `No unpaid ${targetFeeType} fees found for this student`
+        message: fee_type
+          ? `No unpaid ${fee_type} fees found for this student`
+          : "No unpaid fees found for this student"
       });
     }
 

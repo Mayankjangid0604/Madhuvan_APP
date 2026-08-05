@@ -108,9 +108,8 @@ exports.applyFine = asyncHandler(async (req, res) => {
           given_date: new Date().toISOString().split('T')[0],
           note: `Fine - ${reason || 'Deducted from security deposit'}`
         });
-        console.log("✅ Ledger entry created for fine security deduction");
       } catch (ledgerErr) {
-        console.error("⚠️ Ledger entry failed for fine deduction:", ledgerErr.message);
+        console.error("Ledger entry failed for fine deduction:", ledgerErr.message);
       }
     }
 
@@ -160,9 +159,8 @@ exports.applyPropertyDamage = asyncHandler(async (req, res) => {
           given_date: new Date().toISOString().split('T')[0],
           note: `Property Damage - ${description || 'Deducted from security deposit'}`
         });
-        console.log("✅ Ledger entry created for property damage deduction");
       } catch (ledgerErr) {
-        console.error("⚠️ Ledger entry failed for property damage:", ledgerErr.message);
+        console.error("Ledger entry failed for property damage:", ledgerErr.message);
       }
     }
 
@@ -211,9 +209,8 @@ exports.giveMoneyToStudent = asyncHandler(async (req, res) => {
         given_date: new Date().toISOString().split('T')[0],
         note: note || `Money given to student${cut_from_security ? ' (from security deposit)' : ''}`
       });
-      console.log("✅ Ledger entry created for money given to student");
     } catch (ledgerErr) {
-      console.error("⚠️ Ledger entry failed for money given:", ledgerErr.message);
+      console.error("Ledger entry failed for money given:", ledgerErr.message);
     }
 
     return res.json({

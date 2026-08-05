@@ -12,7 +12,6 @@ import CheckoutModal from "../../components/modals/CheckoutModal";
 import ConfirmModal from "../../components/modals/ConfirmModal";
 import StudentAdmissionForm from "../../components/PrintForm/StudentAdmissionForm";
 import HardDeleteStudentModal from "../../components/modals/HardDeleteStudentModal";
-import { printStyles } from "../../components/PrintForm/printStyles";
 import {
   Search,
   Eye,
@@ -38,7 +37,6 @@ import {
 } from "lucide-react";
 import { imageUrlToBase64 } from "../../utils/imageToBase64";
 import { getFileUrl } from "../../utils/imageSrc";
-import { printElement } from "../../utils/printUtil";
 import { loadDrafts, deleteDraft } from "../../utils/studentDrafts";
 import { FileText } from "lucide-react";
 import "./students.css";
