@@ -6,8 +6,9 @@
 const gmail = require('./gmail.provider');
 const msg91 = require('./msg91Email.provider');
 const smtp = require('./smtp.provider');
+const resend = require('./resendEmail.provider');
 
-const PROVIDERS = { gmail, msg91, smtp };
+const PROVIDERS = { gmail, msg91, smtp, resend };
 
 exports.getProvider = (key) => {
   const provider = PROVIDERS[key];

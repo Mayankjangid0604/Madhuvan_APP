@@ -22,6 +22,11 @@ module.exports = {
       label: "SMTP (Custom)",
       requiredFields: ["host", "port", "user", "password", "fromEmail"],
       secretFields: ["password"]
+    },
+    resend: {
+      label: "Resend",
+      requiredFields: ["apiKey", "fromEmail"],
+      secretFields: ["apiKey"]
     }
   },
   sms: {
