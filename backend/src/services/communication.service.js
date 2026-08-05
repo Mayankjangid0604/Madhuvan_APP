@@ -155,7 +155,7 @@ exports.getLogs = (filters = {}) => {
   const limit = Math.min(Number(filters.limit) || 50, 500);
   const offset = Math.max(Number(filters.offset) || 0, 0);
 
-  const rows = db.db.prepare(`SELECT * FROM communication_logs ${where} ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`).all(...params);
+  const rows = db.db.prepare(`SELECT * FROM communication_logs ${where} ORDER BY id DESC LIMIT ? OFFSET ?`).all(...params, limit, offset);
   const total = db.db.prepare(`SELECT COUNT(*) as c FROM communication_logs ${where}`).get(...params).c;
   return { rows, total, limit, offset };
 };

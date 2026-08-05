@@ -35,9 +35,17 @@ const callCustomApi = async (config, { mobile, message }) => {
 exports.testConnection = async (config) => {
   if (!config.url) return { success: false, message: 'API URL is required' };
   try {
-    const result = await callCustomApi(config, { mobile: '9999999999', message: 'Connection test' });
-    if (!result.ok) return { success: false, message: `Custom API returned ${result.status}` };
-    return { success: true, message: `Custom API responded with ${result.status}` };
+    // Validate URL format without sending a real message
+    const parsed = new URL(config.url);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return { success: false, message: 'URL must use http or https protocol' };
+    }
+    // Use HEAD request to verify the endpoint is reachable without sending an actual SMS
+    const res = await fetch(config.url, {
+      method: 'HEAD',
+      headers: parseHeaders(config.headersJson)
+    });
+    return { success: true, message: `Custom API endpoint is reachable (HTTP ${res.status})` };
   } catch (error) {
     return { success: false, message: error.message };
   }

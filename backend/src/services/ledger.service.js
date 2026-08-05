@@ -555,7 +555,18 @@ exports.getCategorySummary = (filters = {}) => {
 exports.updateEntry = (entryId, data) => {
   const existing = db.db.prepare(`SELECT * FROM ledger_entries WHERE entry_id = ?`).get(entryId);
   if (!existing) throw new Error('Ledger entry not found');
-  
+
+  if (data.debit !== undefined) {
+    const d = Number(data.debit);
+    if (!Number.isFinite(d) || d < 0) throw new Error('Debit must be a non-negative number');
+    data.debit = d;
+  }
+  if (data.credit !== undefined) {
+    const c = Number(data.credit);
+    if (!Number.isFinite(c) || c < 0) throw new Error('Credit must be a non-negative number');
+    data.credit = c;
+  }
+
   const updateTx = db.db.transaction(() => {
     const newDebit = data.debit !== undefined ? data.debit : existing.debit;
     const newCredit = data.credit !== undefined ? data.credit : existing.credit;
@@ -607,6 +618,38 @@ function recalculateBalances() {
       .run(runningBalance, entry.entry_id);
   }
 }
+
+// ============================================
+// EXPORT TO CSV
+// ============================================
+exports.exportToCSV = (filters = {}) => {
+  const entries = exports.getAllEntries(filters);
+
+  const headers = ['Date', 'Type', 'Category', 'Description', 'Debit', 'Credit', 'Balance', 'Payment Mode', 'Reference'];
+
+  const escapeCSV = (val) => {
+    if (val === null || val === undefined) return '';
+    const str = String(val);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  };
+
+  const rows = entries.map(e => [
+    escapeCSV(e.entry_date),
+    escapeCSV(e.entry_type),
+    escapeCSV(e.category),
+    escapeCSV(e.description),
+    e.debit || 0,
+    e.credit || 0,
+    e.balance || 0,
+    escapeCSV(e.payment_mode),
+    escapeCSV(e.reference_no)
+  ].join(','));
+
+  return [headers.join(','), ...rows].join('\n');
+};
 
 // Backwards compatibility
 exports.getLedger = exports.getAllEntries;

@@ -7,8 +7,8 @@ import { getFileUrl } from "../../utils/imageSrc";
 import {
   ArrowLeft, User, IndianRupee, CheckCircle, AlertCircle, Clock,
   Loader2, Receipt, AlertTriangle, PiggyBank, Home, FileText,
-  Calendar, CreditCard, Phone, ChevronDown, ChevronUp, Eye,
-  Printer, Download, X, Shield
+  Calendar, CreditCard, Phone,
+  Printer, X
 } from "lucide-react";
 import FeeInvoiceModal from "../../components/fees/FeeInvoiceModal";
 import {
@@ -62,7 +62,7 @@ const FeeDetails = () => {
     setPayFee(fee);
     setPaymentData({
       amount: remaining > 0 ? Math.round(remaining).toString() : '',
-      mode: 'CASH',
+      mode: data?.student?.payment_mode === 'online' ? 'UPI' : 'CASH',
       reference: ''
     });
     setReceivedBy('');
