@@ -733,6 +733,70 @@ const receiptCopy = ({
     `;
   }
 
+  // ── Fall back to simple receipt when no accommodation/mess breakdown available ──
+  if (accommodation_amount <= 0 && mess_amount <= 0 && total_amount > 0) {
+    const total = total_amount;
+    rows.push(`<tr><td>Hostel Fee</td><td>${monthLabel}</td><td class="r">${fmtINR(total)}</td></tr>`);
+    rows.push(`<tr class="grand"><td>TOTAL AMOUNT RECEIVED</td><td></td><td class="r">₹${fmtINR(total)}</td></tr>`);
+
+    return `
+      <div class="page">
+        <div style="text-align:center;margin-bottom:2px;">
+          <span class="copy-tag">${copyTag}</span>
+        </div>
+        ${brandHeader(hostel)}
+        <div class="doc-title">PAYMENT RECEIPT</div>
+        <div style="text-align:center;"><span class="paid-badge">✔ PAID</span></div>
+        <div class="doc-number">Receipt No.: ${escapeHtml(receipt_no || "")}</div>
+        <hr class="rule" />
+
+        <div class="info-grid">
+          <div class="info-block">
+            <h4>Student Information</h4>
+            <div class="row"><span class="k">Student Name</span><span>:</span><span class="v strong">${escapeHtml(student.student_name || "")}</span></div>
+            <div class="row"><span class="k">Father Name</span><span>:</span><span class="v">${escapeHtml(student.father_name || "-")}</span></div>
+            <div class="row"><span class="k">Student ID</span><span>:</span><span class="v">${escapeHtml(student.student_id || "-")}</span></div>
+            <div class="row"><span class="k">Room</span><span>:</span><span class="v">${escapeHtml(student.room_no || "-")}${student.bed_no ? ` (Bed ${escapeHtml(student.bed_no)})` : ""}</span></div>
+          </div>
+          <div class="info-block">
+            <h4>Payment Information</h4>
+            <div class="row"><span class="k">Receipt Date</span><span>:</span><span class="v">${fmtDate(payment_date)}</span></div>
+            <div class="row"><span class="k">For Month</span><span>:</span><span class="v">${monthLabel}</span></div>
+            <div class="row"><span class="k">Mode of Payment</span><span>:</span><span class="v">${escapeHtml(payment_mode || "CASH")}</span></div>
+            <div class="row"><span class="k">Received By</span><span>:</span><span class="v">${escapeHtml(received_by || "ADMIN")}</span></div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 260px;gap:14px;">
+          <table class="items">
+            <thead>
+              <tr>
+                <th style="width:55%">DESCRIPTION</th>
+                <th style="width:25%">MONTH</th>
+                <th class="r" style="width:20%">AMOUNT (₹)</th>
+              </tr>
+            </thead>
+            <tbody>${rows.join("")}</tbody>
+          </table>
+          <div>
+            <div class="in-words" style="margin-bottom:10px;">
+              <div class="lbl">Amount in Words</div>
+              <div class="val" style="font-size:12px;">Rupees ${amountToWords(total)} Only</div>
+            </div>
+            <div class="payment-summary">
+              <div class="row total"><span>TOTAL RECEIVED</span><span>₹${fmtINR(total)}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="doc-footer">
+          <div class="thanks">Thank you for your payment!</div>
+          <div>Generated on: ${generatedOn}</div>
+        </div>
+      </div>
+    `;
+  }
+
   // ── ONLINE MODE: accommodation + mess split with GST ──
   const parts = gstBreakdown({
     accommodation_base: accommodation_amount,
