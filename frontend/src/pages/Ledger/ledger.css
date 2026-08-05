@@ -3,45 +3,7 @@
    Light Theme Version
    ===============================*/
 
-/* ===============================
-   CSS VARIABLES
-================================ */
-:root {
-  /* Glass Effect */
-  --glass-bg: rgba(255, 255, 255, 0.95);
-  --glass-bg-hover: rgba(255, 255, 255, 0.98);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-blur: blur(20px);
-
-  /* Text Colors - Light Theme */
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
-
-  /* Background - Light */
-  --bg-light: rgba(248, 250, 252, 0.95);
-  --bg-card: rgba(255, 255, 255, 0.98);
-  --bg-page: #f8fafc;
-
-  /* Borders - Softer */
-  --border-light: rgba(226, 232, 240, 0.8);
-  --border-medium: rgba(203, 213, 225, 0.6);
-
-  /* Accent Colors */
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
-  --success: #10b981;
-  --success-light: #d1fae5;
-  --warning: #f59e0b;
-  --warning-light: #fef3c7;
-  --danger: #ef4444;
-  --danger-light: #fee2e2;
-  --purple: #8b5cf6;
-  --purple-light: #ede9fe;
-  --cyan: #06b6d4;
-  --orange: #f97316;
-}
+/* CSS Variables are now consolidated in index.css */
 
 /* ===== Page Container ===== */
 .ledger-page {
@@ -168,7 +130,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
-.loading-spinner {
+.ledger-loading-spinner {
   width: 80px;
   height: 80px;
   border-radius: 20px;
@@ -287,37 +249,37 @@
   color: inherit;
 }
 
-.btn-primary {
+.ledger-btn-primary {
   background: linear-gradient(135deg, var(--purple), #a78bfa);
   color: white !important;
   box-shadow: 0 4px 14px rgba(139, 92, 246, 0.3);
 }
 
-.btn-primary:hover:not(:disabled) {
+.ledger-btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
 }
 
-.btn-primary span,
-.btn-primary svg {
+.ledger-btn-primary span,
+.ledger-btn-primary svg {
   color: white !important;
 }
 
-.btn-primary.income {
+.ledger-btn-primary.income {
   background: linear-gradient(135deg, var(--success), #34d399);
   box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
 }
 
-.btn-primary.income:hover:not(:disabled) {
+.ledger-btn-primary.income:hover:not(:disabled) {
   box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
 }
 
-.btn-primary.expense {
+.ledger-btn-primary.expense {
   background: linear-gradient(135deg, var(--danger), #f87171);
   box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
 }
 
-.btn-primary.expense:hover:not(:disabled) {
+.ledger-btn-primary.expense:hover:not(:disabled) {
   box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
 }
 
@@ -452,7 +414,7 @@
   gap: 20px;
 }
 
-.stat-card {
+.ledger-stat-card {
   position: relative;
   background: white;
   backdrop-filter: var(--glass-blur);
@@ -468,7 +430,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
-.stat-card::before {
+.ledger-stat-card::before {
   content: "";
   position: absolute;
   top: 0;
@@ -479,45 +441,45 @@
   transition: opacity 0.3s ease;
 }
 
-.stat-card:hover {
+.ledger-stat-card:hover {
   transform: translateY(-4px);
   background: #fafbfc;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
 }
 
-.stat-card:hover::before {
+.ledger-stat-card:hover::before {
   opacity: 1;
 }
 
-.stat-card.income {
+.ledger-stat-card.income {
   border-left: 4px solid var(--success);
 }
 
-.stat-card.income::before {
+.ledger-stat-card.income::before {
   background: linear-gradient(90deg, var(--success), #34d399);
 }
 
-.stat-card.expense {
+.ledger-stat-card.expense {
   border-left: 4px solid var(--danger);
 }
 
-.stat-card.expense::before {
+.ledger-stat-card.expense::before {
   background: linear-gradient(90deg, var(--danger), #f87171);
 }
 
-.stat-card.balance {
+.ledger-stat-card.balance {
   border-left: 4px solid var(--purple);
 }
 
-.stat-card.balance::before {
+.ledger-stat-card.balance::before {
   background: linear-gradient(90deg, var(--purple), #a78bfa);
 }
 
-.stat-card.transactions {
+.ledger-stat-card.transactions {
   border-left: 4px solid var(--warning);
 }
 
-.stat-card.transactions::before {
+.ledger-stat-card.transactions::before {
   background: linear-gradient(90deg, var(--warning), #fbbf24);
 }
 
@@ -532,26 +494,26 @@
   transition: transform 0.3s ease;
 }
 
-.stat-card:hover .stat-icon-wrapper {
+.ledger-stat-card:hover .stat-icon-wrapper {
   transform: scale(1.08);
 }
 
-.stat-card.income .stat-icon-wrapper {
+.ledger-stat-card.income .stat-icon-wrapper {
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(52, 211, 153, 0.1));
   color: #059669;
 }
 
-.stat-card.expense .stat-icon-wrapper {
+.ledger-stat-card.expense .stat-icon-wrapper {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(248, 113, 113, 0.1));
   color: var(--danger);
 }
 
-.stat-card.balance .stat-icon-wrapper {
+.ledger-stat-card.balance .stat-icon-wrapper {
   background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(167, 139, 250, 0.1));
   color: var(--purple);
 }
 
-.stat-card.transactions .stat-icon-wrapper {
+.ledger-stat-card.transactions .stat-icon-wrapper {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.1));
   color: var(--warning);
 }
@@ -1355,7 +1317,7 @@ tr.expense .serial-badge {
   background: transparent;
 }
 
-.empty-state {
+.ledger-empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1368,27 +1330,27 @@ tr.expense .serial-badge {
   border: 2px dashed var(--border-medium);
 }
 
-.empty-state svg {
+.ledger-empty-state svg {
   color: var(--text-light);
   margin-bottom: 16px;
   opacity: 0.6;
 }
 
-.empty-state h4 {
+.ledger-empty-state h4 {
   font-size: 18px;
   font-weight: 600;
   color: var(--text-primary) !important;
   margin: 0 0 8px 0;
 }
 
-.empty-state p {
+.ledger-empty-state p {
   font-size: 14px;
   color: var(--text-muted) !important;
   margin: 0 0 20px 0;
 }
 
 /* ===== Modal Overlay ===== */
-.modal-overlay {
+.ledger-modal-overlay {
   position: fixed;
   inset: 0;
   background: rgba(148, 163, 184, 0.4);
@@ -2195,7 +2157,7 @@ select.form-input option {
     gap: 14px;
   }
 
-  .stat-card {
+  .ledger-stat-card {
     padding: 18px;
   }
 
@@ -2343,7 +2305,7 @@ select.form-input option {
   }
 
   .glass-card,
-  .stat-card,
+  .ledger-stat-card,
   .table-container,
   .glass-modal,
   .modal-content {
@@ -2355,7 +2317,7 @@ select.form-input option {
   }
 
   .toast-notification,
-  .modal-overlay,
+  .ledger-modal-overlay,
   .header-actions,
   .filters-section,
   .current-period-banner {
@@ -2375,7 +2337,7 @@ select.form-input option {
     padding: 8px;
   }
 
-  .stat-card::before {
+  .ledger-stat-card::before {
     display: none;
   }
 }
@@ -2394,7 +2356,7 @@ select.form-input option {
     animation: none !important;
   }
 
-  .stat-card:hover,
+  .ledger-stat-card:hover,
   .btn:hover,
   .apply-btn:hover,
   .preset-btn:hover {
