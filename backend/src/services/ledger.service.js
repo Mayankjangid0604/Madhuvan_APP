@@ -555,7 +555,18 @@ exports.getCategorySummary = (filters = {}) => {
 exports.updateEntry = (entryId, data) => {
   const existing = db.db.prepare(`SELECT * FROM ledger_entries WHERE entry_id = ?`).get(entryId);
   if (!existing) throw new Error('Ledger entry not found');
-  
+
+  if (data.debit !== undefined) {
+    const d = Number(data.debit);
+    if (!Number.isFinite(d) || d < 0) throw new Error('Debit must be a non-negative number');
+    data.debit = d;
+  }
+  if (data.credit !== undefined) {
+    const c = Number(data.credit);
+    if (!Number.isFinite(c) || c < 0) throw new Error('Credit must be a non-negative number');
+    data.credit = c;
+  }
+
   const updateTx = db.db.transaction(() => {
     const newDebit = data.debit !== undefined ? data.debit : existing.debit;
     const newCredit = data.credit !== undefined ? data.credit : existing.credit;

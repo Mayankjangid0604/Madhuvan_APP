@@ -181,39 +181,9 @@ app.get("/ready", (req, res) => {
   });
 });
 
-// Debug endpoint for uploads
-app.get("/api/debug/uploads", (req, res) => {
-  try {
-    res.json({
-      success: true,
-      paths: {
-        uploads: UPLOADS_DIR,
-        students: STUDENTS_UPLOAD_DIR,
-        logos: LOGOS_UPLOAD_DIR,
-        members: MEMBERS_UPLOAD_DIR
-      },
-      exists: {
-        uploads: fs.existsSync(UPLOADS_DIR),
-        students: fs.existsSync(STUDENTS_UPLOAD_DIR),
-        logos: fs.existsSync(LOGOS_UPLOAD_DIR),
-        members: fs.existsSync(MEMBERS_UPLOAD_DIR)
-      },
-      files: {
-        students: fs.existsSync(STUDENTS_UPLOAD_DIR)
-          ? fs.readdirSync(STUDENTS_UPLOAD_DIR).slice(0, 5)
-          : [],
-        logos: fs.existsSync(LOGOS_UPLOAD_DIR)
-          ? fs.readdirSync(LOGOS_UPLOAD_DIR).slice(0, 5)
-          : [],
-        members: fs.existsSync(MEMBERS_UPLOAD_DIR)
-          ? fs.readdirSync(MEMBERS_UPLOAD_DIR).slice(0, 5)
-          : []
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
+// Debug endpoint for uploads - DISABLED (exposes filesystem paths)
+// To re-enable for local development, uncomment and add auth middleware.
+// app.get("/api/debug/uploads", authenticateToken, (req, res) => { ... });
 
 // ============================================
 // SWAGGER (OPTIONAL)

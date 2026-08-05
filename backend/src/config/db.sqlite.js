@@ -308,7 +308,8 @@ function getCoreSchemaDefinitions() {
         breakdown TEXT,
         is_advance_payment INTEGER DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE
+        FOREIGN KEY (student_id) REFERENCES students(student_id) ON DELETE CASCADE,
+        FOREIGN KEY (fee_id) REFERENCES student_fees(fee_id)
       )
     `,
     student_advances: `
@@ -1595,8 +1596,6 @@ function reopenDatabase() {
 }
 
 process.on('exit', safeCloseDb);
-process.on('SIGINT', () => { safeCloseDb(); process.exit(0); });
-process.on('SIGTERM', () => { safeCloseDb(); process.exit(0); });
 
 // Open database and initialize
 openDatabase();

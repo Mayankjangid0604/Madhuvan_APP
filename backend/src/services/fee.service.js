@@ -660,11 +660,13 @@ exports.payFee = (data) => {
   const normalizedMode = normalizePaymentMode(payment_mode);
   const paymentDateNormalized = payment_date || new Date().toISOString().split("T")[0];
 
-  if (!payment_amount || payment_amount <= 0) {
+  const safePaymentAmount = Number(payment_amount);
+  if (!safePaymentAmount || safePaymentAmount <= 0) {
     throw new Error("Invalid payment amount");
   }
 
-  const paymentTransaction = db.db.transaction(() => {
+  // Use the numeric-cast value from here on
+  const paymentTransaction = db.db.transaction((payment_amount) => {
     const fee = db.db.prepare("SELECT * FROM student_fees WHERE fee_id = ?").get(fee_id);
     if (!fee) throw new Error("Fee not found");
 
@@ -896,7 +898,7 @@ exports.payFee = (data) => {
     };
   });
 
-  return paymentTransaction();
+  return paymentTransaction(safePaymentAmount);
 };
 
 // ============================================
@@ -1051,7 +1053,7 @@ exports.applyPenalties = () => {
     JOIN students s ON s.student_id = sf.student_id
     WHERE sf.fee_status IN ('OVERDUE', 'DUE', 'PARTIAL')
     AND s.status = 'active' AND s.date_of_leaving IS NULL
-    AND sf.fee_type = 'Monthly Rent'
+    AND sf.fee_type IN ('Monthly Rent', 'Half-Yearly Rent', 'Yearly Rent')
   `).all();
 
   let applied = 0;
