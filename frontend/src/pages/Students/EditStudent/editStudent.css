@@ -3,7 +3,16 @@
    Complete Fixed Version
    ============================================ */
 
-/* CSS Variables are now consolidated in index.css */
+/* ===============================
+   CSS VARIABLES (page-specific only; shared vars in index.css)
+================================ */
+:root {
+  --input-icon-size: 18px;
+  --input-icon-left: 14px;
+  --input-padding-left: 46px;
+  --input-padding-right: 14px;
+  --input-padding-with-clear: 42px;
+}
 
 /* ===============================
    GLOBAL RESET FOR THIS PAGE

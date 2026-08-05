@@ -1,6 +1,47 @@
 /* Rooms.css - Clean White Theme (Fixed) */
 
-/* CSS Variables are now consolidated in index.css */
+/* ===== CSS Variables ===== */
+:root {
+  --rooms-white: #ffffff;
+  --rooms-bg: #f8fafc;
+  --rooms-bg-secondary: #f1f5f9;
+  --rooms-border: #e2e8f0;
+  --rooms-border-light: #f1f5f9;
+
+  --rooms-text: #334155;
+  --rooms-text-dark: #1e293b;
+  --rooms-text-muted: #64748b;
+  --rooms-text-light: #94a3b8;
+
+  --rooms-primary: #3b82f6;
+  --rooms-primary-hover: #2563eb;
+  --rooms-primary-light: #eff6ff;
+
+  --rooms-success: #22c55e;
+  --rooms-success-light: #f0fdf4;
+  --rooms-success-dark: #16a34a;
+
+  --rooms-warning: #f59e0b;
+  --rooms-warning-light: #fffbeb;
+  --rooms-warning-dark: #d97706;
+
+  --rooms-danger: #ef4444;
+  --rooms-danger-light: #fef2f2;
+  --rooms-danger-dark: #dc2626;
+
+  --rooms-purple: #8b5cf6;
+  --rooms-purple-light: #faf5ff;
+
+  --rooms-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --rooms-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --rooms-shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --rooms-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1);
+
+  --rooms-radius: 12px;
+  --rooms-radius-sm: 8px;
+  --rooms-radius-lg: 16px;
+  --rooms-radius-xl: 20px;
+}
 
 /* ===== Page Container ===== */
 .rooms-page {

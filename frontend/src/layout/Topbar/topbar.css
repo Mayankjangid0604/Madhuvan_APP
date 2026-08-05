@@ -2,7 +2,18 @@
    TOPBAR COMPONENT STYLES - TRANSPARENT
    ============================================ */
 
-/* CSS Variables are now consolidated in index.css */
+/* ============================================
+   CSS VARIABLES
+   ============================================ */
+:root {
+  --topbar-bg: rgba(255, 255, 255, 0.2);
+  --topbar-border: rgba(255, 255, 255, 0.15);
+  --topbar-hover: rgba(255, 255, 255, 0.25);
+  --topbar-active: rgba(255, 255, 255, 0.35);
+  --topbar-text: #1e293b;
+  --topbar-text-muted: #475569;
+  --topbar-height: 70px;
+}
 
 /* ============================================
    MAIN CONTAINER - TRANSPARENT

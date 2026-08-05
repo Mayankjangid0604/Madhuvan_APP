@@ -1,7 +1,19 @@
 /* =========================================
    LOGIN PAGE — clean solid theme, no glass
    ========================================= */
-/* CSS Variables are now consolidated in index.css */
+:root {
+  --lg-primary:      #4f46e5;
+  --lg-primary-hi:   #6366f1;
+  --lg-danger:       #ef4444;
+  --lg-success:      #10b981;
+  --lg-page-bg:      #f5f6fa;
+  --lg-card-bg:      #ffffff;
+  --lg-text:         #1e293b;
+  --lg-text-muted:   #64748b;
+  --lg-border:       #e5e7eb;
+  --lg-input-bg:     #ffffff;
+  --lg-input-border: #e2e8f0;
+}
 
 * { box-sizing: border-box; }
 
