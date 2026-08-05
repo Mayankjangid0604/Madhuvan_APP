@@ -886,10 +886,10 @@ function openDatabase() {
       // Set pragmas
       db.pragma('journal_mode = WAL');
       db.pragma('busy_timeout = 5000');
-      db.pragma('foreign_keys = OFF');
+      db.pragma('foreign_keys = ON');
       db.pragma('synchronous = NORMAL');
       db.pragma('cache_size = -2000');
-      
+
       return true;
     } catch (err) {
       console.error('❌ Database health check failed:', err.message);
@@ -934,7 +934,7 @@ function openDatabase() {
         db = new Database(dbPath, { verbose: null });
         db.pragma('journal_mode = WAL');
         db.pragma('busy_timeout = 5000');
-        db.pragma('foreign_keys = OFF');
+        db.pragma('foreign_keys = ON');
         db.pragma('synchronous = NORMAL');
         db.pragma('cache_size = -2000');
         return true;
