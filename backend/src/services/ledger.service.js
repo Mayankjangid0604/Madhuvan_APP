@@ -608,6 +608,38 @@ function recalculateBalances() {
   }
 }
 
+// ============================================
+// EXPORT TO CSV
+// ============================================
+exports.exportToCSV = (filters = {}) => {
+  const entries = exports.getAllEntries(filters);
+
+  const headers = ['Date', 'Type', 'Category', 'Description', 'Debit', 'Credit', 'Balance', 'Payment Mode', 'Reference'];
+
+  const escapeCSV = (val) => {
+    if (val === null || val === undefined) return '';
+    const str = String(val);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+      return '"' + str.replace(/"/g, '""') + '"';
+    }
+    return str;
+  };
+
+  const rows = entries.map(e => [
+    escapeCSV(e.entry_date),
+    escapeCSV(e.entry_type),
+    escapeCSV(e.category),
+    escapeCSV(e.description),
+    e.debit || 0,
+    e.credit || 0,
+    e.balance || 0,
+    escapeCSV(e.payment_mode),
+    escapeCSV(e.reference_no)
+  ].join(','));
+
+  return [headers.join(','), ...rows].join('\n');
+};
+
 // Backwards compatibility
 exports.getLedger = exports.getAllEntries;
 exports.addManualEntry = (data) => {
