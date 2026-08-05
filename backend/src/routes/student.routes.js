@@ -28,16 +28,6 @@ router.put("/:id", validateStudentId, studentController.updateStudent);
 router.post("/:id/photo", validateStudentId, uploadStudentPhoto.single("photo"), studentController.uploadPhoto);
 router.post("/:id/exit", validateStudentId, studentController.exitStudent);
 router.delete("/:id", validateStudentId, studentController.deleteStudent);
-router.get("/debug/schema", (req, res) => {
-  const db = require("../config/db.sqlite");
-  const studentsCols = db.db.prepare("PRAGMA table_info(students)").all();
-  const feesCols = db.db.prepare("PRAGMA table_info(student_fees)").all();
-  res.json({
-    students: studentsCols.map(c => c.name),
-    student_fees: feesCols.map(c => c.name)
-  });
-});
-
 // ❌ REMOVED: router.delete("/:id/permanent") - no longer supported
 
 module.exports = router;

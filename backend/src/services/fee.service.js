@@ -138,7 +138,7 @@ const getRemaining = (fee, student = null) => Math.max(0, getTotalDue(fee, stude
 const normalizePaymentMode = (mode) => {
   if (!mode) return 'CASH';
   const upper = mode.toUpperCase().trim();
-  const validModes = ['CASH', 'UPI', 'BANK', 'CHEQUE', 'ONLINE', 'CARD'];
+  const validModes = ['CASH', 'UPI', 'BANK', 'CHEQUE', 'ONLINE', 'CARD', 'PHONEPE'];
   return validModes.includes(upper) ? upper : 'CASH';
 };
 
@@ -738,7 +738,7 @@ exports.payFee = (data) => {
       });
     }
 
-    db.db.prepare(`
+    const payInsert = db.db.prepare(`
       INSERT INTO fee_payments (
         fee_id, student_id, payment_amount, payment_date,
         payment_mode, reference_no, received_by, received_member_id, notes, is_advance_payment,
@@ -888,7 +888,7 @@ exports.payFee = (data) => {
 
     return {
       success: true,
-      payment_id: fee_id,
+      payment_id: payInsert.lastInsertRowid,
       total_received: payment_amount,
       total_paid: newPaidAmount,
       new_status: newStatus,
