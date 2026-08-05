@@ -37,7 +37,13 @@ export const AuthProvider = ({ children }) => {
   // Refresh lastActiveAt as the user interacts with the app.
   useEffect(() => {
     if (!user) return;
-    const bump = () => localStorage.setItem('lastActiveAt', String(Date.now()));
+    let lastBump = 0;
+    const bump = () => {
+      const now = Date.now();
+      if (now - lastBump < 30000) return;
+      lastBump = now;
+      localStorage.setItem('lastActiveAt', String(now));
+    };
     window.addEventListener('mousemove', bump, { passive: true });
     window.addEventListener('keydown', bump, { passive: true });
     window.addEventListener('click', bump, { passive: true });

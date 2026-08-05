@@ -15,12 +15,9 @@ const Login = () => {
   const [success, setSuccess] = useState("");
   const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem("rememberedEmail"));
 
-  const demoEmail = "admin@example.com";
-  const demoPassword = "admin123";
-
   const handleDemoFill = () => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
+    setEmail("admin@example.com");
+    setPassword("admin123");
     setError("");
     setSuccess("");
   };

@@ -1,6 +1,4 @@
 const settingsService = require("../services/settings.service");
-const path = require("path");
-const fs = require("fs");
 
 /**
  * GET HOSTEL INFO

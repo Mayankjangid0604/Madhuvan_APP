@@ -120,8 +120,18 @@ const listBackups = async () => {
  *    - If the table does NOT exist in backup: leave it empty (null/default)
  * 6. Extra tables in backup that don't exist in current schema are ignored
  */
+const isSafeFilename = (filename) => {
+  if (!filename || typeof filename !== 'string') return false;
+  if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) return false;
+  if (filename !== path.basename(filename)) return false;
+  return true;
+};
+
 const restoreBackup = async (filename) => {
   try {
+    if (!isSafeFilename(filename)) {
+      return { success: false, error: "Invalid backup filename" };
+    }
     const backupPath = path.join(BACKUP_DIR, filename);
     
     if (!fs.existsSync(backupPath)) {
@@ -376,8 +386,11 @@ const restoreBackup = async (filename) => {
  */
 const deleteBackup = async (filename) => {
   try {
+    if (!isSafeFilename(filename)) {
+      return { success: false, error: "Invalid backup filename" };
+    }
     const backupPath = path.join(BACKUP_DIR, filename);
-    
+
     if (!fs.existsSync(backupPath)) {
       return { success: false, error: "Backup file not found" };
     }

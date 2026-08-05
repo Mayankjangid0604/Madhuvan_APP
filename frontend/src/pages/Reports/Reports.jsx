@@ -28,7 +28,7 @@ import {
   Printer
 } from "lucide-react";
 import { printElement } from "../../utils/printUtil";
-import axios from "axios";
+import api from "../../services/api/axiosInstance";
 import "./reports.css";
 
 const Reports = () => {
@@ -73,21 +73,20 @@ const Reports = () => {
   const handleGstReport = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("token");
-      const params = new URLSearchParams();
-      if (dateRange.from) params.set("from_date", dateRange.from);
-      if (dateRange.to) params.set("to_date", dateRange.to);
-      const url = `${import.meta.env.VITE_API_BASE_URL}/export/gst-report?${params.toString()}`;
-      const res = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+      const params = {};
+      if (dateRange.from) params.from_date = dateRange.from;
+      if (dateRange.to) params.to_date = dateRange.to;
+      const res = await api.get("/export/gst-report", { params });
       if (!res.data.success) throw new Error(res.data.message || "Failed");
       const { entries, totals, period } = res.data.data;
       const fmt = (n) => new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(n || 0);
+      const esc = (s) => String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
       const rows = entries.map((e, i) => `
         <tr>
           <td>${i + 1}</td>
-          <td>${new Date(e.payment_date).toLocaleDateString("en-IN")}</td>
-          <td>${e.student_name || ""}<br><small>${e.father_name || ""}</small></td>
-          <td>${e.reference_no || "-"}</td>
+          <td>${esc(new Date(e.payment_date).toLocaleDateString("en-IN"))}</td>
+          <td>${esc(e.student_name)}<br><small>${esc(e.father_name)}</small></td>
+          <td>${esc(e.reference_no || "-")}</td>
           <td class="r">${fmt(e.accommodation.base)}</td>
           <td class="r">${fmt(e.accommodation.cgst)}</td>
           <td class="r">${fmt(e.accommodation.sgst)}</td>
@@ -165,12 +164,14 @@ const Reports = () => {
       id: 'week',
       label: 'This Week',
       getRange: () => {
-        const today = new Date();
-        const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
-        const endOfWeek = new Date(today.setDate(today.getDate() - today.getDay() + 6));
+        const now = new Date();
+        const start = new Date(now);
+        start.setDate(now.getDate() - now.getDay());
+        const end = new Date(start);
+        end.setDate(start.getDate() + 6);
         return {
-          from: startOfWeek.toISOString().split('T')[0],
-          to: endOfWeek.toISOString().split('T')[0]
+          from: start.toISOString().split('T')[0],
+          to: end.toISOString().split('T')[0]
         };
       }
     },

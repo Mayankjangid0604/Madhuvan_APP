@@ -29,7 +29,6 @@ export const studentAPI = {
     return api.delete(`/students/${id}`);
   },
 
-  // ✅ FIX: Uses soft delete since permanent delete route was removed from backend
   hardDeleteStudent(id) {
     return api.delete(`/students/${id}`);
   },

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import api from "../../services/api/axiosInstance";
 import { feeAPI } from "../../services/api/fee.api";
 import { memberAPI } from "../../services/api/member.api";
 import { settingsAPI } from "../../services/api/settings.api";
@@ -105,11 +106,8 @@ const FeeDetails = () => {
 
   const fetchDocNumber = async (type) => {
     try {
-      const token = localStorage.getItem("token");
-      const url = `${import.meta.env.VITE_API_BASE_URL}/doc-number/next?type=${type}`;
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      const j = await r.json();
-      return j.data?.number;
+      const r = await api.get("/doc-number/next", { params: { type } });
+      return r.data?.data?.number;
     } catch { return null; }
   };
 

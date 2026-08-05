@@ -3,7 +3,6 @@ const studentService = require("../services/student.service");
 const notificationService = require("../services/notification.service");
 const { validateStudent, validateStudentId, validateCheckout } = require("../validations/student.validation");
 const asyncHandler = require("../utils/asyncHandler");
-const path = require("path");
 
 /**
  * Create new student

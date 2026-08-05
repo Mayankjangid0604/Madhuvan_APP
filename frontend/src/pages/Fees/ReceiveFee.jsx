@@ -28,7 +28,6 @@ const ReceiveFee = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState({});
-  // eslint-disable-next-line no-unused-vars
 
   // Payment modal
   const [showPayModal, setShowPayModal] = useState(false);
@@ -190,7 +189,7 @@ const ReceiveFee = () => {
       unpaidRentFees,
       unpaidSecurityFees
     };
-  }, []);
+  }, [rentTypes]);
 
   // ── Stats ──
   const stats = useMemo(() => {
@@ -310,11 +309,6 @@ const ReceiveFee = () => {
     if (student.total_remaining <= 0) return { label: "PAID", color: "green" };
     if (student.fees?.some(f => f.fee_status === "OVERDUE")) return { label: "OVERDUE", color: "red" };
     return { label: "PENDING", color: "orange" };
-  };
-
-  // eslint-disable-next-line no-unused-vars
-  const toggleExpand = (studentId) => {
-    setExpanded(prev => ({ ...prev, [studentId]: !prev[studentId] }));
   };
 
   // ── Quick Pay Amounts ──

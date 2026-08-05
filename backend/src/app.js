@@ -294,7 +294,7 @@ app.use((err, req, res, next) => {
   // Default error response
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || "Internal server error"
+    message: process.env.NODE_ENV === "development" ? (err.message || "Internal server error") : "Internal server error"
   });
 });
 

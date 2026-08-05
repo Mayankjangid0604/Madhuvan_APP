@@ -11,12 +11,14 @@ const MONTHS = [
 // ============================================
 const toNum = (v) => Number(v) || 0;
 
+let _receiptCounter = 0;
 function generateReceiptNumber() {
   const date = new Date();
   const year = date.getFullYear().toString().slice(-2);
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  return `SAL${year}${month}${random}`;
+  const ts = Date.now().toString(36).slice(-4).toUpperCase();
+  const seq = (++_receiptCounter % 10000).toString().padStart(4, '0');
+  return `SAL${year}${month}${ts}${seq}`;
 }
 
 function getMonthIndex(monthName) {

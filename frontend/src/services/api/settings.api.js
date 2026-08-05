@@ -70,5 +70,11 @@ export const settingsAPI = {
     return api.post("/backup/upload-restore", formData, {
       headers: { "Content-Type": "multipart/form-data" }
     });
+  },
+  getNotificationPreferences() {
+    return api.get("/settings/notification-preferences");
+  },
+  saveNotificationPreferences(data) {
+    return api.post("/settings/notification-preferences", data);
   }
 };

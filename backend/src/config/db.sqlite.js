@@ -950,7 +950,7 @@ function openDatabase() {
 // ============================================
 function columnExists(table, column) {
   try {
-    const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+    const cols = db.prepare(`PRAGMA table_info("${table}")`).all();
     return cols.some(c => c.name === column);
   } catch (err) {
     console.warn(`⚠️ columnExists(${table}.${column}):`, err.message);

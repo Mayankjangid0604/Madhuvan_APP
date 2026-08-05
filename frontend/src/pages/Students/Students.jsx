@@ -114,7 +114,7 @@ const Students = () => {
     const orphanedOverlays = document.querySelectorAll('.modal-overlay');
     orphanedOverlays.forEach(overlay => {
       if (overlay && !document.querySelector('.students-page')?.contains(overlay)) {
-        // Don't remove if it's part of this component
+        overlay.remove();
       }
     });
 
