@@ -66,7 +66,7 @@ const Students = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [showDraftsModal, setShowDraftsModal] = useState(false);
-  const [drafts, setDrafts] = useState([]);
+  const [drafts, setDrafts] = useState(() => loadDrafts());
 
   // Modal States
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -816,7 +816,7 @@ const Students = () => {
             onClick={() => { setDrafts(loadDrafts()); setShowDraftsModal(true); }}
           >
             <FileText size={16} />
-            Drafts{loadDrafts().length > 0 ? ` (${loadDrafts().length})` : ""}
+            Drafts{drafts.length > 0 ? ` (${drafts.length})` : ""}
           </Button>
           <Button variant="primary" onClick={() => navigate("/students/add")}>
             <UserPlus size={16} />

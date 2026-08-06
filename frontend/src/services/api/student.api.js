@@ -5,8 +5,8 @@ export const studentAPI = {
     return api.post("/students", data);
   },
 
-  getStudents() {
-    return api.get("/students");
+  getStudents(config) {
+    return api.get("/students", config);
   },
 
   getStudentById(id) {

@@ -5,8 +5,8 @@ export const roomAPI = {
   // ROOM MANAGEMENT
   // ============================================
   
-  getAllRooms() {
-    return api.get("/allocations/rooms/all");
+  getAllRooms(config) {
+    return api.get("/allocations/rooms/all", config);
   },
 
   createRoom(data) {

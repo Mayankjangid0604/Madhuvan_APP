@@ -72,34 +72,43 @@ const Topbar = () => {
     }
   }, [searchQuery]);
 
+  const abortRef = useRef(null);
+
   const performSearch = async (query) => {
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const { studentAPI } = await import("../../services/api/student.api");
       const { feeAPI } = await import("../../services/api/fee.api");
       const { roomAPI } = await import("../../services/api/room.api");
 
+      const signal = controller.signal;
       const [studentsRes, feesRes, roomsRes] = await Promise.all([
-        studentAPI.getStudents().catch(() => ({ data: { data: [] }})),
-        feeAPI.getAllFees().catch(() => ({ data: { data: [] }})),
-        roomAPI.getAllRooms().catch(() => ({ data: { data: [] }}))
+        studentAPI.getStudents({ signal }).catch(() => ({ data: { data: [] }})),
+        feeAPI.getAllFees({ signal }).catch(() => ({ data: { data: [] }})),
+        roomAPI.getAllRooms({ signal }).catch(() => ({ data: { data: [] }}))
       ]);
+
+      if (controller.signal.aborted) return;
 
       const students = studentsRes.data.data || [];
       const fees = feesRes.data.data || [];
       const rooms = roomsRes.data.data || [];
 
       const queryLower = query.toLowerCase();
-      
+
       const studentResults = students
         .filter(s => s.student_name?.toLowerCase().includes(queryLower))
         .slice(0, 3)
         .map(s => ({ ...s, type: "STUDENT" }));
-      
+
       const feeResults = fees
         .filter(f => f.student_name?.toLowerCase().includes(queryLower))
         .slice(0, 3)
         .map(f => ({ ...f, type: "FEE" }));
-      
+
       const roomResults = rooms
         .filter(r => r.room_no?.toString().includes(query))
         .slice(0, 2)
@@ -108,6 +117,7 @@ const Topbar = () => {
       setSearchResults([...studentResults, ...feeResults, ...roomResults]);
       setShowSearchResults(true);
     } catch (error) {
+      if (error.name === 'AbortError' || error.name === 'CanceledError') return;
       console.error("Search error:", error);
     }
   };

@@ -98,6 +98,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token');
     localStorage.removeItem('adminEmail');
     localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('rememberMe');
+    localStorage.removeItem('lastActiveAt');
     setUser(null);
     navigate('/login');
   }, [navigate]);
