@@ -4,7 +4,7 @@ import { settingsAPI } from "../../services/api/settings.api";
 import { printElement } from "../../utils/printUtil";
 import "./FeeInvoiceModal.css";
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001";
 
 const FeeInvoiceModal = ({ open, onClose, payment, student, fee, breakdown }) => {
   const printRef = useRef();

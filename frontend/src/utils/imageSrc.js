@@ -11,7 +11,7 @@ const isElectron =
 const getBaseUrl = () => {
   // For Electron, always use localhost
   if (isElectron) {
-    return "http://localhost:5001";
+    return "http://127.0.0.1:5001";
   }
   
   // For browser, check environment variable
@@ -21,7 +21,7 @@ const getBaseUrl = () => {
     return envBase.replace(/\/api\/?$/, '');
   }
   
-  return "http://localhost:5001";
+  return "http://127.0.0.1:5001";
 };
 
 function normalizePath(p) {

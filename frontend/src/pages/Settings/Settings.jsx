@@ -162,7 +162,7 @@ const Settings = () => {
   const [loadingBackups, setLoadingBackups] = useState(false);
 
   // API Base URL
-  const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
+  const API_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001/api";
 
   // Show success message helper
   const showSuccess = (message) => {
