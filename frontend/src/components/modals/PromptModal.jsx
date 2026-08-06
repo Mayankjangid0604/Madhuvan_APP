@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, HelpCircle } from 'lucide-react';
 import Button from '../buttons/Button';
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import './confirmModal.css';
 
 const PromptModal = ({
@@ -16,6 +17,7 @@ const PromptModal = ({
     type = "info"
 }) => {
     const [inputValue, setInputValue] = useState(defaultValue);
+    useBodyScrollLock(isOpen);
 
     useEffect(() => {
         if (isOpen) {
@@ -23,17 +25,32 @@ const PromptModal = ({
         }
     }, [isOpen, defaultValue]);
 
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') onCancel();
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onCancel]);
+
     if (!isOpen) return null;
 
     return (
         <div className="modal-overlay" onClick={onCancel}>
-            <div className={`modal-content confirm-modal ${type}`} onClick={(e) => e.stopPropagation()}>
+            <div
+                className={`modal-content confirm-modal ${type}`}
+                onClick={(e) => e.stopPropagation()}
+                role="dialog"
+                aria-modal="true"
+                aria-label={title}
+            >
                 <div className={`modal-header ${type}`}>
                     <h3>
                         <HelpCircle size={20} />
                         {title}
                     </h3>
-                    <button className="close-btn" onClick={onCancel}>
+                    <button className="close-btn" onClick={onCancel} aria-label="Close">
                         <X size={20} />
                     </button>
                 </div>
@@ -51,7 +68,7 @@ const PromptModal = ({
                                 width: '100%',
                                 padding: '10px 12px',
                                 borderRadius: '8px',
-                                border: '1px solid #e2e8f0',
+                                border: '1px solid var(--pt-border, #e2e8f0)',
                                 fontSize: '14px',
                                 outline: 'none',
                                 transition: 'border-color 0.2s'
