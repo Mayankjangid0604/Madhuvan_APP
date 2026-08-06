@@ -1,25 +1,10 @@
 const fs = require("fs");
 const path = require("path");
-const os = require("os");
 const Database = require("better-sqlite3");
+const { RUNTIME_DIR, DATA_DIR: SHARED_DATA_DIR } = require("../config/paths");
 
-const APP_NAME = "Madhuvan";
-
-// Backup directory
-const BACKUP_DIR = path.join(
-  process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
-  APP_NAME,
-  "backups"
-);
-
-// Database path
-const DATA_DIR = path.join(
-  process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
-  APP_NAME,
-  "data"
-);
-
-const DB_PATH = path.join(DATA_DIR, "hostel.db");
+const BACKUP_DIR = path.join(RUNTIME_DIR, "backups");
+const DB_PATH = path.join(SHARED_DATA_DIR, "hostel.db");
 
 // Ensure directories exist
 const ensureDir = (dir) => {

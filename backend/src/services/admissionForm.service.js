@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const db = require('../config/db.sqlite');
 const settingsService = require('./settings.service');
+const { RUNTIME_DIR } = require('../config/paths');
 
 const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
 
@@ -21,7 +22,7 @@ async function generateAdmissionFormPDF(studentId) {
 
   const hostelInfo = await settingsService.getHostelInfo() || {};
 
-  const appDir = path.join(process.env.APPDATA || process.env.HOME, 'Madhuvan');
+  const appDir = RUNTIME_DIR;
   const dir = path.join(appDir, 'admission-forms');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 

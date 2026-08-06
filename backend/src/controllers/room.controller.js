@@ -37,7 +37,6 @@ exports.getAvailableRooms = (req, res) => {
  * ALLOCATE ROOM
  */
 exports.allocateRoom = (req, res) => {
-  // Force numbers and handle allocation_start_date
   const student_id = Number(req.body.student_id);
   const room_id = Number(req.body.room_id);
   const bed_id = Number(req.body.bed_id);
@@ -52,67 +51,12 @@ exports.allocateRoom = (req, res) => {
   }
 
   try {
-    // Prevent double-allocating a bed
-    const [bedCheck] = query(
-      `SELECT bed_status FROM beds WHERE bed_id = ?`,
-      [bed_id]
-    );
-    if (!bedCheck || bedCheck.length === 0 || bedCheck[0].bed_status !== "available") {
-      return res.status(400).json({
-        success: false,
-        message: "Bed is no longer available"
-      });
-    }
-
-    // Prevent double-allocating a student
-    const [existing] = query(
-      `SELECT allocation_id
-       FROM room_allocation
-       WHERE student_id = ?
-       AND allocation_status = 'active'`,
-      [student_id]
-    );
-    if (existing && existing.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Student already has a room allocated"
-      });
-    }
-
-    // Use better-sqlite3 transaction
-    const allocateTransaction = db.transaction(() => {
-      db.prepare(`
-        INSERT INTO room_allocation (
-          student_id,
-          room_id,
-          bed_id,
-          allocation_date,
-          allocation_start_date,
-          allocation_status
-        ) VALUES (?,?,?,?,?,?)`
-      ).run(
-        student_id,
-        room_id,
-        bed_id,
-        new Date().toISOString().split("T")[0],
-        allocation_start_date,
-        "active"
-      );
-
-      db.prepare(
-        `UPDATE beds SET bed_status = 'occupied' WHERE bed_id = ?`
-      ).run(bed_id);
-    });
-
-    allocateTransaction();
-    
-    res.json({ success: true, message: "Room allocated successfully" });
+    const allocationService = require("../services/allocation.service");
+    const result = allocationService.allocateBed({ student_id, room_id, bed_id, allocation_start_date });
+    res.json({ success: true, message: "Room allocated successfully", data: result });
   } catch (err) {
-    console.error("ALLOCATE ROOM ERROR:", err);
-    res.status(500).json({
-      success: false,
-      message: "Room allocation failed"
-    });
+    const status = err.message.includes("not available") || err.message.includes("already has") ? 400 : 500;
+    res.status(status).json({ success: false, message: err.message });
   }
 };
 

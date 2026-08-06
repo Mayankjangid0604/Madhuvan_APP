@@ -750,18 +750,12 @@ exports.getSalaryPayment = (req, res, next) => {
 // ============================================
 exports.deleteSalaryPayment = (req, res, next) => {
   try {
-    const payment = db.prepare(`
-      SELECT * FROM member_salary_payments WHERE payment_id = ?
-    `).get(req.params.paymentId);
-
-    if (!payment) {
-      return res.status(404).json({ success: false, message: "Salary payment not found" });
-    }
-
-    db.prepare(`DELETE FROM member_salary_payments WHERE payment_id = ?`).run(req.params.paymentId);
-
+    const result = memberService.deleteSalaryPayment(req.params.paymentId);
     res.json({ success: true, message: "Salary payment deleted successfully" });
   } catch (err) {
+    if (err.message === "Payment not found") {
+      return res.status(404).json({ success: false, message: "Salary payment not found" });
+    }
     console.error("Delete salary payment error:", err);
     next(err);
   }

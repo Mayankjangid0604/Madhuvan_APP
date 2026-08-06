@@ -473,6 +473,10 @@ exports.checkoutStudent = (id, options = {}) => {
     `).get(id);
 
     if (allocation) {
+      const alloc = db.db.prepare(`
+        SELECT bed_id FROM room_allocation WHERE allocation_id = ?
+      `).get(allocation.allocation_id);
+
       db.db.prepare(`
         UPDATE room_allocation SET
           allocation_status = 'vacated',
@@ -480,6 +484,10 @@ exports.checkoutStudent = (id, options = {}) => {
           updated_at = CURRENT_TIMESTAMP
         WHERE allocation_id = ?
       `).run(checkoutDate, allocation.allocation_id);
+
+      if (alloc && alloc.bed_id) {
+        db.db.prepare(`UPDATE beds SET bed_status = 'available' WHERE bed_id = ?`).run(alloc.bed_id);
+      }
     }
 
     if (options.deletePhoto && student.photo_url) {

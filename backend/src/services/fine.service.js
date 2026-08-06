@@ -448,6 +448,9 @@ exports.collectFine = ({ record_type, record_id, payment_mode = 'CASH', referenc
   } else if (type === 'property damage' || type === 'property_damage' || type === 'damage') {
     tableName = 'property_damage_records';
     columnId = 'id';
+  } else if (type === 'money_given' || type === 'money given') {
+    tableName = 'money_given_records';
+    columnId = 'id';
   } else {
     throw new Error(`Cannot collect record of type "${record_type}"`);
   }

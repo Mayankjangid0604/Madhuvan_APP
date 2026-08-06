@@ -1,4 +1,4 @@
-77// services/fee.service.js
+// services/fee.service.js
 const db = require("../config/db.sqlite");
 
 // ============================================
@@ -1202,13 +1202,8 @@ exports.applyWaiver = ({ fee_id, amount, reason }) => {
 
   // Allow write-off/discount on any fee type — admin decision
 
-  const totalDue = Number(fee.final_amount || 0)
-    + Number(fee.previous_dues || 0)
-    + Number(fee.penalty_amount || 0)
-    + Number(fee.fine_amount || 0)
-    + Number(fee.property_damage_amount || 0)
-    + Number(fee.money_given_amount || 0)
-    - Number(fee.advance_used || 0);
+  const student = db.db.prepare("SELECT * FROM students WHERE student_id = ?").get(fee.student_id);
+  const totalDue = getTotalDue(fee, student);
   const alreadyPaid = Number(fee.paid_amount || 0);
   const remaining = Math.max(0, totalDue - alreadyPaid);
   if (wAmount > remaining) {

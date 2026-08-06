@@ -2,8 +2,7 @@ const db = require("../config/db.sqlite");
 const path = require("path");
 const fs = require("fs");
 
-// ✅ Use shared paths from config (SINGLE SOURCE OF TRUTH)
-const { UPLOADS_DIR, LOGO_DIR, STUDENT_DIR } = require("../config/paths");
+const { UPLOADS_DIR, LOGOS_UPLOAD_DIR, STUDENTS_UPLOAD_DIR } = require("../config/paths");
 
 // =========================
 // Cache Configuration

@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const db = require('../config/db.sqlite');
 const settingsService = require('./settings.service');
+const { RUNTIME_DIR } = require('../config/paths');
 
 const toNum = (v) => Number(v) || 0;
 
@@ -179,7 +180,7 @@ async function generateInvoicePDF(invoiceNumber) {
   const hostelInfo = await settingsService.getHostelInfo() || {};
   
   // Create PDF directory
-  const appDir = path.join(process.env.APPDATA || process.env.HOME, 'Madhuvan');
+  const appDir = RUNTIME_DIR;
   const dir = path.join(appDir, 'invoices');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   
@@ -233,7 +234,7 @@ async function generateReceiptForPayment(paymentId) {
 
   const hostelInfo = await settingsService.getHostelInfo() || {};
 
-  const appDir = path.join(process.env.APPDATA || process.env.HOME, 'Madhuvan');
+  const appDir = RUNTIME_DIR;
   const dir = path.join(appDir, 'invoices');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
@@ -299,7 +300,7 @@ async function generateBillPDF(feeId) {
   const remaining = toNum(fee.final_amount) + toNum(fee.previous_dues) + toNum(fee.penalty_amount) +
     toNum(fee.fine_amount) + toNum(fee.property_damage_amount) + toNum(fee.money_given_amount) - toNum(fee.paid_amount);
 
-  const appDir = path.join(process.env.APPDATA || process.env.HOME, 'Madhuvan');
+  const appDir = RUNTIME_DIR;
   const dir = path.join(appDir, 'invoices');
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 

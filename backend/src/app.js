@@ -125,7 +125,7 @@ const app = express();
 
 // CORS Configuration
 app.use(cors({
-  origin: "*",
+  origin: process.env.CORS_ORIGIN || "*",
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "cache-control", "pragma", "expires"]
 }));
@@ -220,7 +220,7 @@ const routes = [
   { path: "/api/members", module: "./routes/member.routes" },
   { path: "/api/doc-number", module: "./routes/docNumber.routes" },
   { path: "/api/vendors", module: "./routes/vendor.routes" },
-  { path: "/api/branches", module: "./routes/branch.routes" },
+  // branches route removed — branches table no longer exists in schema
   { path: "/api/webhooks", module: "./routes/webhook.routes" },
   { path: "/api/public", module: "./routes/public.routes" }
 ];
@@ -378,7 +378,7 @@ setTimeout(() => {
 // ============================================
 const PORT = process.env.PORT || 5001;
 
-const server = app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, process.env.BIND_HOST || "127.0.0.1", () => {
   isFullyReady = true;
 
   console.log("");

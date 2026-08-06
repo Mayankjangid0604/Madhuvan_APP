@@ -25,7 +25,7 @@ exports.allocateBed = ({ student_id, room_id, bed_id, allocation_start_date }) =
     [bed_id]
   );
 
-  if (!bed || (!Array.isArray(bed) && bed.length > 0) || (Array.isArray(bed) && bed.length > 0 && bed[0].bed_status !== "available")) {
+  if (!bed || !bed.length || bed[0].bed_status !== "available") {
     throw new Error("Bed is not available");
   }
 

@@ -397,14 +397,14 @@ exports.getOccupancyExcel = async (filters = {}) => {
 
 // CUSTOM REPORT
 const ALLOWED_TABLES = {
-  students: ['student_id','name','father_name','mobile','email','dob','gender','address','city','state','pincode','id_type','id_number','student_status','admission_date','exit_date','payment_mode','fee_type_cycle','accommodation_amount','mess_amount','total_amount','security_deposit','advance_amount','branch_id'],
+  students: ['student_id','student_name','father_name','student_mobile','father_mobile','father_email','date_of_birth','date_of_joining','date_of_leaving','class_or_coaching','institute_name','id_type','id_number','address_line1','address_line2','monthly_fee','security_deposit','fee_type_cycle','status','created_at'],
   rooms: ['room_id','room_no','floor_no','room_type','room_status'],
   beds: ['bed_id','room_id','bed_no','bed_status'],
-  student_fees: ['fee_id','student_id','fee_type','fee_month','fee_amount','final_amount','fee_status','fee_date','due_date','paid_date','fee_period_start','fee_period_end'],
+  student_fees: ['fee_id','student_id','fee_type','fee_month','fee_amount','discount_amount','final_amount','paid_amount','fee_status','fee_date','due_date','fee_period_start','fee_period_end','invoice_number'],
   fee_payments: ['payment_id','fee_id','student_id','payment_amount','payment_mode','payment_date','reference_no','invoice_number','received_by','received_member_id'],
-  room_allocation: ['allocation_id','student_id','room_id','bed_id','allocation_date','checkout_date','allocation_status'],
-  members: ['member_id','name','father_name','mobile','email','dob','role','salary','id_type','id_number','joining_date','status'],
-  ledger_entries: ['entry_id','entry_type','category','party_name','description','debit','credit','entry_date','student_id','member_id'],
+  room_allocation: ['allocation_id','student_id','room_id','bed_id','allocation_date','allocation_start_date','allocation_end_date','allocation_status','checkout_date'],
+  members: ['member_id','name','father_name','mobile','email','dob','role','salary','id_type','id_number','date_of_joining','is_active'],
+  ledger_entries: ['entry_id','entry_date','entry_type','category','amount','debit','credit','balance','payment_mode','reference_no','description','student_id','vendor_id'],
   vendors: ['vendor_id','name','contact_person','mobile','email','address','category','status'],
 };
 
