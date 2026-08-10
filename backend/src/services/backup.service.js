@@ -14,7 +14,7 @@ const ensureDir = (dir) => {
 };
 
 ensureDir(BACKUP_DIR);
-ensureDir(DATA_DIR);
+ensureDir(SHARED_DATA_DIR);
 
 /**
  * Create a backup of the database
