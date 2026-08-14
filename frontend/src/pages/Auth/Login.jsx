@@ -185,23 +185,25 @@ const Login = () => {
             )}
           </button>
 
-          {/* Demo Credentials Section */}
-          <div className="demo-section glass-inner" onClick={handleDemoFill}>
-            <div className="demo-header">
-              <span className="demo-badge">Demo Access</span>
-              <span className="demo-hint">Tap to autofill</span>
-            </div>
-            <div className="demo-details">
-              <div className="demo-row">
-                <span className="label">User:</span>
-                <span className="value">{demoEmail}</span>
+          {/* Demo Credentials Section - only visible in development */}
+          {import.meta.env.DEV && (
+            <div className="demo-section glass-inner" onClick={handleDemoFill}>
+              <div className="demo-header">
+                <span className="demo-badge">Demo Access</span>
+                <span className="demo-hint">Tap to autofill</span>
               </div>
-              <div className="demo-row">
-                <span className="label">Pass:</span>
-                <span className="value">admin123</span>
+              <div className="demo-details">
+                <div className="demo-row">
+                  <span className="label">User:</span>
+                  <span className="value">{demoEmail}</span>
+                </div>
+                <div className="demo-row">
+                  <span className="label">Pass:</span>
+                  <span className="value">admin123</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
         </form>
         

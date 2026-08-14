@@ -93,8 +93,14 @@ export const AuthProvider = ({ children }) => {
     setUser({ email: email || localStorage.getItem('adminEmail'), token: token || localStorage.getItem('token') });
   }, []);
 
-  // ✅ Logout function
-  const logout = useCallback(() => {
+  // ✅ Logout function — notify server, then clear local state
+  const logout = useCallback(async () => {
+    try {
+      const { default: api } = await import('../services/api/axiosInstance');
+      await api.post('/auth/logout');
+    } catch (e) {
+      // Continue with local logout even if server call fails
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('adminEmail');
     localStorage.removeItem('isAuthenticated');

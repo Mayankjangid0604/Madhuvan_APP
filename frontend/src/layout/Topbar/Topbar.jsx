@@ -166,7 +166,7 @@ const Topbar = () => {
           </div>
 
           {showSearchResults && searchResults.length > 0 && (
-            <div className="search-results-dropdown">
+            <div className="search-results-dropdown" aria-live="polite">
               {searchResults.map((result, index) => (
                 <div
                   key={`${result.type}-${index}`}

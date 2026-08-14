@@ -851,7 +851,17 @@ const Reports = () => {
             <div className="modal-body" style={{ flex: 1, overflow: 'auto', padding: 0 }}>
               <div
                 style={{ padding: 20, background: '#fff', minHeight: 300 }}
-                dangerouslySetInnerHTML={{ __html: gstPreview.html }}
+                dangerouslySetInnerHTML={{ __html: (() => {
+                  const div = document.createElement('div');
+                  div.innerHTML = gstPreview.html;
+                  div.querySelectorAll('script').forEach(el => el.remove());
+                  div.querySelectorAll('*').forEach(el => {
+                    [...el.attributes].forEach(attr => {
+                      if (attr.name.startsWith('on')) el.removeAttribute(attr.name);
+                    });
+                  });
+                  return div.innerHTML;
+                })() }}
               />
             </div>
 

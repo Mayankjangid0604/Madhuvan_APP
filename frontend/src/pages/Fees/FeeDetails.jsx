@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../../services/api/axiosInstance";
 import { feeAPI } from "../../services/api/fee.api";
@@ -40,6 +40,19 @@ const FeeDetails = () => {
   const [members, setMembers] = useState([]);
   const [toast, setToast] = useState({ show: false, type: '', message: '' });
 
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await feeAPI.getStudentFeeDetails(studentId);
+      setData(res.data.data);
+
+    } catch (err) {
+      console.error("Failed to load fee details", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [studentId]);
+
   useEffect(() => {
     loadData();
     settingsAPI.getHostelInfo().then((r) => {
@@ -48,7 +61,7 @@ const FeeDetails = () => {
     memberAPI.getActive()
       .then(res => setMembers(res.data.data || []))
       .catch(() => {});
-  }, [studentId]);
+  }, [loadData]);
 
   useEffect(() => {
     if (toast.show) {
@@ -168,19 +181,6 @@ const FeeDetails = () => {
       // Pass total so cash-mode receipt shows the actual payment amount
       total_amount: paidAmount,
     });
-  };
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const res = await feeAPI.getStudentFeeDetails(studentId);
-      setData(res.data.data);
-
-    } catch (err) {
-      console.error("Failed to load fee details", err);
-    } finally {
-      setLoading(false);
-    }
   };
 
   const formatCurrency = (amt) => `₹${(amt || 0).toLocaleString("en-IN")}`;

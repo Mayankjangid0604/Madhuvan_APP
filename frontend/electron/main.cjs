@@ -9,6 +9,17 @@ let isQuitting = false;
 let backendReady = false;
 let isCleaningUp = false;
 
+// Rotate log file if it exceeds 5MB, keeping the last 1MB
+function rotateLogIfNeeded(logPath) {
+  try {
+    const stats = fs.statSync(logPath);
+    if (stats.size > 5 * 1024 * 1024) {
+      const content = fs.readFileSync(logPath, 'utf8');
+      fs.writeFileSync(logPath, content.slice(-1024 * 1024)); // keep last 1MB
+    }
+  } catch (e) { /* file doesn't exist yet, that's fine */ }
+}
+
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
   app.quit();
@@ -57,23 +68,31 @@ ipcMain.handle("backend:wait-for-ready", async (_event, timeoutMs = 20000) => {
   };
 });
 
-// Find Node.js executable
+// Find Node.js executable (cross-platform)
 function findNodePath() {
-  const possiblePaths = [
-    path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node.exe'),
-    path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'nodejs', 'node.exe'),
-    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'nodejs', 'node.exe'),
-    path.join(process.env.APPDATA || '', 'npm', 'node.exe'),
-    'C:\\Program Files\\nodejs\\node.exe',
-    'C:\\nodejs\\node.exe',
-    'C:\\Program Files\\nodejs\\node.exe',
-    'C:\\Program Files (x86)\\nodejs\\node.exe',
-  ];
+  const isWindows = process.platform === 'win32';
+  const nodeExe = isWindows ? 'node.exe' : 'node';
 
-  // Check fixed paths first
+  // Platform-specific well-known paths
+  const possiblePaths = isWindows
+    ? [
+        path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node.exe'),
+        path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'nodejs', 'node.exe'),
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'nodejs', 'node.exe'),
+        path.join(process.env.APPDATA || '', 'npm', 'node.exe'),
+        'C:\\Program Files\\nodejs\\node.exe',
+        'C:\\nodejs\\node.exe',
+      ]
+    : [
+        '/usr/local/bin/node',
+        '/usr/bin/node',
+        '/opt/homebrew/bin/node',
+      ];
+
+  // Check well-known paths first
   for (const nodePath of possiblePaths) {
     if (nodePath && fs.existsSync(nodePath)) {
-      console.log("✅ Found Node.js at:", nodePath);
+      console.log("Found Node.js at:", nodePath);
       return nodePath;
     }
   }
@@ -82,29 +101,30 @@ function findNodePath() {
   try {
     const pathDirs = (process.env.PATH || '').split(path.delimiter);
     for (const dir of pathDirs) {
-      const candidate = path.join(dir, 'node.exe');
+      const candidate = path.join(dir, nodeExe);
       if (fs.existsSync(candidate)) {
-        console.log("✅ Found Node.js in PATH at:", candidate);
+        console.log("Found Node.js in PATH at:", candidate);
         return candidate;
       }
     }
   } catch (e) {
-    console.warn("⚠️ PATH search failed:", e.message);
+    console.warn("PATH search failed:", e.message);
   }
 
-  // Try 'where node' shell command as last resort (Windows)
+  // Shell lookup as last resort
+  const shellCmd = isWindows ? 'where node' : 'which node';
   try {
-    const result = execSync('where node', { timeout: 3000, encoding: 'utf8' }).trim();
+    const result = execSync(shellCmd, { timeout: 3000, encoding: 'utf8' }).trim();
     const firstLine = result.split('\n')[0].trim();
     if (firstLine && fs.existsSync(firstLine)) {
-      console.log("✅ Found Node.js via 'where node':", firstLine);
+      console.log(`Found Node.js via '${shellCmd}':`, firstLine);
       return firstLine;
     }
   } catch (e) {
-    console.warn("⚠️ 'where node' failed:", e.message);
+    console.warn(`'${shellCmd}' failed:`, e.message);
   }
 
-  console.log("⚠️ Node.js not found in any location, using 'node' command");
+  console.log("Node.js not found in any location, using 'node' command");
   return 'node';
 }
 
@@ -249,6 +269,7 @@ async function startBackend() {
     fs.mkdirSync(logDir, { recursive: true });
   }
   const logFile = path.join(logDir, 'backend.log');
+  rotateLogIfNeeded(logFile);
   const logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
   return new Promise((resolve) => {

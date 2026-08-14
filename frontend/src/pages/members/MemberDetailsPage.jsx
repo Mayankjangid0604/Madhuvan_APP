@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { memberAPI } from "../../services/api/member.api";
 import SalaryReceipt from "./SalaryReceipt";
@@ -52,9 +52,25 @@ const MemberDetailsPage = () => {
   });
   const [deleteConfirm, setDeleteConfirm] = useState({ isOpen: false });
 
+  const loadMember = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await memberAPI.getById(id);
+      const found = res.data.data;
+      if (found) {
+        setMember(found);
+        await loadData(found.member_id);
+      }
+    } catch {
+      setToast({ message: "Failed to load member", type: "error" });
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
   useEffect(() => {
     loadMember();
-  }, [id]);
+  }, [loadMember]);
 
   useEffect(() => {
     if (toast) {
@@ -65,22 +81,6 @@ const MemberDetailsPage = () => {
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
-  };
-
-  const loadMember = async () => {
-    try {
-      setLoading(true);
-      const res = await memberAPI.getById(id);
-      const found = res.data.data;
-      if (found) {
-        setMember(found);
-        await loadData(found.member_id);
-      }
-    } catch {
-      showToast("Failed to load member", "error");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const loadData = async (memberId) => {

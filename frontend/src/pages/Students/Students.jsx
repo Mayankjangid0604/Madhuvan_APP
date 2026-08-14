@@ -915,7 +915,7 @@ const Students = () => {
           )}
         </div>
       ) : (
-        <div className="students-table-container">
+        <div className="students-table-container" aria-live="polite">
           <table className="students-table">
             <thead>
               <tr>
