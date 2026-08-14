@@ -1,5 +1,6 @@
 // Utility for storing student form drafts in localStorage
 const STORAGE_KEY = "madhuvan_student_drafts";
+const MAX_DRAFTS = 10;
 
 export const loadDrafts = () => {
   try {
@@ -21,7 +22,7 @@ const persist = (drafts) => {
 };
 
 export const saveDraft = (draft) => {
-  const drafts = loadDrafts();
+  let drafts = loadDrafts();
   const id = draft.id || `draft_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const entry = {
     ...draft,
@@ -34,6 +35,10 @@ export const saveDraft = (draft) => {
     drafts[existingIndex] = entry;
   } else {
     drafts.unshift(entry);
+  }
+  // Trim old drafts to stay within storage limits
+  if (drafts.length > MAX_DRAFTS) {
+    drafts = drafts.slice(0, MAX_DRAFTS);
   }
   persist(drafts);
   return entry;

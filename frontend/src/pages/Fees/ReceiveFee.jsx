@@ -27,8 +27,6 @@ const ReceiveFee = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [expanded, setExpanded] = useState({});
-
   // Payment modal
   const [showPayModal, setShowPayModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -40,7 +38,7 @@ const ReceiveFee = () => {
 
   // Invoice modal
   const [showInvoice, setShowInvoice] = useState(false);
-  const [invoiceData, setInvoiceData] = useState(null);
+  const [invoiceData, setInvoiceData] = useState(null); // TODO: setInvoiceData is never called; wire up invoice generation or remove
 
   // Toast
   const [toast, setToast] = useState({ show: false, type: "", message: "" });
@@ -472,7 +470,6 @@ const ReceiveFee = () => {
         <div className="cards-grid">
           {filtered.map(student => {
             const status = getStatus(student);
-            const isExpanded = expanded[student.student_id];
             const breakdown = getStudentBreakdown(student);
 
             return (

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { roomAPI } from "../../services/api/room.api";
 import { studentAPI } from "../../services/api/student.api";
@@ -28,80 +28,10 @@ import {
   Sparkles,
   TrendingUp,
   Eye,
-  EyeOff,
-  Check
+  EyeOff
 } from "lucide-react";
+import ConfirmModal from "../../components/modals/ConfirmModal";
 import "./rooms.css";
-
-// ===== CUSTOM CONFIRM MODAL COMPONENT =====
-const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, type = 'warning' }) => {
-  const confirmBtnRef = useRef(null);
-
-  useEffect(() => {
-    if (isOpen && confirmBtnRef.current) {
-      confirmBtnRef.current.focus();
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onCancel?.();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onCancel]);
-
-  if (!isOpen) return null;
-
-  const iconColor = type === 'danger' ? '#ef4444' : '#f59e0b';
-  const bgColor = type === 'danger' ? '#fef2f2' : '#fef3c7';
-  const btnColor = type === 'danger' ? '#ef4444' : '#3b82f6';
-
-  return (
-    <div
-      className="confirm-modal-overlay"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          onCancel?.();
-        }
-      }}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div className="confirm-modal-content">
-        <div className="confirm-modal-icon" style={{ background: bgColor, color: iconColor }}>
-          {type === 'danger' ? <Trash2 size={32} /> : <AlertTriangle size={32} />}
-        </div>
-        <h3 className="confirm-modal-title">{title}</h3>
-        <p className="confirm-modal-message">{message}</p>
-        <div className="confirm-modal-actions">
-          <button
-            type="button"
-            className="confirm-modal-btn cancel"
-            onClick={onCancel}
-          >
-            <X size={16} />
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={`confirm-modal-btn ${type === 'danger' ? 'danger' : 'confirm'}`}
-            onClick={onConfirm}
-            ref={confirmBtnRef}
-          >
-            {type === 'danger' ? <Trash2 size={16} /> : <Check size={16} />}
-            {type === 'danger' ? 'Delete' : 'Confirm'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // ✅ CORRECTED: Proper floor detection
 // 001-099 = Ground Floor (3-digit with 0 prefix)

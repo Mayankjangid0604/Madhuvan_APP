@@ -38,7 +38,6 @@ import { settingsAPI } from "../../../services/api/settings.api.js";
 import Card from "../../../components/cards/Card.jsx";
 import Button from "../../../components/buttons/Button.jsx";
 import PageHeader from "../../../components/layout/PageHeader.jsx";
-import StudentAdmissionForm from "../../../components/PrintForm/StudentAdmissionForm";
 import DateInput from "../../../components/common/DateInput";
 import "./addStudent.css";
 
@@ -302,7 +301,7 @@ const AddStudent = () => {
     if (!value) return "";
 
     let formatted = value.trim().replace(/\s+/g, ' ');
-    formatted = formatted.replace(/(\d+)(?!th)/gi, '$1th');
+    formatted = formatted.replace(/(\d+)(?!(st|nd|rd|th)\b)/gi, '$1th');
 
     const uppercaseWords = ['neet', 'jee', 'iit', 'ca', 'cs', 'nda', 'upsc'];
     uppercaseWords.forEach(word => {

@@ -26,6 +26,12 @@ export const useBodyScrollReset = () => {
   useEffect(() => {
     // Reset body styles on every route change
     resetBodyStyles();
+    // Scroll to top on navigation
+    window.scrollTo(0, 0);
+    const layoutContent = document.querySelector('.layout-content');
+    if (layoutContent) {
+      layoutContent.scrollTop = 0;
+    }
   }, [location.pathname]);
 };
 
