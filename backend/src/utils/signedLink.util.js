@@ -1,10 +1,10 @@
 const crypto = require('crypto');
 
-const SECRET = process.env.JWT_SECRET;
+const getSecret = () => process.env.JWT_SECRET || 'fallback-secret-change-me';
 const DEFAULT_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 const hmac = (data) =>
-  crypto.createHmac('sha256', SECRET).update(String(data)).digest('hex').slice(0, 32);
+  crypto.createHmac('sha256', getSecret()).update(String(data)).digest('hex').slice(0, 32);
 
 const sign = (value, { expiresInMs = DEFAULT_EXPIRY_MS } = {}) => {
   const expires = Date.now() + expiresInMs;

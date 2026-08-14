@@ -44,17 +44,17 @@ const parseDateParts = exports.parseDateParts = (dateStr) => {
   };
 };
 
-const generateInvoiceNumber = () => {
+const generateInvoiceNumber = db.db.transaction(() => {
   const year = new Date().getFullYear();
   const prefix = `INV-${year}-`;
   const last = db.db.prepare(`
-    SELECT invoice_number FROM fee_payments 
+    SELECT invoice_number FROM fee_payments
     WHERE invoice_number LIKE ? ORDER BY payment_id DESC LIMIT 1
   `).get(`${prefix}%`);
 
   const seq = last?.invoice_number ? parseInt(last.invoice_number.split('-').pop()) + 1 : 1;
   return `${prefix}${String(seq).padStart(6, '0')}`;
-};
+});
 
 const calculateDueDate = (startDate) => {
   const { year, month, day } = parseDateParts(startDate);

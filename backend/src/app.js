@@ -125,7 +125,7 @@ const app = express();
 
 // CORS Configuration
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || "*",
+  origin: process.env.CORS_ORIGIN || "http://127.0.0.1:5173",
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "cache-control", "pragma", "expires"]
 }));
@@ -149,8 +149,7 @@ app.use("/uploads", express.static(UPLOADS_DIR, {
       ".jpeg": "image/jpeg",
       ".png": "image/png",
       ".gif": "image/gif",
-      ".webp": "image/webp",
-      ".svg": "image/svg+xml"
+      ".webp": "image/webp"
     };
     if (mimeTypes[ext]) {
       res.setHeader("Content-Type", mimeTypes[ext]);

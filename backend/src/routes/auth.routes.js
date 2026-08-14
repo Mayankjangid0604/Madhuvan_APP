@@ -3,6 +3,25 @@ const router = express.Router();
 const authController = require("../controllers/auth.controller");
 const authMiddleware = require("../middlewares/auth.middleware");
 
+// ============================================
+// LOGIN RATE LIMITER (in-memory)
+// ============================================
+const loginAttempts = new Map();
+const loginRateLimit = (req, res, next) => {
+  const ip = req.ip;
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000; // 15 minutes
+  const maxAttempts = 10;
+  const attempts = loginAttempts.get(ip) || [];
+  const recent = attempts.filter(t => now - t < windowMs);
+  if (recent.length >= maxAttempts) {
+    return res.status(429).json({ success: false, message: 'Too many login attempts. Try again later.' });
+  }
+  recent.push(now);
+  loginAttempts.set(ip, recent);
+  next();
+};
+
 /**
  * @swagger
  * tags:
@@ -49,7 +68,7 @@ const authMiddleware = require("../middlewares/auth.middleware");
  *                     email:
  *                       type: string
  */
-router.post("/login", authController.login);
+router.post("/login", loginRateLimit, authController.login);
 
 /**
  * @swagger

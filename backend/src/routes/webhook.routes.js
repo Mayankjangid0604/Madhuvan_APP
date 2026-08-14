@@ -15,11 +15,15 @@ const WEBHOOK_PATH = "/api/webhooks/phonepe";
 const verifyPhonePeSignature = (body, header, saltKey, saltIndex) => {
   if (!header) return false;
   const [providedHash, providedIndex] = String(header).split("###");
+  if (String(providedIndex) !== String(saltIndex)) return false;
   const expected = crypto
     .createHash("sha256")
     .update(body + WEBHOOK_PATH + saltKey)
     .digest("hex");
-  return providedHash === expected && String(providedIndex) === String(saltIndex);
+  const a = Buffer.from(expected, 'utf8');
+  const b = Buffer.from(String(providedHash), 'utf8');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 };
 
 router.post("/phonepe", express.json({
