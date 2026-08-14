@@ -1,5 +1,7 @@
 const { db } = require("../config/db.sqlite");
 const memberService = require("../services/member.service");
+// TODO: Migrate to standardized responses:
+// const { success, error } = require('../utils/response.util');
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -11,15 +13,32 @@ const MONTHS = [
 // ============================================
 const toNum = (v) => Number(v) || 0;
 
-let _receiptCounter = 0;
-function generateReceiptNumber() {
+const generateReceiptNumber = db.transaction(() => {
   const date = new Date();
-  const year = date.getFullYear().toString().slice(-2);
+  const year = date.getFullYear();
+  const yearShort = year.toString().slice(-2);
   const month = (date.getMonth() + 1).toString().padStart(2, '0');
-  const ts = Date.now().toString(36).slice(-4).toUpperCase();
-  const seq = (++_receiptCounter % 10000).toString().padStart(4, '0');
-  return `SAL${year}${month}${ts}${seq}`;
-}
+
+  // Atomic read-increment-write using doc_counters table
+  const row = db.prepare(
+    "SELECT counter FROM doc_counters WHERE doc_type = 'salary_receipt' AND year = ?"
+  ).get(year);
+
+  let seq;
+  if (row) {
+    seq = row.counter + 1;
+    db.prepare(
+      "UPDATE doc_counters SET counter = ? WHERE doc_type = 'salary_receipt' AND year = ?"
+    ).run(seq, year);
+  } else {
+    seq = 1;
+    db.prepare(
+      "INSERT INTO doc_counters (doc_type, year, counter) VALUES ('salary_receipt', ?, 1)"
+    ).run(year);
+  }
+
+  return `SAL${yearShort}${month}${seq.toString().padStart(4, '0')}`;
+});
 
 function getMonthIndex(monthName) {
   return MONTHS.indexOf(monthName);

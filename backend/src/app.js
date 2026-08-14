@@ -313,13 +313,6 @@ setTimeout(() => {
     console.warn("   ⚠️ Penalty job:", err.message);
   }
 
-  try {
-    require("./jobs/reminder.job");
-    console.log("   ✅ Reminder job started");
-  } catch (err) {
-    console.warn("   ⚠️ Reminder job:", err.message);
-  }
-
   // ============================================
   // CRON JOBS
   // ============================================

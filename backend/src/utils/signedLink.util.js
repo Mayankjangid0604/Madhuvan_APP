@@ -1,6 +1,11 @@
 const crypto = require('crypto');
 
-const getSecret = () => process.env.JWT_SECRET || 'fallback-secret-change-me';
+const getSecret = () => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is not set');
+  }
+  return process.env.JWT_SECRET;
+};
 const DEFAULT_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 const hmac = (data) =>

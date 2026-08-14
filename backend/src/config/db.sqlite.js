@@ -1439,6 +1439,13 @@ function runMigrations() {
     db.exec('CREATE INDEX IF NOT EXISTS idx_member_tx_member ON member_transactions(member_id)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_member_tx_salary_month ON member_transactions(salary_month)');
     db.exec('CREATE INDEX IF NOT EXISTS idx_member_advances ON member_salary_advances(member_id, status)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_room_allocation_student ON room_allocation(student_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_room_allocation_room ON room_allocation(room_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_ledger_entries_student ON ledger_entries(student_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_ledger_entries_date ON ledger_entries(entry_date)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_student_fees_student ON student_fees(student_id)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_student_fees_status ON student_fees(fee_status)');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_students_status ON students(date_of_leaving)');
   } catch (e) { /* ignore */ }
 
   db.pragma(`user_version = ${CURRENT_SCHEMA_VERSION}`);
@@ -1450,13 +1457,20 @@ function runMigrations() {
 // ============================================
 function seedDefaultData() {
   try {
-    const admin = db.prepare('SELECT id FROM admins WHERE id = 1').get();
-    if (!admin) {
-      db.prepare(`
-        INSERT INTO admins (id, email, password, is_active)
-        VALUES (1, 'admin@example.com', '$2b$10$Rn.Wemjw956Atj9gNgG2COnb6Eum3UGoEmiH6CdWtRgjJ4x9T2deG', 1)
-      `).run();
-      console.log('  ✅ Default admin created');
+    const adminCount = db.prepare('SELECT COUNT(*) as count FROM admins').get();
+    if (adminCount.count === 0) {
+      const crypto = require('crypto');
+      const bcrypt = require('bcryptjs');
+      const defaultPassword = crypto.randomBytes(16).toString('hex');
+      const hash = bcrypt.hashSync(defaultPassword, 10);
+      db.prepare('INSERT INTO admins (email, password, is_active) VALUES (?, ?, 1)')
+        .run('admin@hostel.com', hash);
+      console.log('===========================================');
+      console.log('FIRST RUN: Default admin created');
+      console.log('Email: admin@hostel.com');
+      console.log('Password:', defaultPassword);
+      console.log('CHANGE THIS PASSWORD IMMEDIATELY');
+      console.log('===========================================');
     }
   } catch (e) { /* ignore */ }
 

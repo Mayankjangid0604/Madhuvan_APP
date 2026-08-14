@@ -4,6 +4,9 @@ const feeService = require("../services/fee.service");
 /**
  * Runs every day at 00:05 AM - flips DUE fees to OVERDUE once due_date has passed
  * (and recomputes DUE/PARTIAL/PAID as a safety net).
+ *
+ * NOTE: Must run BEFORE penalty.job.js (00:10) which applies monetary penalties
+ * to fees already marked OVERDUE by this job. Do not merge these two jobs.
  */
 const startFeeOverdueCron = () => {
   cron.schedule("5 0 * * *", () => {
