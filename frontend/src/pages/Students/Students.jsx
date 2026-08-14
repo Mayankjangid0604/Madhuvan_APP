@@ -34,12 +34,17 @@ import {
   Printer,
   Trash2,
   RefreshCw,
+  FileText,
 } from "lucide-react";
 import { imageUrlToBase64 } from "../../utils/imageToBase64";
 import { getFileUrl } from "../../utils/imageSrc";
 import { loadDrafts, deleteDraft } from "../../utils/studentDrafts";
-import { FileText } from "lucide-react";
 import "./students.css";
+
+const escapeHTML = (str) => {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+};
 
 // ✅ Helper function to reset body styles
 const resetBodyStyles = () => {
@@ -522,7 +527,7 @@ const Students = () => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Admission Form - ${printStudent.student_name}</title>
+          <title>Admission Form - ${escapeHTML(printStudent.student_name)}</title>
           <meta charset="UTF-8">
           <style>
             /* ==================== GENERAL STYLES ==================== */

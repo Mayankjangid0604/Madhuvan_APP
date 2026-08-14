@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";  // ✅ THIS WAS MISSING OR REMOVED
 import { saveDraft, deleteDraft, getDraft } from "../../../utils/studentDrafts";
 import { useReactToPrint } from 'react-to-print';
@@ -118,6 +118,13 @@ const AddStudent = () => {
 
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const photoUrlRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    };
+  }, []);
 
   // Fee Type Options - NEW
   const feeTypeOptions = [
@@ -473,11 +480,16 @@ const AddStudent = () => {
         return;
       }
       setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+      const newUrl = URL.createObjectURL(file);
+      photoUrlRef.current = newUrl;
+      setPhotoPreview(newUrl);
     }
   };
 
   const handleRemovePhoto = () => {
+    if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    photoUrlRef.current = null;
     setPhotoFile(null);
     setPhotoPreview(null);
   };

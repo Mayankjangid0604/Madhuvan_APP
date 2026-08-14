@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import DateInput from "../../components/common/DateInput";
 import {
   FileText,
@@ -32,6 +33,7 @@ import api from "../../services/api/axiosInstance";
 import "./reports.css";
 
 const Reports = () => {
+  const navigate = useNavigate();
   const [dateRange, setDateRange] = useState({
     from: "",
     to: ""
@@ -384,7 +386,7 @@ const Reports = () => {
 
       if (!token) {
         showToast('error', 'Session expired. Please login again.');
-        window.location.href = '/login';
+        navigate('/login');
         return;
       }
 
@@ -413,7 +415,7 @@ const Reports = () => {
       if (response.status === 401) {
         showToast('error', 'Your session has expired. Please login again.');
         localStorage.removeItem('token');
-        window.location.href = '/login';
+        navigate('/login');
         return;
       }
 

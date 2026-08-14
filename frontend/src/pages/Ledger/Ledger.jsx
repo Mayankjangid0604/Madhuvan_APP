@@ -34,6 +34,7 @@ import {
 import { printElement } from "../../utils/printUtil";
 import { printReceipt, printBill } from "../../utils/feeDocuments";
 import { settingsAPI } from "../../services/api/settings.api";
+import api from "../../services/api/axiosInstance";
 import "./ledger.css";
 
 const Ledger = () => {
@@ -91,11 +92,8 @@ const Ledger = () => {
 
   const fetchLedgerDocNumber = async (type) => {
     try {
-      const token = localStorage.getItem("token");
-      const url = `${import.meta.env.VITE_API_BASE_URL}/doc-number/next?type=${type}`;
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      const j = await r.json();
-      return j.data?.number;
+      const r = await api.get("/doc-number/next", { params: { type } });
+      return r.data?.data?.number;
     } catch { return null; }
   };
 

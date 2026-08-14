@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import { X, Printer, Download, CheckCircle, AlertCircle } from "lucide-react";
-import { feeAPI } from "../../services/api/fee.api";
 import { printElement } from "../../utils/printUtil";
 import "./FeeInvoiceModal.css";
 
@@ -62,7 +61,7 @@ const FeeInvoicePreview = ({ open, onClose, payment, student }) => {
 
   const handleDownload = () => {
     const link = document.createElement("a");
-    link.href = `${API_URL}${feeAPI.getInvoiceDownloadUrl(payment.invoice_number)}`;
+    link.href = `${API_URL}/fees/invoice/${payment.invoice_number}/download`;
     link.download = `Receipt_${payment.invoice_number}.pdf`;
     link.click();
   };

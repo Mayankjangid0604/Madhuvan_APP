@@ -16,7 +16,7 @@ export const imageUrlToBase64 = async (url) => {
   try {
     const response = await fetch(url, {
       // ✅ FIX: Add credentials for authenticated requests
-      credentials: 'include',
+      credentials: 'omit',
       mode: 'cors'
     });
     

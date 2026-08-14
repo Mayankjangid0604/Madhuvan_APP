@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Download,
@@ -39,7 +39,7 @@ const Settings = () => {
   const navigate = useNavigate();
   const { user, updateAuth } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const isSuperAdmin = true;
+  const isSuperAdmin = false;
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -157,6 +157,15 @@ const Settings = () => {
   const [logoRightFile, setLogoRightFile] = useState(null);
   const [logoLeftPreview, setLogoLeftPreview] = useState(null);
   const [logoRightPreview, setLogoRightPreview] = useState(null);
+  const logoLeftUrlRef = useRef(null);
+  const logoRightUrlRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (logoLeftUrlRef.current) URL.revokeObjectURL(logoLeftUrlRef.current);
+      if (logoRightUrlRef.current) URL.revokeObjectURL(logoRightUrlRef.current);
+    };
+  }, []);
 
   const [backupList, setBackupList] = useState([]);
   const [loadingBackups, setLoadingBackups] = useState(false);
@@ -509,8 +518,8 @@ const Settings = () => {
       return;
     }
 
-    if (passwordData.newPassword.length < 6) {
-      showError("Password must be at least 6 characters long!");
+    if (passwordData.newPassword.length < 8) {
+      showError("Password must be at least 8 characters long!");
       return;
     }
 
@@ -724,7 +733,10 @@ const Settings = () => {
     try {
       const resized = await resizeImage(file);
       setLogoLeftFile(resized);
-      setLogoLeftPreview(URL.createObjectURL(resized));
+      if (logoLeftUrlRef.current) URL.revokeObjectURL(logoLeftUrlRef.current);
+      const newUrl = URL.createObjectURL(resized);
+      logoLeftUrlRef.current = newUrl;
+      setLogoLeftPreview(newUrl);
     } catch (err) {
       showError(typeof err === 'string' ? err : "Failed to process logo");
     }
@@ -737,7 +749,10 @@ const Settings = () => {
     try {
       const resized = await resizeImage(file);
       setLogoRightFile(resized);
-      setLogoRightPreview(URL.createObjectURL(resized));
+      if (logoRightUrlRef.current) URL.revokeObjectURL(logoRightUrlRef.current);
+      const newUrl = URL.createObjectURL(resized);
+      logoRightUrlRef.current = newUrl;
+      setLogoRightPreview(newUrl);
     } catch (err) {
       showError(typeof err === 'string' ? err : "Failed to process logo");
     }
