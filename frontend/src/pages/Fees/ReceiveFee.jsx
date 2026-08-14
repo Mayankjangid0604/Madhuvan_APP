@@ -102,6 +102,7 @@ const ReceiveFee = () => {
       // Optional: replace state to avoid re-triggering on refresh
       window.history.replaceState({}, document.title);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [students, location.state, autoPayHandled]);
 
   // ── Helpers ──
