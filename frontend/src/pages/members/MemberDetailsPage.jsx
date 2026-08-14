@@ -70,9 +70,8 @@ const MemberDetailsPage = () => {
   const loadMember = async () => {
     try {
       setLoading(true);
-      const res = await memberAPI.getAll();
-      const allMembers = res.data.data || [];
-      const found = allMembers.find(m => m.member_id === Number(id));
+      const res = await memberAPI.getById(id);
+      const found = res.data.data;
       if (found) {
         setMember(found);
         await loadData(found.member_id);

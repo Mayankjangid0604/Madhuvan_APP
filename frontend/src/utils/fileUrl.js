@@ -1,4 +1,4 @@
-export function getFileUrl(path) {
+export function getUploadFileUrl(path) {
   if (!path) return "";
 
   // Already absolute or base64

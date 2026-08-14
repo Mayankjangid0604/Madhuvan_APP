@@ -30,6 +30,6 @@ export const studentAPI = {
   },
 
   hardDeleteStudent(id) {
-    return api.delete(`/students/${id}`);
+    return api.delete(`/students/${id}`, { params: { hard: true } });
   },
 };
