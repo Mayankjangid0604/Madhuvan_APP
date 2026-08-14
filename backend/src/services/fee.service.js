@@ -629,7 +629,6 @@ exports.cleanupInvalidPastFees = () => {
       const feeParts = exports.parseDateParts(f.fee_month);
 
       if (feeParts.year < startParts.year || (feeParts.year === startParts.year && feeParts.month < startParts.month)) {
-        console.log(`🧹 Cleaning up invalid ${f.fee_month} fee for ${f.student_name} (starts on ${startDateToUse})`);
         db.db.prepare(`DELETE FROM student_fees WHERE fee_id = ?`).run(f.fee_id);
         deleted++;
       }

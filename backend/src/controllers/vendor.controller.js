@@ -1,5 +1,9 @@
 const vendorService = require("../services/vendor.service");
 const asyncHandler = require("../utils/asyncHandler");
+// TODO: Migrate to standardized responses:
+// const { success, error } = require('../utils/response.util');
+// e.g. return success(res, vendor, 'Vendor created', 201);
+// e.g. return error(res, 'Vendor not found', 404);
 
 exports.getAll = asyncHandler(async (req, res) => {
   const vendors = vendorService.getAll();

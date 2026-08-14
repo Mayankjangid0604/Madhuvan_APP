@@ -110,4 +110,10 @@ router.post("/change-username", authMiddleware, authController.changeUsername);
  */
 router.get("/me", authMiddleware, authController.getCurrentAdmin);
 
+/**
+ * @route POST /api/auth/logout
+ * @desc Logout and blacklist the current token
+ */
+router.post("/logout", authController.logout);
+
 module.exports = router;

@@ -1,8 +1,10 @@
 const jwt = require("jsonwebtoken");
+const { isTokenBlacklisted } = require("../controllers/auth.controller");
 
 /**
  * JWT Authentication Middleware
  * - Validates Authorization header
+ * - Checks token blacklist (logout support)
  * - Verifies JWT signature & expiry
  * - Attaches admin info to req.admin
  */
@@ -19,6 +21,14 @@ module.exports = (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
+
+    // Check if token has been blacklisted (logged out)
+    if (isTokenBlacklisted(token)) {
+      return res.status(401).json({
+        success: false,
+        message: "Token has been revoked"
+      });
+    }
 
     // ✅ FIX #1: Ensure JWT_SECRET exists
     if (!process.env.JWT_SECRET) {

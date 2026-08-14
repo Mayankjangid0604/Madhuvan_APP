@@ -38,13 +38,6 @@ exports.createStudentWithFees = (data) => {
     data.discount_months = data.fee_start_month;
   }
 
-  console.log("📝 Creating student:", {
-    name: data.student_name,
-    fee_type_cycle: data.fee_type_cycle,
-    monthly_fee: data.monthly_fee,
-    security_deposit: securityDeposit
-  });
-
   let creationResult = {
     student_id: null,
     fees_created: false,
@@ -84,7 +77,6 @@ exports.createStudentWithFees = (data) => {
 
     const studentId = result.lastInsertRowid;
     creationResult.student_id = studentId;
-    console.log("✅ Student record created, ID:", studentId);
 
     if (data.monthly_fee && Number(data.monthly_fee) > 0) {
       try {
@@ -109,8 +101,6 @@ exports.createStudentWithFees = (data) => {
           creationResult.fees_created = true;
           creationResult.main_fee_id = feeResult.main_fee_id;
           creationResult.security_fee_id = feeResult.security_fee_id;
-          console.log("✅ Initial fees created:", feeResult);
-
           // ✅ FIX: Generate catch-up fees for months between joining and current month
           try {
             const joinDate = new Date(feeStartMonth);
@@ -137,9 +127,7 @@ exports.createStudentWithFees = (data) => {
               if (m > 11) { m = 0; y++; }
             }
 
-            if (catchupCount > 0) {
-              console.log(`✅ Generated ${catchupCount} catch-up fee(s) for student ${studentId}`);
-            }
+            // catchupCount tracked internally
           } catch (catchupErr) {
             console.warn("⚠️ Catch-up fee generation failed:", catchupErr.message);
           }
@@ -389,7 +377,6 @@ exports.updateStudent = (id, data) => {
             `).run(newBaseAmount, discountAmount, finalAmount, fee.fee_id);
           }
           feesUpdated = true;
-          console.log(`✅ Updated ${updatableFees.length} fees for student ${id}`);
         }
 
         // ✅ FIX: Create Security Deposit fee record if one doesn't exist yet.
@@ -413,7 +400,6 @@ exports.updateStudent = (id, data) => {
               id, insertDate, newSecDepForInsert, newSecDepForInsert,
               insertDate, insertDate, insertDate, insertDate
             );
-            console.log(`✅ Created new Security Deposit fee of ₹${newSecDepForInsert} for student ${id}`);
           }
         }
       } catch (err) {
@@ -496,7 +482,6 @@ exports.checkoutStudent = (id, options = {}) => {
         const filePath = path.join(STUDENTS_UPLOAD_DIR, filename);
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);
-          console.log("🗑️ Deleted student photo:", filename);
         }
       } catch (err) {
         console.warn("Could not delete photo:", err.message);
@@ -547,8 +532,6 @@ exports.uploadStudentPhoto = async (studentId, file) => {
         .jpeg({ quality: 85, progressive: true })
         .toFile(outputPath);
 
-      console.log(`📸 Image compressed: ${file.size} bytes → ${fs.statSync(outputPath).size} bytes`);
-
       if (fs.existsSync(file.path)) {
         fs.unlinkSync(file.path);
       }
@@ -563,7 +546,6 @@ exports.uploadStudentPhoto = async (studentId, file) => {
         const oldFilePath = path.join(STUDENTS_UPLOAD_DIR, oldFilename);
         if (fs.existsSync(oldFilePath) && oldFilePath !== outputPath) {
           fs.unlinkSync(oldFilePath);
-          console.log("🗑️ Deleted old photo");
         }
       } catch (err) {
         console.warn("Could not delete old photo:", err.message);

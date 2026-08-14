@@ -813,11 +813,18 @@ function migrateAndMergeDatabases() {
       newDb.exec('CREATE INDEX IF NOT EXISTS idx_member_tx_member ON member_transactions(member_id)');
       newDb.exec('CREATE INDEX IF NOT EXISTS idx_member_tx_salary_month ON member_transactions(salary_month)');
       newDb.exec('CREATE INDEX IF NOT EXISTS idx_member_advances ON member_salary_advances(member_id, status)');
+      newDb.exec('CREATE INDEX IF NOT EXISTS idx_room_allocation_student ON room_allocation(student_id)');
+      newDb.exec('CREATE INDEX IF NOT EXISTS idx_room_allocation_room ON room_allocation(room_id)');
+      newDb.exec('CREATE INDEX IF NOT EXISTS idx_ledger_entries_student ON ledger_entries(student_id)');
+      newDb.exec('CREATE INDEX IF NOT EXISTS idx_ledger_entries_date ON ledger_entries(entry_date)');
+      newDb.exec('CREATE INDEX IF NOT EXISTS idx_student_fees_student ON student_fees(student_id)');
+      newDb.exec('CREATE INDEX IF NOT EXISTS idx_student_fees_status ON student_fees(fee_status)');
+      newDb.exec('CREATE INDEX IF NOT EXISTS idx_students_status ON students(date_of_leaving)');
       console.log('  ✅ Indexes created');
     } catch (e) {
       console.warn('  ⚠️ Some indexes failed:', e.message);
     }
-    
+
     // Optimize new database
     console.log('🔧 Optimizing database...');
     newDb.exec('VACUUM');

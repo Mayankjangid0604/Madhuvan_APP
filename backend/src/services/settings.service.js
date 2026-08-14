@@ -435,7 +435,6 @@ exports.addHostelLogosToDoc = (doc, hostelInfo = {}) => {
         hostelInfo.logo_left.replace("/uploads/", "")
       );
 
-      console.log("📁 Looking for left logo:", leftPath);
       if (fs.existsSync(leftPath)) {
         doc.image(leftPath, 40, 30, { width: 60 });
       } else {
@@ -449,7 +448,6 @@ exports.addHostelLogosToDoc = (doc, hostelInfo = {}) => {
         hostelInfo.logo_right.replace("/uploads/", "")
       );
 
-      console.log("📁 Looking for right logo:", rightPath);
       if (fs.existsSync(rightPath)) {
         doc.image(rightPath, 480, 30, { width: 60 });
       } else {
