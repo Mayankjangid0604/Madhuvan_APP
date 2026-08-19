@@ -1053,14 +1053,14 @@ const FeeDetails = () => {
                   Amount <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 600 }}>₹</span>
+                  <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 600, fontSize: 14, pointerEvents: 'none', zIndex: 1 }}>₹</span>
                   <input
                     type="number"
                     value={paymentData.amount}
                     onChange={(e) => setPaymentData(p => ({ ...p, amount: e.target.value }))}
                     placeholder="Enter amount"
                     min="1"
-                    style={{ width: '100%', padding: '10px 12px 10px 28px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '10px 12px 10px 32px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
                   />
                 </div>
               </div>

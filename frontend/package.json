@@ -55,7 +55,7 @@
       {
         "from": "../backend",
         "to": "backend",
-        "filter": ["**/*", "!.env", "!.env.*", "!.git/**", "!node_modules/**", "!tests/**", "!*.test.js", "!.eslintrc*"]
+        "filter": ["**/*", "!.env", "!.env.*", "!.git/**", "!tests/**", "!*.test.js", "!.eslintrc*"]
       }
     ],
     "win": {
