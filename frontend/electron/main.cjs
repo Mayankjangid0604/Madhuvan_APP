@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, session } = require("electron");
 const path = require("path");
 const { spawn, exec, execSync } = require("child_process");
 const fs = require("fs");
@@ -7,6 +7,30 @@ let backendProcess;
 let mainWindow;
 let isQuitting = false;
 let backendReady = false;
+let isCleaningUp = false;
+
+// Rotate log file if it exceeds 5MB, keeping the last 1MB
+function rotateLogIfNeeded(logPath) {
+  try {
+    const stats = fs.statSync(logPath);
+    if (stats.size > 5 * 1024 * 1024) {
+      const content = fs.readFileSync(logPath, 'utf8');
+      fs.writeFileSync(logPath, content.slice(-1024 * 1024)); // keep last 1MB
+    }
+  } catch (e) { /* file doesn't exist yet, that's fine */ }
+}
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
 
 ipcMain.handle("backend:get-status", async () => {
   return {
@@ -44,23 +68,31 @@ ipcMain.handle("backend:wait-for-ready", async (_event, timeoutMs = 20000) => {
   };
 });
 
-// Find Node.js executable
+// Find Node.js executable (cross-platform)
 function findNodePath() {
-  const possiblePaths = [
-    path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node.exe'),
-    path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'nodejs', 'node.exe'),
-    path.join(process.env.LOCALAPPDATA || '', 'Programs', 'nodejs', 'node.exe'),
-    path.join(process.env.APPDATA || '', 'npm', 'node.exe'),
-    'C:\\Program Files\\nodejs\\node.exe',
-    'C:\\nodejs\\node.exe',
-    'C:\\Program Files\\nodejs\\node.exe',
-    'C:\\Program Files (x86)\\nodejs\\node.exe',
-  ];
+  const isWindows = process.platform === 'win32';
+  const nodeExe = isWindows ? 'node.exe' : 'node';
 
-  // Check fixed paths first
+  // Platform-specific well-known paths
+  const possiblePaths = isWindows
+    ? [
+        path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node.exe'),
+        path.join(process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)', 'nodejs', 'node.exe'),
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'nodejs', 'node.exe'),
+        path.join(process.env.APPDATA || '', 'npm', 'node.exe'),
+        'C:\\Program Files\\nodejs\\node.exe',
+        'C:\\nodejs\\node.exe',
+      ]
+    : [
+        '/usr/local/bin/node',
+        '/usr/bin/node',
+        '/opt/homebrew/bin/node',
+      ];
+
+  // Check well-known paths first
   for (const nodePath of possiblePaths) {
     if (nodePath && fs.existsSync(nodePath)) {
-      console.log("✅ Found Node.js at:", nodePath);
+      console.log("Found Node.js at:", nodePath);
       return nodePath;
     }
   }
@@ -69,29 +101,30 @@ function findNodePath() {
   try {
     const pathDirs = (process.env.PATH || '').split(path.delimiter);
     for (const dir of pathDirs) {
-      const candidate = path.join(dir, 'node.exe');
+      const candidate = path.join(dir, nodeExe);
       if (fs.existsSync(candidate)) {
-        console.log("✅ Found Node.js in PATH at:", candidate);
+        console.log("Found Node.js in PATH at:", candidate);
         return candidate;
       }
     }
   } catch (e) {
-    console.warn("⚠️ PATH search failed:", e.message);
+    console.warn("PATH search failed:", e.message);
   }
 
-  // Try 'where node' shell command as last resort (Windows)
+  // Shell lookup as last resort
+  const shellCmd = isWindows ? 'where node' : 'which node';
   try {
-    const result = execSync('where node', { timeout: 3000, encoding: 'utf8' }).trim();
+    const result = execSync(shellCmd, { timeout: 3000, encoding: 'utf8' }).trim();
     const firstLine = result.split('\n')[0].trim();
     if (firstLine && fs.existsSync(firstLine)) {
-      console.log("✅ Found Node.js via 'where node':", firstLine);
+      console.log(`Found Node.js via '${shellCmd}':`, firstLine);
       return firstLine;
     }
   } catch (e) {
-    console.warn("⚠️ 'where node' failed:", e.message);
+    console.warn(`'${shellCmd}' failed:`, e.message);
   }
 
-  console.log("⚠️ Node.js not found in any location, using 'node' command");
+  console.log("Node.js not found in any location, using 'node' command");
   return 'node';
 }
 
@@ -146,12 +179,12 @@ function killBackend() {
 function killOrphanedBackend() {
   return new Promise((resolve) => {
     if (process.platform === 'win32') {
-      // Find and kill any node.exe running app.js on port 5001
+      // Find and kill only node.exe processes on port 5001
       exec('netstat -ano | findstr ":5001"', (error, stdout) => {
         if (stdout) {
           const lines = stdout.trim().split('\n');
           const pids = new Set();
-          
+
           lines.forEach(line => {
             const parts = line.trim().split(/\s+/);
             const pid = parts[parts.length - 1];
@@ -160,16 +193,52 @@ function killOrphanedBackend() {
             }
           });
 
+          let pending = pids.size;
+          if (pending === 0) {
+            setTimeout(resolve, 500);
+            return;
+          }
+
           pids.forEach(pid => {
-            console.log(`🧹 Killing orphaned process on port 5001 (PID: ${pid})`);
-            exec(`taskkill /PID ${pid} /F`, () => {});
+            // Verify the process is a node process before killing
+            exec(`tasklist /FI "PID eq ${pid}" /FO CSV /NH`, (err, taskOut) => {
+              if (taskOut && taskOut.toLowerCase().includes('node')) {
+                console.log(`Killing orphaned node process on port 5001 (PID: ${pid})`);
+                exec(`taskkill /PID ${pid} /F`, () => {});
+              } else {
+                console.log(`Skipping non-node process on port 5001 (PID: ${pid})`);
+              }
+              pending--;
+              if (pending === 0) setTimeout(resolve, 500);
+            });
           });
+        } else {
+          setTimeout(resolve, 500);
         }
-        setTimeout(resolve, 500);
       });
     } else {
-      exec('lsof -ti:5001 | xargs kill -9 2>/dev/null', () => {
-        resolve();
+      // Unix/Mac: Only kill node processes on port 5001
+      exec('lsof -ti:5001', (error, stdout) => {
+        if (stdout) {
+          const pids = stdout.trim().split('\n').filter(p => p);
+          let pending = pids.length;
+          if (pending === 0) { resolve(); return; }
+
+          pids.forEach(pid => {
+            exec(`ps -p ${pid} -o comm=`, (err, psOut) => {
+              if (psOut && psOut.trim().toLowerCase().includes('node')) {
+                console.log(`Killing orphaned node process on port 5001 (PID: ${pid})`);
+                try { process.kill(parseInt(pid), 'SIGKILL'); } catch (e) {}
+              } else {
+                console.log(`Skipping non-node process on port 5001 (PID: ${pid})`);
+              }
+              pending--;
+              if (pending === 0) resolve();
+            });
+          });
+        } else {
+          resolve();
+        }
       });
     }
   });
@@ -200,6 +269,7 @@ async function startBackend() {
     fs.mkdirSync(logDir, { recursive: true });
   }
   const logFile = path.join(logDir, 'backend.log');
+  rotateLogIfNeeded(logFile);
   const logStream = fs.createWriteStream(logFile, { flags: 'a' });
 
   return new Promise((resolve) => {
@@ -348,8 +418,7 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       nodeIntegration: false,
-      contextIsolation: true,
-      webSecurity: false
+      contextIsolation: true
     }
   });
 
@@ -383,19 +452,21 @@ function createWindow() {
   }
 
   mainWindow.webContents.on('before-input-event', (event, input) => {
-    if (input.key === 'F12' && input.type === 'keyDown') {
-      mainWindow.webContents.toggleDevTools();
-      event.preventDefault();
-    }
-    
-    if (input.control && input.shift && input.key.toLowerCase() === 'i' && input.type === 'keyDown') {
-      mainWindow.webContents.toggleDevTools();
-      event.preventDefault();
-    }
-    
-    if (input.control && input.key.toLowerCase() === 'r' && input.type === 'keyDown') {
-      mainWindow.webContents.reload();
-      event.preventDefault();
+    if (!app.isPackaged) {
+      if (input.key === 'F12' && input.type === 'keyDown') {
+        mainWindow.webContents.toggleDevTools();
+        event.preventDefault();
+      }
+
+      if (input.control && input.shift && input.key.toLowerCase() === 'i' && input.type === 'keyDown') {
+        mainWindow.webContents.toggleDevTools();
+        event.preventDefault();
+      }
+
+      if (input.control && input.key.toLowerCase() === 'r' && input.type === 'keyDown') {
+        mainWindow.webContents.reload();
+        event.preventDefault();
+      }
     }
   });
 
@@ -441,6 +512,15 @@ app.whenReady().then(async () => {
   
   console.log("🖥️ Creating window...");
   createWindow();
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': ["default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http://127.0.0.1:5001; connect-src 'self' http://127.0.0.1:5001; font-src 'self' data:"]
+      }
+    });
+  });
 });
 
 // ✅ Handle all windows closed
@@ -454,8 +534,10 @@ app.on('window-all-closed', async () => {
 
 // ✅ Cleanup before quit
 app.on('before-quit', async (e) => {
+  if (isCleaningUp) return;
   if (backendProcess && !isQuitting) {
     e.preventDefault();
+    isCleaningUp = true;
     console.log("🛑 Before quit - killing backend...");
     await killBackend();
     app.quit();

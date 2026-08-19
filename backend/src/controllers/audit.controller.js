@@ -1,4 +1,6 @@
 const auditService = require("../services/audit.service");
+// TODO: Migrate to standardized responses:
+// const { success, error } = require('../utils/response.util');
 
 exports.getAuditLogs = (req, res) => {
   try {

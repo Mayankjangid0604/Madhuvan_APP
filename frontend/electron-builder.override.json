@@ -1,5 +1,5 @@
 {
-  "asar": false,
+  "asar": true,
   "npmRebuild": false,
   "directories": {
     "output": "dist-electron-build"

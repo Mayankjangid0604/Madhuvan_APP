@@ -37,7 +37,13 @@ export const AuthProvider = ({ children }) => {
   // Refresh lastActiveAt as the user interacts with the app.
   useEffect(() => {
     if (!user) return;
-    const bump = () => localStorage.setItem('lastActiveAt', String(Date.now()));
+    let lastBump = 0;
+    const bump = () => {
+      const now = Date.now();
+      if (now - lastBump < 30000) return;
+      lastBump = now;
+      localStorage.setItem('lastActiveAt', String(now));
+    };
     window.addEventListener('mousemove', bump, { passive: true });
     window.addEventListener('keydown', bump, { passive: true });
     window.addEventListener('click', bump, { passive: true });
@@ -87,11 +93,19 @@ export const AuthProvider = ({ children }) => {
     setUser({ email: email || localStorage.getItem('adminEmail'), token: token || localStorage.getItem('token') });
   }, []);
 
-  // ✅ Logout function
-  const logout = useCallback(() => {
+  // ✅ Logout function — notify server, then clear local state
+  const logout = useCallback(async () => {
+    try {
+      const { default: api } = await import('../services/api/axiosInstance');
+      await api.post('/auth/logout');
+    } catch (e) {
+      // Continue with local logout even if server call fails
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('adminEmail');
     localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('rememberMe');
+    localStorage.removeItem('lastActiveAt');
     setUser(null);
     navigate('/login');
   }, [navigate]);

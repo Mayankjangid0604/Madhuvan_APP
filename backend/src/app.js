@@ -125,7 +125,7 @@ const app = express();
 
 // CORS Configuration
 app.use(cors({
-  origin: "*",
+  origin: process.env.CORS_ORIGIN || "http://127.0.0.1:5173",
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "cache-control", "pragma", "expires"]
 }));
@@ -149,8 +149,7 @@ app.use("/uploads", express.static(UPLOADS_DIR, {
       ".jpeg": "image/jpeg",
       ".png": "image/png",
       ".gif": "image/gif",
-      ".webp": "image/webp",
-      ".svg": "image/svg+xml"
+      ".webp": "image/webp"
     };
     if (mimeTypes[ext]) {
       res.setHeader("Content-Type", mimeTypes[ext]);
@@ -220,6 +219,7 @@ const routes = [
   { path: "/api/members", module: "./routes/member.routes" },
   { path: "/api/doc-number", module: "./routes/docNumber.routes" },
   { path: "/api/vendors", module: "./routes/vendor.routes" },
+  // branches route removed — branches table no longer exists in schema
   { path: "/api/webhooks", module: "./routes/webhook.routes" },
   { path: "/api/public", module: "./routes/public.routes" }
 ];
@@ -293,7 +293,7 @@ app.use((err, req, res, next) => {
   // Default error response
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || "Internal server error"
+    message: process.env.NODE_ENV === "development" ? (err.message || "Internal server error") : "Internal server error"
   });
 });
 
@@ -311,13 +311,6 @@ setTimeout(() => {
     console.log("   ✅ Penalty job started");
   } catch (err) {
     console.warn("   ⚠️ Penalty job:", err.message);
-  }
-
-  try {
-    require("./jobs/reminder.job");
-    console.log("   ✅ Reminder job started");
-  } catch (err) {
-    console.warn("   ⚠️ Reminder job:", err.message);
   }
 
   // ============================================
@@ -377,7 +370,7 @@ setTimeout(() => {
 // ============================================
 const PORT = process.env.PORT || 5001;
 
-const server = app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, process.env.BIND_HOST || "127.0.0.1", () => {
   isFullyReady = true;
 
   console.log("");

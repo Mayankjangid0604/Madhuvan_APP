@@ -34,6 +34,7 @@ import {
 import { printElement } from "../../utils/printUtil";
 import { printReceipt, printBill } from "../../utils/feeDocuments";
 import { settingsAPI } from "../../services/api/settings.api";
+import api from "../../services/api/axiosInstance";
 import "./ledger.css";
 
 const Ledger = () => {
@@ -91,11 +92,8 @@ const Ledger = () => {
 
   const fetchLedgerDocNumber = async (type) => {
     try {
-      const token = localStorage.getItem("token");
-      const url = `${import.meta.env.VITE_API_BASE_URL}/doc-number/next?type=${type}`;
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      const j = await r.json();
-      return j.data?.number;
+      const r = await api.get("/doc-number/next", { params: { type } });
+      return r.data?.data?.number;
     } catch { return null; }
   };
 
@@ -120,7 +118,6 @@ const Ledger = () => {
       student: { student_name: row.description?.split(' - ')[0] || 'Received From', student_id: row.student_id || '-' },
       receipt_no,
       payment_date: row.entry_date,
-      amount_received: row.amount,
       payment_mode: paymentMode,
       reference_no: row.reference_no,
       notes: row.description,
@@ -682,7 +679,7 @@ const Ledger = () => {
     return (
       <div className="ledger-page">
         <div className="loading-state">
-          <div className="loading-spinner">
+          <div className="ledger-loading-spinner">
             <Loader2 size={48} className="spinning" />
           </div>
           <h3>Loading Ledger</h3>
@@ -740,7 +737,7 @@ const Ledger = () => {
             <span>Print Preview</span>
           </button>
           <button
-            className="btn btn-primary"
+            className="btn ledger-btn-primary"
             onClick={() => {
               setManualEntry({ ...getInitialManualEntry(), entry_type: 'expense' });
               setShowManualModal(true);
@@ -767,7 +764,7 @@ const Ledger = () => {
 
       {/* Statistics Cards */}
       <div className="stats-grid">
-        <div className="stat-card income">
+        <div className="ledger-stat-card income">
           <div className="stat-icon-wrapper">
             <TrendingUp size={24} />
           </div>
@@ -780,7 +777,7 @@ const Ledger = () => {
           </div>
         </div>
 
-        <div className="stat-card expense">
+        <div className="ledger-stat-card expense">
           <div className="stat-icon-wrapper">
             <TrendingDown size={24} />
           </div>
@@ -793,7 +790,7 @@ const Ledger = () => {
           </div>
         </div>
 
-        <div className="stat-card balance">
+        <div className="ledger-stat-card balance">
           <div className="stat-icon-wrapper">
             <Wallet size={24} />
           </div>
@@ -805,7 +802,7 @@ const Ledger = () => {
           </div>
         </div>
 
-        <div className="stat-card transactions">
+        <div className="ledger-stat-card transactions">
           <div className="stat-icon-wrapper">
             <Receipt size={24} />
           </div>
@@ -963,7 +960,7 @@ const Ledger = () => {
               {filteredEntries.length === 0 ? (
                 <tr className="empty-row">
                   <td colSpan="9">
-                    <div className="empty-state">
+                    <div className="ledger-empty-state">
                       <Receipt size={48} />
                       <h4>No Entries Found</h4>
                       <p>
@@ -1106,7 +1103,7 @@ const Ledger = () => {
 
       {/* Print Preview Modal */}
       {showPrintPreview && (
-        <div className="modal-overlay print-preview-overlay" onClick={() => setShowPrintPreview(false)}>
+        <div className="ledger-modal-overlay print-preview-overlay" onClick={() => setShowPrintPreview(false)}>
           <div className="print-preview-modal" onClick={(e) => e.stopPropagation()}>
             {/* Preview Header */}
             <div className="preview-header">
@@ -1249,7 +1246,7 @@ const Ledger = () => {
 
       {/* Add Manual Entry Modal - ✅ FIXED: Using handleCloseModal */}
       {showManualModal && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
+        <div className="ledger-modal-overlay" onClick={handleCloseModal}>
           <div className="modal-content glass-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">
@@ -1484,7 +1481,7 @@ const Ledger = () => {
                 Cancel
               </button>
               <button
-                className={`btn btn-primary ${manualEntry.entry_type === 'income' ? 'income' : 'expense'}`}
+                className={`btn ledger-btn-primary ${manualEntry.entry_type === 'income' ? 'income' : 'expense'}`}
                 onClick={handleAddManualEntry}
                 disabled={modalLoading}
               >

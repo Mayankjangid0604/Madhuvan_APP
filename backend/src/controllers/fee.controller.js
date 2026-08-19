@@ -151,70 +151,14 @@ exports.payFee = asyncHandler(async (req, res) => {
   }
 
   try {
-    const { db: database } = require("../config/db.sqlite");
-
-    // ✅ FIX ISSUE 3: Monthly Rent and Security Deposit are separate
-    // If fee_type is specified (e.g. 'Security Deposit'), find that specific fee
-    // Otherwise default to Monthly Rent only (FIFO by month)
-    const targetFeeType = fee_type || 'Monthly Rent';
-    
-    let unpaidFee;
-    
-    if (fee_id) {
-      unpaidFee = database.prepare(`
-        SELECT fee_id, fee_type FROM student_fees 
-        WHERE fee_id = ? AND student_id = ? AND fee_status != 'PAID'
-      `).get(fee_id, student_id);
-    } else {
-      unpaidFee = database.prepare(`
-        SELECT fee_id, fee_type FROM student_fees 
-        WHERE student_id = ? AND fee_status != 'PAID' AND fee_type = ?
-        ORDER BY fee_month ASC 
-        LIMIT 1
-      `).get(student_id, targetFeeType);
-    }
+    const unpaidFee = feeService.findUnpaidFee({ student_id, fee_id, fee_type });
 
     if (!unpaidFee) {
-      // If no Monthly Rent fee found and no explicit type requested, check if any fee exists
-      if (!fee_type) {
-        const anyUnpaidFee = database.prepare(`
-          SELECT fee_id, fee_type FROM student_fees 
-          WHERE student_id = ? AND fee_status != 'PAID'
-          ORDER BY fee_month ASC 
-          LIMIT 1
-        `).get(student_id);
-
-        if (!anyUnpaidFee) {
-          return res.status(400).json({
-            success: false,
-            message: "No unpaid fees found for this student"
-          });
-        }
-
-        // Fall back to whatever fee exists (could be security deposit)
-        const result = feeService.payFee({
-          fee_id: anyUnpaidFee.fee_id,
-          student_id,
-          payment_amount: Number(payment_amount),
-          payment_mode: payment_mode || 'CASH',
-          reference_no,
-          received_by,
-          received_member_id
-        });
-
-        notificationService.sendFeeReceiptNotifications({ studentId: student_id, feeId: anyUnpaidFee.fee_id })
-          .catch((e) => console.warn("Fee receipt notification failed:", e.message));
-
-        return res.json({
-          success: true,
-          message: "Payment recorded successfully",
-          data: result
-        });
-      }
-
       return res.status(400).json({
         success: false,
-        message: `No unpaid ${targetFeeType} fees found for this student`
+        message: fee_type
+          ? `No unpaid ${fee_type} fees found for this student`
+          : "No unpaid fees found for this student"
       });
     }
 
@@ -246,7 +190,7 @@ exports.payFee = asyncHandler(async (req, res) => {
 });
 
 // ============================================
-// PAY ALL REMAINING FEES (Single invoice, single entry)
+// PAY ALL REMAINING FEES (delegates to feeService.payFee per fee)
 // ============================================
 exports.payAllFees = asyncHandler(async (req, res) => {
   const { student_id, payment_amount, payment_mode, reference_no, received_by, received_member_id } = req.body;
@@ -263,19 +207,16 @@ exports.payAllFees = asyncHandler(async (req, res) => {
       const student = database.prepare("SELECT * FROM students WHERE student_id = ?").get(student_id);
       if (!student) throw new Error("Student not found");
 
-      // STEP 1: Bake pending items into a rent fee
-      // First try unpaid rent fee, then fall back to LAST rent fee (even if PAID)
-      // ✅ FIX: Look for any unpaid rent fee (monthly, half-yearly, or yearly)
+      // STEP 1: Bake pending items into the first unpaid rent fee so payFee sees correct totals
       let targetFee = database.prepare(`
-        SELECT fee_id FROM student_fees 
+        SELECT fee_id FROM student_fees
         WHERE student_id = ? AND fee_type IN ('Monthly Rent','Half-Yearly Rent','Yearly Rent') AND fee_status != 'PAID'
         ORDER BY fee_month ASC LIMIT 1
       `).get(student_id);
 
       if (!targetFee) {
-        // All fees are PAID — use the last rent fee to bake fines into
         targetFee = database.prepare(`
-          SELECT fee_id FROM student_fees 
+          SELECT fee_id FROM student_fees
           WHERE student_id = ? AND fee_type IN ('Monthly Rent','Half-Yearly Rent','Yearly Rent')
           ORDER BY fee_month DESC LIMIT 1
         `).get(student_id);
@@ -302,18 +243,17 @@ exports.payAllFees = asyncHandler(async (req, res) => {
             WHERE fee_id = ?
           `).run(pendingFines, pendingDamages, pendingMoney, targetFee.fee_id);
 
-          // Mark pending items as applied
           database.prepare(`UPDATE pending_fines SET status = 'APPLIED', applied_to_fee_id = ?, applied_at = CURRENT_TIMESTAMP WHERE student_id = ? AND status = 'PENDING'`).run(targetFee.fee_id, student_id);
           database.prepare(`UPDATE property_damage_records SET status = 'APPLIED', applied_to_fee_id = ? WHERE student_id = ? AND status = 'PENDING' AND deducted_from_security = 0`).run(targetFee.fee_id, student_id);
           database.prepare(`UPDATE money_given_records SET status = 'APPLIED', applied_to_fee_id = ? WHERE student_id = ? AND status = 'PENDING' AND deducted_from_security = 0`).run(targetFee.fee_id, student_id);
         }
       }
 
-      // STEP 2: Get all fees with remaining balance (including ones that just had fines added)
+      // STEP 2: Get all fees with remaining balance
       const unpaidFees = database.prepare(`
-        SELECT fee_id, fee_type, paid_amount,
+        SELECT fee_id, fee_type,
                (COALESCE(final_amount,0) + COALESCE(previous_dues,0) + COALESCE(penalty_amount,0) + COALESCE(fine_amount,0) + COALESCE(property_damage_amount,0) + COALESCE(money_given_amount,0) - COALESCE(paid_amount,0) - COALESCE(advance_used,0)) as remaining
-        FROM student_fees 
+        FROM student_fees
         WHERE student_id = ? AND (fee_status != 'PAID' OR (COALESCE(final_amount,0) + COALESCE(previous_dues,0) + COALESCE(penalty_amount,0) + COALESCE(fine_amount,0) + COALESCE(property_damage_amount,0) + COALESCE(money_given_amount,0) - COALESCE(paid_amount,0) - COALESCE(advance_used,0)) > 0)
         ORDER BY CASE fee_type WHEN 'Monthly Rent' THEN 1 ELSE 2 END, fee_month ASC
       `).all(student_id);
@@ -322,11 +262,10 @@ exports.payAllFees = asyncHandler(async (req, res) => {
         throw new Error("No unpaid fees found for this student");
       }
 
-      // STEP 3: Distribute payment across fees (update each fee directly)
+      // STEP 3: Distribute payment across fees using feeService.payFee for each
       let remainingAmount = Number(payment_amount);
-      let totalApplied = 0;
+      const results = [];
       let firstFeeId = unpaidFees[0].fee_id;
-      const breakdown = [];
 
       for (const fee of unpaidFees) {
         if (remainingAmount <= 0) break;
@@ -334,133 +273,37 @@ exports.payAllFees = asyncHandler(async (req, res) => {
         if (feeRemaining <= 0) continue;
 
         const applyAmount = Math.min(remainingAmount, feeRemaining);
-        const newPaidAmount = toNum(fee.paid_amount) + applyAmount;
 
-        // Recalculate total due for this fee
-        const fullFee = database.prepare("SELECT * FROM student_fees WHERE fee_id = ?").get(fee.fee_id);
-        const totalDue = toNum(fullFee.final_amount) + toNum(fullFee.previous_dues) + toNum(fullFee.penalty_amount) + toNum(fullFee.fine_amount) + toNum(fullFee.property_damage_amount) + toNum(fullFee.money_given_amount) - toNum(fullFee.advance_used);
+        // Delegate to feeService.payFee (runs inside this transaction since better-sqlite3 supports nested calls)
+        const result = feeService.payFee({
+          fee_id: fee.fee_id,
+          student_id,
+          payment_amount: applyAmount,
+          payment_mode: payment_mode || 'CASH',
+          reference_no,
+          received_by,
+          received_member_id,
+          notes: 'Pay All Fees'
+        });
 
-        // Build itemized breakdown by greedily consuming applyAmount
-        let appliedToBreakdown = applyAmount;
-        const addBreakdown = (type, bucketAmount, month) => {
-           if (bucketAmount > 0 && appliedToBreakdown > 0) {
-             const amt = Math.min(bucketAmount, appliedToBreakdown);
-             breakdown.push({ type, amount: amt, month });
-             appliedToBreakdown -= amt;
-           }
-        };
-
-        const monthStr = fee.fee_month ? new Date(fee.fee_month).toLocaleString('en-IN', {month: 'short', year: 'numeric'}) : '';
-        addBreakdown('Property Damage', toNum(fullFee.property_damage_amount), '');
-        addBreakdown('Fine', toNum(fullFee.fine_amount), '');
-        addBreakdown('Penalty', toNum(fullFee.penalty_amount), '');
-        addBreakdown('Money Given', toNum(fullFee.money_given_amount), '');
-        addBreakdown('Previous Dues', toNum(fullFee.previous_dues), '');
-        addBreakdown(fee.fee_type || 'Rent', toNum(fullFee.final_amount), monthStr);
-
-        let newStatus;
-        if (newPaidAmount >= totalDue) newStatus = "PAID";
-        else if (newPaidAmount > 0) newStatus = "PARTIAL";
-        else newStatus = fullFee.fee_status;
-
-        database.prepare(`
-          UPDATE student_fees SET paid_amount = ?, fee_status = ?, updated_at = CURRENT_TIMESTAMP WHERE fee_id = ?
-        `).run(newPaidAmount, newStatus, fee.fee_id);
-
+        results.push(result);
         remainingAmount -= applyAmount;
-        totalApplied += applyAmount;
       }
 
-      // STEP 4: Generate ONE invoice number
-      const year = new Date().getFullYear();
-      const prefix = `INV-${year}-`;
-      const last = database.prepare(`SELECT invoice_number FROM fee_payments WHERE invoice_number LIKE ? ORDER BY payment_id DESC LIMIT 1`).get(`${prefix}%`);
-      const seq = last?.invoice_number ? parseInt(last.invoice_number.split('-').pop()) + 1 : 1;
-      const invoiceNumber = `${prefix}${String(seq).padStart(6, '0')}`;
-      const paymentDate = new Date().toISOString().split("T")[0];
+      // If there is still excess after all fees are paid, the last payFee call
+      // already handled creating the advance via its excess/overpayment logic.
+      // But if remainingAmount > 0 AND no fees consumed it (shouldn't happen), handle it.
 
-      // Add advance to breakdown if any
-      if (remainingAmount > 0) {
-        breakdown.push({ type: 'Advance Created', amount: remainingAmount, month: '' });
-      }
-
-      // Update invoice on the first fee
-      database.prepare(`
-        UPDATE student_fees SET invoice_number = ?, invoice_generated_at = CURRENT_TIMESTAMP WHERE fee_id = ?
-      `).run(invoiceNumber, firstFeeId);
-
-      // STEP 5: Create ONE payment record
-      const normalizedMode = (() => {
-        if (!payment_mode) return 'CASH';
-        const upper = payment_mode.toUpperCase().trim();
-        return ['CASH', 'UPI', 'BANK', 'CHEQUE', 'ONLINE', 'CARD'].includes(upper) ? upper : 'CASH';
-      })();
-
-      database.prepare(`
-        INSERT INTO fee_payments (fee_id, student_id, payment_amount, payment_date, payment_mode, reference_no, received_by, received_member_id, notes, is_advance_payment, invoice_number, breakdown)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(firstFeeId, student_id, Number(payment_amount), paymentDate, normalizedMode, reference_no || null, received_by || 'ADMIN', received_member_id || null, 'Pay All Fees', 0, invoiceNumber, JSON.stringify(breakdown));
-
-      // STEP 6: Create Ledger Entries
-      let currentBalance = database.prepare(`SELECT COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0) as balance FROM ledger_entries`).get();
-      let ledgerBalance = toNum(currentBalance?.balance);
-
-      if (totalApplied > 0) {
-        ledgerBalance += totalApplied;
-        database.prepare(`
-          INSERT INTO ledger_entries (entry_date, entry_type, category, amount, debit, credit, balance, payment_mode, reference_no, description, student_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(paymentDate, 'income', 'Fee Received', totalApplied, totalApplied, 0, ledgerBalance, normalizedMode, reference_no || invoiceNumber, `${student.student_name} S/O ${student.father_name || 'N/A'} - All Fees Applied: ₹${totalApplied}`, student_id);
-      }
-
-      const advanceAmt = remainingAmount;
-      if (advanceAmt > 0) {
-        ledgerBalance += advanceAmt;
-        database.prepare(`
-          INSERT INTO ledger_entries (entry_date, entry_type, category, amount, debit, credit, balance, payment_mode, reference_no, description, student_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(paymentDate, 'income', 'Advance Received', advanceAmt, advanceAmt, 0, ledgerBalance, normalizedMode, reference_no || invoiceNumber, `${student.student_name} S/O ${student.father_name || 'N/A'} - Advance Recv: ₹${advanceAmt}`, student_id);
-      }
-
-      // STEP 7: Member salary tracking (single entry)
-      if (received_member_id && String(received_member_id) !== 'ADMIN' && String(received_member_id) !== '0' && String(received_member_id) !== '') {
-        const memberId = Number(received_member_id);
-        if (memberId > 0) {
-          const member = database.prepare('SELECT member_id, name, salary FROM members WHERE member_id = ?').get(memberId);
-          if (member) {
-            const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            const now = new Date();
-            const pMonth = now.getMonth();
-            const pYear = now.getFullYear();
-            const salaryMonth = `${pYear}-${String(pMonth + 1).padStart(2, '0')}`;
-
-            database.prepare(`
-              INSERT INTO member_transactions (member_id, amount, transaction_type, description, reference_no, student_id, salary_month)
-              VALUES (?, ?, 'fee_collection', ?, ?, ?, ?)
-            `).run(memberId, Number(payment_amount), `Fee collected from ${student.student_name} S/O ${student.father_name || 'N/A'}`, reference_no || invoiceNumber, student_id, salaryMonth);
-
-            ledgerBalance -= Number(payment_amount);
-            database.prepare(`
-              INSERT INTO ledger_entries (entry_date, entry_type, category, amount, debit, credit, balance, payment_mode, reference_no, description, student_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(paymentDate, 'expense', 'Salary - Fee Collection', Number(payment_amount), 0, Number(payment_amount), ledgerBalance, 'Internal', `SAL-${memberId}-${Date.now()}`, `Salary: ${member.name} - Fee collection from ${student.student_name}`, null);
-          }
-        }
-      }
-
-      // STEP 8: Handle excess as advance
-      if (remainingAmount > 0) {
-        database.prepare(`
-          INSERT INTO student_advances (student_id, amount, original_amount, used_amount, status, notes, created_at)
-          VALUES (?, ?, ?, 0, 'PENDING', 'Overpayment - Pay All', CURRENT_TIMESTAMP)
-        `).run(student_id, remainingAmount, remainingAmount);
-      }
+      const totalPaid = results.reduce((sum, r) => sum + toNum(r.total_received), 0);
+      const lastInvoice = results.length > 0 ? results[results.length - 1].invoice_number : null;
+      const totalAdvance = results.reduce((sum, r) => sum + toNum(r.advance_received), 0);
 
       return {
-        total_paid: totalApplied,
-        invoice_number: invoiceNumber,
-        advance_received: remainingAmount > 0 ? remainingAmount : 0,
-        first_fee_id: firstFeeId
+        total_paid: totalPaid,
+        invoice_number: lastInvoice,
+        advance_received: totalAdvance,
+        first_fee_id: firstFeeId,
+        fee_results: results
       };
     });
 

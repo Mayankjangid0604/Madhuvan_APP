@@ -164,7 +164,7 @@
   flex: 0 1 auto;
 }
 
-.status-badge {
+.comm-status-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;

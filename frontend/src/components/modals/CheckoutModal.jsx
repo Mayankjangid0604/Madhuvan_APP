@@ -19,11 +19,13 @@ import RefundReceiptModal from "./RefundReceiptModal";
 import DateInput from "../common/DateInput";
 import { fineAPI } from "../../services/api/fine.api";
 import { feeAPI } from "../../services/api/fee.api";
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 import "./checkoutModal.css";
 
 const toNumber = (v) => Number(v) || 0;
 
 const CheckoutStudent = ({ student, onClose, onConfirm }) => {
+  useBodyScrollLock(true);
   const [loading, setLoading] = useState(false);
   const [showRefundReceipt, setShowRefundReceipt] = useState(false);
   const [error, setError] = useState("");
@@ -89,6 +91,14 @@ const CheckoutStudent = ({ student, onClose, onConfirm }) => {
     }
   }, [student?.student_id, checkoutData.checkout_date]);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   const pendingFeeRows = (feeSummary?.fees || []).filter(f => f.remaining > 0);
   const pendingOtherTotal = toNumber(feeSummary?.summary?.pending_fines) +
     toNumber(feeSummary?.summary?.pending_damages) +
@@ -100,9 +110,10 @@ const CheckoutStudent = ({ student, onClose, onConfirm }) => {
 
   const applyFeeRefund = () => {
     if (!feeRefund?.applicable) return;
+    const baseRefund = securityInfo?.remaining_security || 0;
     setCheckoutData(prev => ({
       ...prev,
-      refund_amount: String(Number(prev.refund_amount || 0) + feeRefund.amount)
+      refund_amount: String(baseRefund + feeRefund.amount)
     }));
     setFeeRefundApplied(true);
   };
@@ -202,6 +213,9 @@ const CheckoutStudent = ({ student, onClose, onConfirm }) => {
         <div
           className="modal-content checkout-modal"
           onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Student Checkout"
         >
           {/* Header */}
           <div className="modal-header checkout-header">

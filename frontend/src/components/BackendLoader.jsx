@@ -33,7 +33,7 @@ const BackendLoader = ({ children }) => {
         } else {
           // Web mode - check API directly
           try {
-            const response = await fetch('http://localhost:5001/health');
+            const response = await fetch((import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5001/api').replace(/\/api\/?$/, '') + '/health');
             if (response.ok) {
               if (mounted) setStatus('ready');
             } else {

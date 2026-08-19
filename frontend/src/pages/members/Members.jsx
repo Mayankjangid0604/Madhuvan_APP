@@ -2,15 +2,22 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { memberAPI } from "../../services/api/member.api";
 import { getFileUrl } from "../../utils/imageSrc";
+import {
+  Search, Plus, Pencil, Eye, Trash2, DollarSign, Phone, Calendar,
+  User, Users, CreditCard, CheckCircle, XCircle, ClipboardList, X,
+  Inbox, Banknote, Package
+} from "lucide-react";
 import MemberForm from "./MemberForm";
 import SalaryPayment from "./SalaryPayment";
 import "./member.css";
 
 const Icons = {
-  search: "🔍", plus: "➕", edit: "✏️", view: "👁️", delete: "🗑️",
-  money: "💰", phone: "📱", calendar: "📅", user: "👤", father: "👨",
-  id: "🪪", success: "✓", error: "✕", empty: "📋", close: "✕",
-  collected: "📥", salary: "💵", carryForward: "📦"
+  search: <Search size={16} />, plus: <Plus size={16} />, edit: <Pencil size={14} />,
+  view: <Eye size={14} />, delete: <Trash2 size={14} />, money: <DollarSign size={16} />,
+  phone: <Phone size={14} />, calendar: <Calendar size={14} />, user: <User size={16} />,
+  father: <Users size={14} />, id: <CreditCard size={14} />, success: <CheckCircle size={16} />,
+  error: <XCircle size={16} />, empty: <ClipboardList size={40} />, close: <X size={16} />,
+  collected: <Inbox size={16} />, salary: <Banknote size={16} />, carryForward: <Package size={16} />
 };
 
 const ID_TYPE_LABELS = {
@@ -163,7 +170,7 @@ const Members = () => {
       )}
 
       {confirmDialog && (
-        <div className="modal-overlay" onClick={confirmDialog.onCancel}>
+        <div className="member-modal-overlay" onClick={confirmDialog.onCancel}>
           <div className="confirm-dialog" onClick={e => e.stopPropagation()}>
             <div className="confirm-dialog-icon delete">{Icons.delete}</div>
             <h3>{confirmDialog.title}</h3>
@@ -181,24 +188,24 @@ const Members = () => {
           <h2>Members Management</h2>
           <p>Manage staff members — Any fee they collect counts toward their salary</p>
         </div>
-        <button className="btn btn-primary" onClick={handleAddMember}>{Icons.plus} Add Member</button>
+        <button className="btn member-btn-primary" onClick={handleAddMember}>{Icons.plus} Add Member</button>
       </div>
 
       <div className="member-stats">
-        <div className="stat-card total">
+        <div className="member-stat-card total">
           <div className="stat-value">{stats.total}</div>
           <div className="stat-label">Total Members</div>
         </div>
-        <div className="stat-card paid">
+        <div className="member-stat-card paid">
           <div className="stat-value">{formatCurrency(stats.totalSalaryEarned)}</div>
           <div className="stat-label">{Icons.money} Total Salary Paid</div>
         </div>
-        <div className="stat-card salary">
+        <div className="member-stat-card salary">
           <div className="stat-value">{formatCurrency(stats.totalSalary)}</div>
           <div className="stat-label">{Icons.salary} Monthly Salary Bill</div>
         </div>
         {stats.totalPendingAdvances > 0 && (
-          <div className="stat-card carry-forward">
+          <div className="member-stat-card carry-forward">
             <div className="stat-value">{formatCurrency(stats.totalPendingAdvances)}</div>
             <div className="stat-label">{Icons.carryForward} Pending Advances</div>
           </div>
@@ -232,7 +239,7 @@ const Members = () => {
           ))}
         </div>
       ) : filteredMembers.length === 0 ? (
-        <div className="empty-state">
+        <div className="member-empty-state">
           <div className="empty-state-icon">{Icons.empty}</div>
           <h3>{searchQuery ? 'No members found' : 'No members yet'}</h3>
           <p>{searchQuery ? 'Try adjusting your search criteria' : 'Click "Add Member" to add your first member'}</p>
@@ -298,7 +305,7 @@ const Members = () => {
                 </div>
 
                 <div className="member-card-actions">
-                  <button className="btn btn-primary btn-sm" onClick={() => handleViewDetails(member)}>{Icons.view} View</button>
+                  <button className="btn member-btn-primary btn-sm" onClick={() => handleViewDetails(member)}>{Icons.view} View</button>
                   <button className="btn btn-success btn-sm" onClick={() => handlePaySalary(member)}>{Icons.money} Pay Salary</button>
                   <button className="btn btn-secondary btn-sm" onClick={() => handleEditMember(member)}>{Icons.edit}</button>
                   <button className="btn btn-danger btn-sm" onClick={() => handleDeleteMember(member)}>{Icons.delete}</button>

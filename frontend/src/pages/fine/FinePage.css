@@ -1,37 +1,4 @@
-/* ===============================
-   CSS VARIABLES
-================================ */
-:root {
-  /* Glass Effect */
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-bg-hover: rgba(248, 250, 252, 0.95);
-  --glass-border: rgba(255, 255, 255, 0.3);
-  --glass-blur: blur(20px);
-
-  /* Text Colors */
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
-
-  /* Background */
-  --bg-light: rgba(248, 250, 252, 0.9);
-  --bg-card: rgba(255, 255, 255, 0.95);
-
-  /* Borders */
-  --border-light: rgba(226, 232, 240, 0.8);
-  --border-medium: rgba(203, 213, 225, 0.6);
-
-  /* Accent Colors */
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --purple: #8b5cf6;
-  --cyan: #06b6d4;
-  --orange: #f97316;
-}
+/* CSS Variables are now consolidated in index.css */
 
 /* ===== Page Container ===== */
 .fine-page {

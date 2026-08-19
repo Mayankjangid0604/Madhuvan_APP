@@ -1,4 +1,4 @@
-77// services/fee.service.js
+// services/fee.service.js
 const db = require("../config/db.sqlite");
 
 // ============================================
@@ -44,17 +44,17 @@ const parseDateParts = exports.parseDateParts = (dateStr) => {
   };
 };
 
-const generateInvoiceNumber = () => {
+const generateInvoiceNumber = db.db.transaction(() => {
   const year = new Date().getFullYear();
   const prefix = `INV-${year}-`;
   const last = db.db.prepare(`
-    SELECT invoice_number FROM fee_payments 
+    SELECT invoice_number FROM fee_payments
     WHERE invoice_number LIKE ? ORDER BY payment_id DESC LIMIT 1
   `).get(`${prefix}%`);
 
   const seq = last?.invoice_number ? parseInt(last.invoice_number.split('-').pop()) + 1 : 1;
   return `${prefix}${String(seq).padStart(6, '0')}`;
-};
+});
 
 const calculateDueDate = (startDate) => {
   const { year, month, day } = parseDateParts(startDate);
@@ -138,7 +138,7 @@ const getRemaining = (fee, student = null) => Math.max(0, getTotalDue(fee, stude
 const normalizePaymentMode = (mode) => {
   if (!mode) return 'CASH';
   const upper = mode.toUpperCase().trim();
-  const validModes = ['CASH', 'UPI', 'BANK', 'CHEQUE', 'ONLINE', 'CARD'];
+  const validModes = ['CASH', 'UPI', 'BANK', 'CHEQUE', 'ONLINE', 'CARD', 'PHONEPE'];
   return validModes.includes(upper) ? upper : 'CASH';
 };
 
@@ -629,7 +629,6 @@ exports.cleanupInvalidPastFees = () => {
       const feeParts = exports.parseDateParts(f.fee_month);
 
       if (feeParts.year < startParts.year || (feeParts.year === startParts.year && feeParts.month < startParts.month)) {
-        console.log(`🧹 Cleaning up invalid ${f.fee_month} fee for ${f.student_name} (starts on ${startDateToUse})`);
         db.db.prepare(`DELETE FROM student_fees WHERE fee_id = ?`).run(f.fee_id);
         deleted++;
       }
@@ -738,7 +737,7 @@ exports.payFee = (data) => {
       });
     }
 
-    db.db.prepare(`
+    const payInsert = db.db.prepare(`
       INSERT INTO fee_payments (
         fee_id, student_id, payment_amount, payment_date,
         payment_mode, reference_no, received_by, received_member_id, notes, is_advance_payment,
@@ -888,7 +887,7 @@ exports.payFee = (data) => {
 
     return {
       success: true,
-      payment_id: fee_id,
+      payment_id: payInsert.lastInsertRowid,
       total_received: payment_amount,
       total_paid: newPaidAmount,
       new_status: newStatus,
@@ -904,6 +903,34 @@ exports.payFee = (data) => {
 // ============================================
 // GET FEE BY ID
 // ============================================
+exports.findUnpaidFee = ({ student_id, fee_id, fee_type }) => {
+  if (fee_id) {
+    return db.db.prepare(`
+      SELECT fee_id, fee_type FROM student_fees
+      WHERE fee_id = ? AND student_id = ? AND fee_status != 'PAID'
+    `).get(fee_id, student_id) || null;
+  }
+
+  const targetFeeType = fee_type || 'Monthly Rent';
+  const specific = db.db.prepare(`
+    SELECT fee_id, fee_type FROM student_fees
+    WHERE student_id = ? AND fee_status != 'PAID' AND fee_type = ?
+    ORDER BY fee_month ASC LIMIT 1
+  `).get(student_id, targetFeeType);
+
+  if (specific) return specific;
+
+  if (!fee_type) {
+    return db.db.prepare(`
+      SELECT fee_id, fee_type FROM student_fees
+      WHERE student_id = ? AND fee_status != 'PAID'
+      ORDER BY fee_month ASC LIMIT 1
+    `).get(student_id) || null;
+  }
+
+  return null;
+};
+
 exports.getFeeById = (feeId) => {
   const fee = db.db.prepare(`
     SELECT sf.*, s.student_name, s.father_name, s.student_mobile, r.room_no, b.bed_no
@@ -1174,13 +1201,8 @@ exports.applyWaiver = ({ fee_id, amount, reason }) => {
 
   // Allow write-off/discount on any fee type — admin decision
 
-  const totalDue = Number(fee.final_amount || 0)
-    + Number(fee.previous_dues || 0)
-    + Number(fee.penalty_amount || 0)
-    + Number(fee.fine_amount || 0)
-    + Number(fee.property_damage_amount || 0)
-    + Number(fee.money_given_amount || 0)
-    - Number(fee.advance_used || 0);
+  const student = db.db.prepare("SELECT * FROM students WHERE student_id = ?").get(fee.student_id);
+  const totalDue = getTotalDue(fee, student);
   const alreadyPaid = Number(fee.paid_amount || 0);
   const remaining = Math.max(0, totalDue - alreadyPaid);
   if (wAmount > remaining) {

@@ -1,25 +1,10 @@
 const fs = require("fs");
 const path = require("path");
-const os = require("os");
 const Database = require("better-sqlite3");
+const { RUNTIME_DIR, DATA_DIR: SHARED_DATA_DIR } = require("../config/paths");
 
-const APP_NAME = "Madhuvan";
-
-// Backup directory
-const BACKUP_DIR = path.join(
-  process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
-  APP_NAME,
-  "backups"
-);
-
-// Database path
-const DATA_DIR = path.join(
-  process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
-  APP_NAME,
-  "data"
-);
-
-const DB_PATH = path.join(DATA_DIR, "hostel.db");
+const BACKUP_DIR = path.join(RUNTIME_DIR, "backups");
+const DB_PATH = path.join(SHARED_DATA_DIR, "hostel.db");
 
 // Ensure directories exist
 const ensureDir = (dir) => {
@@ -29,7 +14,7 @@ const ensureDir = (dir) => {
 };
 
 ensureDir(BACKUP_DIR);
-ensureDir(DATA_DIR);
+ensureDir(SHARED_DATA_DIR);
 
 /**
  * Create a backup of the database
@@ -120,8 +105,18 @@ const listBackups = async () => {
  *    - If the table does NOT exist in backup: leave it empty (null/default)
  * 6. Extra tables in backup that don't exist in current schema are ignored
  */
+const isSafeFilename = (filename) => {
+  if (!filename || typeof filename !== 'string') return false;
+  if (filename.includes('/') || filename.includes('\\') || filename.includes('..')) return false;
+  if (filename !== path.basename(filename)) return false;
+  return true;
+};
+
 const restoreBackup = async (filename) => {
   try {
+    if (!isSafeFilename(filename)) {
+      return { success: false, error: "Invalid backup filename" };
+    }
     const backupPath = path.join(BACKUP_DIR, filename);
     
     if (!fs.existsSync(backupPath)) {
@@ -376,8 +371,11 @@ const restoreBackup = async (filename) => {
  */
 const deleteBackup = async (filename) => {
   try {
+    if (!isSafeFilename(filename)) {
+      return { success: false, error: "Invalid backup filename" };
+    }
     const backupPath = path.join(BACKUP_DIR, filename);
-    
+
     if (!fs.existsSync(backupPath)) {
       return { success: false, error: "Backup file not found" };
     }

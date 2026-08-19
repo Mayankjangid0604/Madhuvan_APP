@@ -420,13 +420,13 @@ exports.getHistory = (params = {}) => {
   if (search && search.trim()) {
     // With search filter
     const searchPattern = `%${search.trim()}%`;
-    sql = `SELECT * FROM (${unionQuery}) AS history 
-           WHERE student_name LIKE ? OR student_id LIKE ? 
+    sql = `SELECT * FROM (${unionQuery}) history
+           WHERE student_name LIKE ? OR student_id LIKE ?
            ORDER BY created_at DESC LIMIT 100`;
     sqlParams.push(searchPattern, searchPattern);
   } else {
     // No search — still must wrap UNION in subquery for ORDER BY to work
-    sql = `SELECT * FROM (${unionQuery}) AS history 
+    sql = `SELECT * FROM (${unionQuery}) history
            ORDER BY created_at DESC LIMIT 100`;
   }
 
@@ -447,6 +447,9 @@ exports.collectFine = ({ record_type, record_id, payment_mode = 'CASH', referenc
     columnId = 'id';
   } else if (type === 'property damage' || type === 'property_damage' || type === 'damage') {
     tableName = 'property_damage_records';
+    columnId = 'id';
+  } else if (type === 'money_given' || type === 'money given') {
+    tableName = 'money_given_records';
     columnId = 'id';
   } else {
     throw new Error(`Cannot collect record of type "${record_type}"`);

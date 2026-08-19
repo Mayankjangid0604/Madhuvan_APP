@@ -9,6 +9,32 @@
   --sidebar-bg: #ffffff;
   --sidebar-hover-bg: #f1f5f9;
   --sidebar-border: #e2e8f0;
+  --sidebar-text: #1e293b;
+  --sidebar-text-muted: #64748b;
+  --sidebar-menu-text: #334155;
+  --sidebar-icon-bg: #f1f5f9;
+  --sidebar-icon-hover-bg: #e0f2fe;
+  --sidebar-tooltip-bg: #1e293b;
+  --sidebar-toggle-pinned-bg: #eff6ff;
+  --sidebar-scrollbar: #cbd5e1;
+  --sidebar-scrollbar-hover: #94a3b8;
+  --sidebar-mobile-bg: #ffffff;
+}
+
+:root[data-theme="dark"] {
+  --sidebar-bg: var(--pt-surface, #1e293b);
+  --sidebar-hover-bg: #263449;
+  --sidebar-border: var(--pt-border, #334155);
+  --sidebar-text: var(--pt-text, #f1f5f9);
+  --sidebar-text-muted: var(--pt-text-muted, #94a3b8);
+  --sidebar-menu-text: var(--pt-text, #e2e8f0);
+  --sidebar-icon-bg: #263449;
+  --sidebar-icon-hover-bg: #334155;
+  --sidebar-tooltip-bg: #0f172a;
+  --sidebar-toggle-pinned-bg: #1e1b4b;
+  --sidebar-scrollbar: #475569;
+  --sidebar-scrollbar-hover: #64748b;
+  --sidebar-mobile-bg: var(--pt-surface, #1e293b);
 }
 
 /* ===============================
@@ -120,14 +146,14 @@
 .logo-text {
   font-size: 18px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--sidebar-text);
   letter-spacing: 0.5px;
   line-height: 1.2;
 }
 
 .logo-subtext {
   font-size: 11px;
-  color: #64748b;
+  color: var(--sidebar-text-muted);
   font-weight: 500;
   letter-spacing: 0.3px;
 }
@@ -157,7 +183,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #64748b;
+  color: var(--sidebar-text-muted);
   opacity: 0;
   transform: translateX(-10px);
   transition: opacity 0.2s ease 0.1s, transform 0.2s ease 0.1s;
@@ -182,7 +208,7 @@
   margin-bottom: 6px;
   border-radius: 12px;
   cursor: pointer;
-  color: #334155;
+  color: var(--sidebar-menu-text);
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
@@ -212,7 +238,7 @@
   height: 40px;
   min-width: 40px;
   border-radius: 10px;
-  background: #f1f5f9;
+  background: var(--sidebar-icon-bg);
   transition: all 0.2s ease;
 }
 
@@ -238,11 +264,11 @@
 ================================ */
 .menu-item:hover {
   background: var(--sidebar-hover-bg);
-  color: #1e293b;
+  color: var(--sidebar-text);
 }
 
 .menu-item:hover .menu-item-icon {
-  background: #e0f2fe;
+  background: var(--sidebar-icon-hover-bg);
   color: #3b82f6;
 }
 
@@ -317,7 +343,7 @@
   left: calc(100% + 15px);
   top: 50%;
   transform: translateY(-50%);
-  background: #1e293b;
+  background: var(--sidebar-tooltip-bg);
   color: #ffffff;
   padding: 10px 16px;
   border-radius: 10px;
@@ -339,7 +365,7 @@
   top: 50%;
   transform: translateY(-50%);
   border: 7px solid transparent;
-  border-right-color: #1e293b;
+  border-right-color: var(--sidebar-tooltip-bg);
   opacity: 0;
   visibility: hidden;
   transition: all 0.15s ease;
@@ -375,7 +401,7 @@
   padding: 10px 12px;
   border-radius: 10px;
   cursor: pointer;
-  color: #64748b;
+  color: var(--sidebar-text-muted);
   font-size: 13px;
   font-weight: 500;
   transition: all 0.2s ease;
@@ -389,7 +415,7 @@
 }
 
 .sidebar-toggle.pinned {
-  background: #eff6ff;
+  background: var(--sidebar-toggle-pinned-bg);
   color: #3b82f6;
 }
 
@@ -401,16 +427,16 @@
   height: 40px;
   min-width: 40px;
   border-radius: 10px;
-  background: #f1f5f9;
+  background: var(--sidebar-icon-bg);
   transition: all 0.2s ease;
 }
 
 .sidebar-toggle:hover .toggle-icon-wrapper {
-  background: #e0f2fe;
+  background: var(--sidebar-icon-hover-bg);
 }
 
 .sidebar-toggle.pinned .toggle-icon-wrapper {
-  background: #dbeafe;
+  background: var(--sidebar-icon-hover-bg);
 }
 
 .toggle-label {
@@ -444,12 +470,12 @@
 }
 
 .sidebar-menu::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--sidebar-scrollbar);
   border-radius: 4px;
 }
 
 .sidebar-menu::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--sidebar-scrollbar-hover);
 }
 
 /* ===============================
@@ -465,14 +491,14 @@
   height: 46px;
   border: none;
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--sidebar-bg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   cursor: pointer;
-  color: #334155;
+  color: var(--sidebar-menu-text);
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--sidebar-border);
 }
 
 .mobile-menu-btn:hover {
@@ -513,7 +539,7 @@
   .sidebar {
     transform: translateX(-100%);
     width: 280px !important;
-    background: #ffffff;
+    background: var(--sidebar-mobile-bg);
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
   }
 

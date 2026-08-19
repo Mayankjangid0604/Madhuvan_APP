@@ -1,6 +1,21 @@
 const authService = require("../services/auth.service");
 const asyncHandler = require("../utils/asyncHandler");
 
+// ============================================
+// TOKEN BLACKLIST (in-memory with TTL cleanup)
+// ============================================
+const tokenBlacklist = new Map();
+
+// Clean up expired tokens every hour
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, expiry] of tokenBlacklist) {
+    if (expiry < now) tokenBlacklist.delete(token);
+  }
+}, 3600000);
+
+exports.isTokenBlacklisted = (token) => tokenBlacklist.has(token);
+
 /**
  * Admin Login
  * POST /api/auth/login
@@ -180,3 +195,16 @@ exports.getCurrentAdmin = asyncHandler(async (req, res) => {
     });
   }
 });
+
+/**
+ * Logout - Blacklist current token
+ * POST /api/auth/logout
+ */
+exports.logout = (req, res) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (token) {
+    // Blacklist for 24 hours (matches typical JWT expiry)
+    tokenBlacklist.set(token, Date.now() + 86400000);
+  }
+  res.json({ success: true, message: 'Logged out' });
+};

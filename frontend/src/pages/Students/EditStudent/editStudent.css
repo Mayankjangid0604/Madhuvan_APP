@@ -4,28 +4,9 @@
    ============================================ */
 
 /* ===============================
-   CSS VARIABLES
+   CSS VARIABLES (page-specific only; shared vars in index.css)
 ================================ */
 :root {
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-bg-hover: rgba(255, 255, 255, 0.92);
-  --glass-border: rgba(255, 255, 255, 0.3);
-  --glass-blur: blur(20px);
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
-  --bg-light: rgba(248, 250, 252, 0.9);
-  --bg-card: rgba(255, 255, 255, 0.95);
-  --border-light: rgba(226, 232, 240, 0.8);
-  --border-medium: rgba(203, 213, 225, 0.6);
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --purple: #8b5cf6;
-  --cyan: #06b6d4;
   --input-icon-size: 18px;
   --input-icon-left: 14px;
   --input-padding-left: 46px;

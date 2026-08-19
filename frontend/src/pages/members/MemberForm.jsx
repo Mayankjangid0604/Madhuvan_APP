@@ -179,7 +179,7 @@ const MemberForm = ({ member, isEditing, onClose, onSuccess, showToast }) => {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="member-modal-overlay" onClick={onClose}>
       <div className="modal-container member-form-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">
@@ -390,7 +390,7 @@ const MemberForm = ({ member, isEditing, onClose, onSuccess, showToast }) => {
             <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+            <button type="submit" className="btn member-btn-primary" disabled={loading}>
               {loading ? "Saving..." : (isEditing ? "Update Member" : "Add Member")}
             </button>
           </div>

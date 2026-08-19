@@ -346,7 +346,7 @@ const Dashboard = () => {
   }, [fetchDashboardData]);
 
   // Calculate derived values
-  const totalBeds = (stats.total_rooms || 0) * 2;
+  const totalBeds = stats.total_beds || (stats.total_rooms || 0) * 2;
   const vacantBeds = Math.max(totalBeds - (stats.occupied_beds || 0), 0);
   const occupancyRate =
     totalBeds > 0

@@ -23,19 +23,17 @@ function App() {
     "http://127.0.0.1:5001"
   );
 
-  // Phase messages for different stages
-  const phaseMessages = [
-    { phase: 0, messages: ["Initializing application...", "Starting up...", "Preparing environment..."] },
-    { phase: 1, messages: ["Connecting to backend...", "Establishing connection...", "Reaching server..."] },
-    { phase: 2, messages: ["Loading database...", "Fetching configuration...", "Syncing data..."] },
-    { phase: 3, messages: ["Preparing interface...", "Loading components...", "Almost there..."] },
-    { phase: 4, messages: ["Finalizing...", "Ready to launch!", "Welcome!"] }
-  ];
-
   // Get random message for current phase
   const getPhaseMessage = useCallback((phase) => {
-    const phaseData = phaseMessages[phase] || phaseMessages[0];
-    return phaseData.messages[Math.floor(Math.random() * phaseData.messages.length)];
+    const msgs = [
+      ["Initializing application...", "Starting up...", "Preparing environment..."],
+      ["Connecting to backend...", "Establishing connection...", "Reaching server..."],
+      ["Loading database...", "Fetching configuration...", "Syncing data..."],
+      ["Preparing interface...", "Loading components...", "Almost there..."],
+      ["Finalizing...", "Ready to launch!", "Welcome!"]
+    ];
+    const list = msgs[phase] || msgs[0];
+    return list[Math.floor(Math.random() * list.length)];
   }, []);
 
   // Update progress based on attempts and time

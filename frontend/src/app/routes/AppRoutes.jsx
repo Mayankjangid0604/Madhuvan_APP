@@ -1,5 +1,5 @@
-import { Routes, Route, useLocation } from "react-router-dom";
-import { useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
+import { useBodyScrollReset } from "../../hooks/useBodyScrollLock";
 import ProtectedRoute from "../../components/auth/ProtectedRoute";
 import MainLayout from "../../layout/MainLayout/MainLayout";
 import Dashboard from "../../pages/Dashboard/Dashboard";
@@ -21,35 +21,6 @@ import AllocateRoom from "../../pages/Rooms/AllocateRoom";
 import FinePage from "../../pages/fine/FinePage";
 import Members from "../../pages/members/Members";
 import MemberDetailsPage from "../../pages/members/MemberDetailsPage";
-
-// ✅ Reset body styles on route change
-const resetBodyStyles = () => {
-  document.body.style.overflow = '';
-  document.body.style.pointerEvents = '';
-  document.body.style.position = '';
-  document.body.style.top = '';
-  document.body.style.left = '';
-  document.body.style.right = '';
-  document.body.classList.remove('modal-open', 'overflow-hidden', 'no-scroll');
-  document.documentElement.style.overflow = '';
-  document.documentElement.style.pointerEvents = '';
-};
-
-// ✅ Hook to reset body on route change + scroll to top
-const useBodyScrollReset = () => {
-  const location = useLocation();
-
-  useEffect(() => {
-    resetBodyStyles();
-    // ✅ FIX: Scroll ALL scrollable containers to top on every page navigation
-    window.scrollTo(0, 0);
-    // The actual scrollable element in the layout is .layout-content
-    const layoutContent = document.querySelector('.layout-content');
-    if (layoutContent) {
-      layoutContent.scrollTop = 0;
-    }
-  }, [location.pathname]);
-};
 
 const AppRoutes = () => {
   useBodyScrollReset();

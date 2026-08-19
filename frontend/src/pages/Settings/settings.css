@@ -2,39 +2,7 @@
    SETTINGS PAGE - MATCHING STUDENTS DESIGN
    ============================================ */
 
-/* ===============================
-   CSS VARIABLES (Matching Reference)
-================================ */
-:root {
-  /* Glass Effect */
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-bg-hover: rgba(255, 255, 255, 0.92);
-  --glass-border: rgba(255, 255, 255, 0.3);
-  --glass-blur: blur(20px);
-
-  /* Text Colors */
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
-
-  /* Background */
-  --bg-light: rgba(248, 250, 252, 0.9);
-  --bg-card: rgba(255, 255, 255, 0.95);
-
-  /* Borders */
-  --border-light: rgba(226, 232, 240, 0.8);
-  --border-medium: rgba(203, 213, 225, 0.6);
-
-  /* Accent Colors */
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --purple: #8b5cf6;
-  --cyan: #06b6d4;
-}
+/* CSS Variables are now consolidated in index.css */
 
 /* ===============================
    SETTINGS PAGE CONTAINER
@@ -516,6 +484,7 @@
   padding: 20px;
   animation: fadeIn 0.2s ease;
   overflow-y: auto;
+  cursor: pointer;
 }
 
 @keyframes fadeIn {
@@ -881,6 +850,11 @@ select.form-input {
   flex: 1;
 }
 
+.add-rule-input button {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .rules-list {
   margin-top: 20px;
 }
@@ -1008,24 +982,28 @@ select.form-input {
 }
 
 .empty-accounts {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 60px 20px;
-  color: var(--text-light);
+  padding: 40px 20px;
+  color: var(--text-muted);
   background: rgba(248, 250, 252, 0.5);
   border-radius: 16px;
   border: 2px dashed var(--border-medium);
 }
 
 .empty-accounts svg {
-  opacity: 0.4;
-  margin-bottom: 14px;
+  opacity: 0.3;
+  margin-bottom: 16px;
+  color: var(--text-light);
 }
 
 .empty-accounts p {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
-  color: var(--text-muted);
 }
 
 /* Accounts Grid */
@@ -1306,9 +1284,10 @@ input:checked + .toggle-slider:before {
   height: 100px;
   object-fit: contain;
   border-radius: 10px;
-  background: white;
+  background: #f8fafc;
   padding: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--border-light);
 }
 
 .logo-preview span {
@@ -1525,25 +1504,19 @@ input:checked + .toggle-slider:before {
   .button-group,
   .modal-overlay,
   .message-banner,
-  .refresh-btn {
+  .refresh-btn,
+  .account-actions {
     display: none !important;
+  }
+
+  .settings-grid .card {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
 /* ===============================
    ADDITIONAL ENHANCEMENTS
 ================================ */
-
-/* Existing Logo Display */
-.logo-preview img {
-  width: 100px;
-  height: 100px;
-  object-fit: contain;
-  border-radius: 10px;
-  background: #f8fafc;
-  padding: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid var(--border-light);
-}
 
 /* Loading State for Cards */
 .settings-grid .card.loading {
@@ -1600,31 +1573,6 @@ button:disabled,
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
 }
 
-/* Better Empty State */
-.empty-accounts {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 20px;
-  text-align: center;
-  background: rgba(248, 250, 252, 0.5);
-  border: 2px dashed var(--border-medium);
-  border-radius: 16px;
-  color: var(--text-muted);
-}
-
-.empty-accounts svg {
-  opacity: 0.3;
-  margin-bottom: 16px;
-  color: var(--text-light);
-}
-
-.empty-accounts p {
-  font-size: 14px;
-  font-weight: 500;
-  margin: 0;
-}
 
 /* Account Card Hover Effects */
 .account-card {
@@ -1664,28 +1612,8 @@ button:disabled,
   }
 }
 
-/* Modal Backdrop Click Area */
-.modal-overlay {
-  cursor: pointer;
-}
-
 .modal-content {
   cursor: default;
-}
-
-/* Input Group for Add Rule */
-.add-rule-input {
-  display: flex;
-  gap: 12px;
-}
-
-.add-rule-input input {
-  flex: 1;
-}
-
-.add-rule-input button {
-  flex-shrink: 0;
-  white-space: nowrap;
 }
 
 /* Improved Variable Tags */
@@ -1779,20 +1707,3 @@ button:disabled,
   }
 }
 
-/* Print Improvements */
-@media print {
-  .modal-overlay,
-  .message-banner,
-  .button-group,
-  .refresh-btn,
-  .account-actions {
-    display: none !important;
-  }
-  
-  .settings-grid .card {
-    break-inside: avoid;
-    page-break-inside: avoid;
-    border: 1px solid #ddd !important;
-    box-shadow: none !important;
-  }
-}

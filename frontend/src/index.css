@@ -14,6 +14,43 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* ===== Shared CSS Variables (consolidated) ===== */
+
+  /* Glass Effect */
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-bg-hover: rgba(255, 255, 255, 0.98);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-blur: blur(20px);
+
+  /* Text Colors */
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-light: #94a3b8;
+
+  /* Background */
+  --bg-light: rgba(248, 250, 252, 0.95);
+  --bg-card: rgba(255, 255, 255, 0.98);
+  --bg-page: #f8fafc;
+
+  /* Borders */
+  --border-light: rgba(226, 232, 240, 0.8);
+  --border-medium: rgba(203, 213, 225, 0.6);
+
+  /* Accent Colors */
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --success: #10b981;
+  --success-light: #d1fae5;
+  --warning: #f59e0b;
+  --warning-light: #fef3c7;
+  --danger: #ef4444;
+  --danger-light: #fee2e2;
+  --purple: #8b5cf6;
+  --purple-light: #ede9fe;
+  --cyan: #06b6d4;
+  --orange: #f97316;
 }
 
 /* ===== Links ===== */
@@ -167,6 +204,8 @@ textarea::placeholder {
 }
 :root[data-theme="dark"] .card,
 :root[data-theme="dark"] .stat-card,
+:root[data-theme="dark"] .ledger-stat-card,
+:root[data-theme="dark"] .member-stat-card,
 :root[data-theme="dark"] .glass-card,
 :root[data-theme="dark"] .fine-form-card,
 :root[data-theme="dark"] .history-container,
@@ -231,7 +270,9 @@ textarea::placeholder {
   background-color: #0b1120 !important;
   color: #e5e7eb;
 }
-:root[data-theme="dark"] .modal-overlay {
+:root[data-theme="dark"] .modal-overlay,
+:root[data-theme="dark"] .ledger-modal-overlay,
+:root[data-theme="dark"] .member-modal-overlay {
   background-color: rgba(2, 6, 23, 0.75) !important;
 }
 :root[data-theme="dark"] .search-input,
@@ -378,7 +419,9 @@ body {
 
 /* Only lock when modal is present */
 body.modal-open,
-body:has(.modal-overlay) {
+body:has(.modal-overlay),
+body:has(.ledger-modal-overlay),
+body:has(.member-modal-overlay) {
   overflow: hidden !important;
 }
 
@@ -388,7 +431,7 @@ body.modal-open {
 }
 
 /* When no modal overlay exists, force unlock */
-body:not(:has(.modal-overlay)) {
+body:not(:has(.modal-overlay)):not(:has(.ledger-modal-overlay)):not(:has(.member-modal-overlay)) {
   overflow: auto !important;
   pointer-events: auto !important;
   padding-right: 0 !important;

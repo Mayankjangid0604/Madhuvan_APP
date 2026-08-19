@@ -2,13 +2,15 @@ import { useRef, useEffect, useState } from "react";
 import { X, Printer } from "lucide-react";
 import { settingsAPI } from "../../services/api/settings.api";
 import { printElement } from "../../utils/printUtil";
+import { useBodyScrollLock } from '../../hooks/useBodyScrollLock';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001";
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5001";
 
 const RefundReceiptModal = ({ open, onClose, student, refundAmount, paymentMode, checkoutDate }) => {
   const printRef = useRef();
   const [hostelInfo, setHostelInfo] = useState(null);
   const [loading, setLoading] = useState(true);
+  useBodyScrollLock(open);
 
   useEffect(() => {
     if (open) {
@@ -22,6 +24,15 @@ const RefundReceiptModal = ({ open, onClose, student, refundAmount, paymentMode,
         .finally(() => setLoading(false));
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
 
   if (!open || !student) return null;
 
@@ -89,6 +100,9 @@ const RefundReceiptModal = ({ open, onClose, student, refundAmount, paymentMode,
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Refund Receipt"
         style={{
           background: "white",
           borderRadius: "12px",

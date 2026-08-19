@@ -3,9 +3,13 @@ const feeService = require('../services/fee.service');
 
 /**
  * Penalty Job - Applies penalties to overdue fees
- * 
- * This module exports a function to start the job,
- * rather than running code on import.
+ *
+ * NOTE: This job runs at 00:10, AFTER feeOverdue.cron.js (00:05) which
+ * updates fee statuses (DUE -> OVERDUE). The penalty job depends on
+ * statuses being current, so the 5-minute gap ensures correct ordering.
+ * Do NOT merge these two jobs -- they serve different purposes:
+ *   - feeOverdue.cron.js: updates fee_status based on due_date
+ *   - penalty.job.js: applies monetary penalties to already-overdue fees
  */
 
 let isInitialized = false;

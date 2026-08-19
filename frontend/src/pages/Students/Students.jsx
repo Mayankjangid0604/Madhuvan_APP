@@ -12,7 +12,6 @@ import CheckoutModal from "../../components/modals/CheckoutModal";
 import ConfirmModal from "../../components/modals/ConfirmModal";
 import StudentAdmissionForm from "../../components/PrintForm/StudentAdmissionForm";
 import HardDeleteStudentModal from "../../components/modals/HardDeleteStudentModal";
-import { printStyles } from "../../components/PrintForm/printStyles";
 import {
   Search,
   Eye,
@@ -35,14 +34,17 @@ import {
   Printer,
   Trash2,
   RefreshCw,
+  FileText,
 } from "lucide-react";
-import axios from "axios";
 import { imageUrlToBase64 } from "../../utils/imageToBase64";
 import { getFileUrl } from "../../utils/imageSrc";
-import { printElement } from "../../utils/printUtil";
 import { loadDrafts, deleteDraft } from "../../utils/studentDrafts";
-import { FileText } from "lucide-react";
 import "./students.css";
+
+const escapeHTML = (str) => {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+};
 
 // ✅ Helper function to reset body styles
 const resetBodyStyles = () => {
@@ -69,7 +71,7 @@ const Students = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [showDraftsModal, setShowDraftsModal] = useState(false);
-  const [drafts, setDrafts] = useState([]);
+  const [drafts, setDrafts] = useState(() => loadDrafts());
 
   // Modal States
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -117,7 +119,7 @@ const Students = () => {
     const orphanedOverlays = document.querySelectorAll('.modal-overlay');
     orphanedOverlays.forEach(overlay => {
       if (overlay && !document.querySelector('.students-page')?.contains(overlay)) {
-        // Don't remove if it's part of this component
+        overlay.remove();
       }
     });
 
@@ -525,7 +527,7 @@ const Students = () => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Admission Form - ${printStudent.student_name}</title>
+          <title>Admission Form - ${escapeHTML(printStudent.student_name)}</title>
           <meta charset="UTF-8">
           <style>
             /* ==================== GENERAL STYLES ==================== */
@@ -819,7 +821,7 @@ const Students = () => {
             onClick={() => { setDrafts(loadDrafts()); setShowDraftsModal(true); }}
           >
             <FileText size={16} />
-            Drafts{loadDrafts().length > 0 ? ` (${loadDrafts().length})` : ""}
+            Drafts{drafts.length > 0 ? ` (${drafts.length})` : ""}
           </Button>
           <Button variant="primary" onClick={() => navigate("/students/add")}>
             <UserPlus size={16} />
@@ -913,7 +915,7 @@ const Students = () => {
           )}
         </div>
       ) : (
-        <div className="students-table-container">
+        <div className="students-table-container" aria-live="polite">
           <table className="students-table">
             <thead>
               <tr>

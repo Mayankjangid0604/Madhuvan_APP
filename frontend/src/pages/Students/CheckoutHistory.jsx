@@ -33,6 +33,7 @@ const CheckoutHistory = () => {
         setLoading(true);
       }
 
+      // TODO: Optimize by adding server-side filter (e.g. ?status=exited) to avoid fetching all students
       const res = await studentAPI.getStudents();
       const students = res.data.data || [];
 

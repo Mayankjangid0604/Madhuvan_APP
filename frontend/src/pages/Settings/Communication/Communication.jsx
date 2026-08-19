@@ -7,8 +7,8 @@ import {
 import Button from "../../../components/buttons/Button";
 import Card from "../../../components/cards/Card";
 import { communicationAPI } from "../../../services/api/communication.api";
+import { settingsAPI } from "../../../services/api/settings.api";
 import { fieldMeta } from "./fieldMeta";
-import axios from "axios";
 import "../settings.css";
 import "./communication.css";
 
@@ -27,11 +27,6 @@ const formatTimestamp = (iso) => {
   }
 };
 
-const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5001/api";
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
-  return { Authorization: `Bearer ${token}` };
-};
 
 const Communication = () => {
   const navigate = useNavigate();
@@ -94,7 +89,7 @@ const Communication = () => {
 
   const loadNotifPrefs = async () => {
     try {
-      const r = await axios.get(`${API_URL}/settings/notification-preferences`, { headers: getAuthHeaders() });
+      const r = await settingsAPI.getNotificationPreferences();
       if (r.data.success && r.data.data) setNotifPrefs(r.data.data);
     } catch { /* silent */ }
   };
@@ -102,7 +97,7 @@ const Communication = () => {
   const handleSaveNotifPrefs = async () => {
     setSavingNotifPrefs(true);
     try {
-      await axios.post(`${API_URL}/settings/notification-preferences`, notifPrefs, { headers: getAuthHeaders() });
+      await settingsAPI.saveNotificationPreferences(notifPrefs);
       showSuccess("Notification preferences saved!");
     } catch (err) {
       showError("Save failed: " + (err.response?.data?.message || err.message));
@@ -126,7 +121,7 @@ const Communication = () => {
 
   const loadTemplates = async () => {
     try {
-      const response = await axios.get(`${API_URL}/settings/templates`, { headers: getAuthHeaders() });
+      const response = await settingsAPI.getTemplates();
       if (response.data.success && response.data.data) {
         if (response.data.data.due_reminder_email) setEmailTemplate(prev => ({ ...prev, ...response.data.data.due_reminder_email }));
         if (response.data.data.admission_sms) setSmsTemplate(prev => ({ ...prev, ...response.data.data.admission_sms }));
@@ -139,7 +134,7 @@ const Communication = () => {
   const handleSaveTemplate = async (key, data, setModal) => {
     setSaving(true);
     try {
-      await axios.post(`${API_URL}/settings/templates/${key}`, data, { headers: getAuthHeaders() });
+      await settingsAPI.saveTemplate(key, data);
       showSuccess("Template saved successfully!");
       setModal(false);
     } catch (err) {
@@ -212,7 +207,7 @@ const Communication = () => {
               </div>
               <h3>{label}</h3>
               <p>Current Provider: {activeProviderMeta ? activeProviderMeta.label : "Not configured"}</p>
-              <div className={`status-badge ${isActive ? "ok" : "warn"}`} style={{
+              <div className={`comm-status-badge ${isActive ? "ok" : "warn"}`} style={{
                 backgroundColor: isActive ? "#d1fae5" : "#fee2e2",
                 color: isActive ? "#065f46" : "#991b1b"
               }}>

@@ -5,8 +5,8 @@ export const studentAPI = {
     return api.post("/students", data);
   },
 
-  getStudents() {
-    return api.get("/students");
+  getStudents(config) {
+    return api.get("/students", config);
   },
 
   getStudentById(id) {
@@ -29,8 +29,7 @@ export const studentAPI = {
     return api.delete(`/students/${id}`);
   },
 
-  // ✅ FIX: Uses soft delete since permanent delete route was removed from backend
   hardDeleteStudent(id) {
-    return api.delete(`/students/${id}`);
+    return api.delete(`/students/${id}`, { params: { hard: true } });
   },
 };

@@ -42,7 +42,8 @@ export async function checkFirstRun() {
       transparent: true,
       alwaysOnTop: true,
       webPreferences: {
-        nodeIntegration: true
+        nodeIntegration: false,
+        contextIsolation: true
       }
     });
 

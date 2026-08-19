@@ -25,7 +25,7 @@ exports.allocateBed = ({ student_id, room_id, bed_id, allocation_start_date }) =
     [bed_id]
   );
 
-  if (!bed || (!Array.isArray(bed) && bed.length > 0) || (Array.isArray(bed) && bed.length > 0 && bed[0].bed_status !== "available")) {
+  if (!bed || !bed.length || bed[0].bed_status !== "available") {
     throw new Error("Bed is not available");
   }
 
@@ -108,8 +108,6 @@ exports.createRoom = ({ room_no, floor_no, room_type }) => {
       throw new Error(`Invalid floor_no: "${floor_no}" — must be a number`);
     }
 
-    console.log('🏠 Creating room:', { room_no: cleanRoomNo, floor_no: actualFloorNo, room_type });
-
     // Calculate beds based on room type
     const bedMap = {
       "Single": 1,
@@ -137,7 +135,6 @@ exports.createRoom = ({ room_no, floor_no, room_type }) => {
       );
     }
 
-    console.log('✅ Room created:', { roomId, room_no: cleanRoomNo, floor_no: actualFloorNo, beds: bedsCount });
     return roomId;
   } catch (err) {
     console.error('Create room error:', err);

@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import api from "../../services/api/axiosInstance";
 import { feeAPI } from "../../services/api/fee.api";
 import { memberAPI } from "../../services/api/member.api";
 import { settingsAPI } from "../../services/api/settings.api";
@@ -25,7 +26,6 @@ const FeeDetails = () => {
   const [data, setData] = useState(null);
   const [showInvoice, setShowInvoice] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
-  const [expandedFees, setExpandedFees] = useState({});
   const [activeTab, setActiveTab] = useState("fees"); // 'fees' or 'transactions'
   const [hostelInfo, setHostelInfo] = useState({});
   const [copyChooser, setCopyChooser] = useState({ open: false, fee: null, payment: null });
@@ -40,6 +40,19 @@ const FeeDetails = () => {
   const [members, setMembers] = useState([]);
   const [toast, setToast] = useState({ show: false, type: '', message: '' });
 
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await feeAPI.getStudentFeeDetails(studentId);
+      setData(res.data.data);
+
+    } catch (err) {
+      console.error("Failed to load fee details", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [studentId]);
+
   useEffect(() => {
     loadData();
     settingsAPI.getHostelInfo().then((r) => {
@@ -48,7 +61,7 @@ const FeeDetails = () => {
     memberAPI.getActive()
       .then(res => setMembers(res.data.data || []))
       .catch(() => {});
-  }, [studentId]);
+  }, [loadData]);
 
   useEffect(() => {
     if (toast.show) {
@@ -106,11 +119,8 @@ const FeeDetails = () => {
 
   const fetchDocNumber = async (type) => {
     try {
-      const token = localStorage.getItem("token");
-      const url = `${import.meta.env.VITE_API_BASE_URL}/doc-number/next?type=${type}`;
-      const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      const j = await r.json();
-      return j.data?.number;
+      const r = await api.get("/doc-number/next", { params: { type } });
+      return r.data?.data?.number;
     } catch { return null; }
   };
 
@@ -173,27 +183,6 @@ const FeeDetails = () => {
     });
   };
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      const res = await feeAPI.getStudentFeeDetails(studentId);
-      console.log("📦 Fee details response:", res.data);
-      setData(res.data.data);
-
-      // Auto-expand first unpaid fee
-      if (res.data.data?.fees) {
-        const unpaidFee = res.data.data.fees.find(f => f.fee_status !== 'PAID');
-        if (unpaidFee) {
-          setExpandedFees({ [unpaidFee.fee_id]: true });
-        }
-      }
-    } catch (err) {
-      console.error("Failed to load fee details", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const formatCurrency = (amt) => `₹${(amt || 0).toLocaleString("en-IN")}`;
 
   const formatDate = (d) => {
@@ -246,13 +235,6 @@ const FeeDetails = () => {
   };
 
   const toNum = (v) => Number(v) || 0;
-
-  const toggleFeeExpand = (feeId) => {
-    setExpandedFees(prev => ({
-      ...prev,
-      [feeId]: !prev[feeId]
-    }));
-  };
 
   const openInvoice = (payment, fee = null) => {
     let breakdown = null;
@@ -584,8 +566,7 @@ const FeeDetails = () => {
                         </div>
                       </div>
 
-                      {/* Fee Details — always shown */}
-                      {true && (
+                      {/* Fee Details */}
                         <div className="fd-fee-body">
                           {/* Fee Breakdown */}
                           <div className="fd-fee-breakdown">
@@ -774,7 +755,6 @@ const FeeDetails = () => {
                             )}
                           </div>
                         </div>
-                      )}
                     </div>
                   );
                 })}
@@ -1073,14 +1053,14 @@ const FeeDetails = () => {
                   Amount <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 600 }}>₹</span>
+                  <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontWeight: 600, fontSize: 14, pointerEvents: 'none', zIndex: 1 }}>₹</span>
                   <input
                     type="number"
                     value={paymentData.amount}
                     onChange={(e) => setPaymentData(p => ({ ...p, amount: e.target.value }))}
                     placeholder="Enter amount"
                     min="1"
-                    style={{ width: '100%', padding: '10px 12px 10px 28px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '10px 12px 10px 32px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14, boxSizing: 'border-box' }}
                   />
                 </div>
               </div>

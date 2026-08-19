@@ -15,11 +15,15 @@ const WEBHOOK_PATH = "/api/webhooks/phonepe";
 const verifyPhonePeSignature = (body, header, saltKey, saltIndex) => {
   if (!header) return false;
   const [providedHash, providedIndex] = String(header).split("###");
+  if (String(providedIndex) !== String(saltIndex)) return false;
   const expected = crypto
     .createHash("sha256")
     .update(body + WEBHOOK_PATH + saltKey)
     .digest("hex");
-  return providedHash === expected && String(providedIndex) === String(saltIndex);
+  const a = Buffer.from(expected, 'utf8');
+  const b = Buffer.from(String(providedHash), 'utf8');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
 };
 
 router.post("/phonepe", express.json({
@@ -78,47 +82,24 @@ router.post("/phonepe", express.json({
       return res.json({ success: true, message: "Duplicate — already processed" });
     }
 
-    // Mark fee PAID (or add partial payment)
+    // Record payment via feeService.payFee (handles fee_payments, ledger, salary tracking)
     const paidAt = new Date().toISOString().split("T")[0];
     let paymentId = null;
+    let payResult = null;
     try {
-      db.db.prepare(`
-        UPDATE student_fees
-           SET paid_amount = COALESCE(paid_amount, 0) + ?,
-               fee_status = CASE
-                 WHEN COALESCE(paid_amount, 0) + ? >= final_amount THEN 'PAID'
-                 ELSE COALESCE(fee_status, 'DUE')
-               END,
-               payment_date = ?,
-               payment_mode = 'PHONEPE',
-               reference_no = ?
-         WHERE fee_id = ?
-      `).run(amount, amount, paidAt, txnRef, feeId);
-
-      const insertResult = db.db.prepare(`
-        INSERT INTO fee_payments
-          (student_id, fee_id, payment_amount, payment_date, payment_mode, reference_no, received_by)
-        VALUES (?, ?, ?, ?, 'PHONEPE', ?, 'PhonePe Auto')
-      `).run(studentId, feeId, amount, paidAt, txnRef);
-      paymentId = insertResult.lastInsertRowid;
-
-      // Create ledger income entry
-      try {
-        const ledgerService = require("../services/ledger.service");
-        const fee = db.db.prepare("SELECT fee_month FROM student_fees WHERE fee_id = ?").get(feeId);
-        ledgerService.createFeePaymentEntry({
-          student_id: studentId,
-          payment_amount: amount,
-          payment_date: paidAt,
-          payment_mode: 'PHONEPE',
-          reference_no: txnRef,
-          fee_month: fee?.fee_month || paidAt
-        });
-      } catch (le) {
-        console.warn("PhonePe webhook: ledger entry failed:", le.message);
-      }
+      payResult = feeService.payFee({
+        fee_id: feeId,
+        student_id: studentId,
+        payment_amount: amount,
+        payment_date: paidAt,
+        payment_mode: 'PHONEPE',
+        reference_no: txnRef,
+        received_by: 'PhonePe Auto',
+        notes: `PhonePe txn ${merchantTxnId}`
+      });
+      paymentId = payResult.payment_id;
     } catch (e) {
-      console.error("Failed to update fee row from PhonePe webhook:", e.message);
+      console.error("Failed to record PhonePe payment via feeService:", e.message);
     }
 
     // Fire fee-receipt notifications (email + SMS + WhatsApp receipt)

@@ -27,9 +27,6 @@ const ReceiveFee = () => {
   const [filterStatus, setFilterStatus] = useState("all");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [expanded, setExpanded] = useState({});
-  // eslint-disable-next-line no-unused-vars
-
   // Payment modal
   const [showPayModal, setShowPayModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -41,7 +38,7 @@ const ReceiveFee = () => {
 
   // Invoice modal
   const [showInvoice, setShowInvoice] = useState(false);
-  const [invoiceData, setInvoiceData] = useState(null);
+  const [invoiceData, setInvoiceData] = useState(null); // TODO: setInvoiceData is never called; wire up invoice generation or remove
 
   // Toast
   const [toast, setToast] = useState({ show: false, type: "", message: "" });
@@ -105,6 +102,7 @@ const ReceiveFee = () => {
       // Optional: replace state to avoid re-triggering on refresh
       window.history.replaceState({}, document.title);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [students, location.state, autoPayHandled]);
 
   // ── Helpers ──
@@ -190,7 +188,7 @@ const ReceiveFee = () => {
       unpaidRentFees,
       unpaidSecurityFees
     };
-  }, []);
+  }, [rentTypes]);
 
   // ── Stats ──
   const stats = useMemo(() => {
@@ -310,11 +308,6 @@ const ReceiveFee = () => {
     if (student.total_remaining <= 0) return { label: "PAID", color: "green" };
     if (student.fees?.some(f => f.fee_status === "OVERDUE")) return { label: "OVERDUE", color: "red" };
     return { label: "PENDING", color: "orange" };
-  };
-
-  // eslint-disable-next-line no-unused-vars
-  const toggleExpand = (studentId) => {
-    setExpanded(prev => ({ ...prev, [studentId]: !prev[studentId] }));
   };
 
   // ── Quick Pay Amounts ──
@@ -478,7 +471,6 @@ const ReceiveFee = () => {
         <div className="cards-grid">
           {filtered.map(student => {
             const status = getStatus(student);
-            const isExpanded = expanded[student.student_id];
             const breakdown = getStudentBreakdown(student);
 
             return (

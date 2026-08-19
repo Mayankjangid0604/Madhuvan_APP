@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";  // ✅ THIS WAS MISSING OR REMOVED
 import { saveDraft, deleteDraft, getDraft } from "../../../utils/studentDrafts";
-import { useReactToPrint } from 'react-to-print';
 import {
   ArrowLeft,
   ArrowRight,
@@ -32,7 +31,6 @@ import {
   Hash,
   Clock,
   Repeat,
-  Printer  // ✅ ADD THIS TOO
 } from "lucide-react";
 import { studentAPI } from "../../../services/api/student.api.js";
 import { roomAPI } from "../../../services/api/room.api.js";
@@ -40,7 +38,6 @@ import { settingsAPI } from "../../../services/api/settings.api.js";
 import Card from "../../../components/cards/Card.jsx";
 import Button from "../../../components/buttons/Button.jsx";
 import PageHeader from "../../../components/layout/PageHeader.jsx";
-import StudentAdmissionForm from "../../../components/PrintForm/StudentAdmissionForm";
 import DateInput from "../../../components/common/DateInput";
 import "./addStudent.css";
 
@@ -52,12 +49,9 @@ const AddStudent = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [availableRooms, setAvailableRooms] = useState([]);
-  const [showPrintModal, setShowPrintModal] = useState(false);
-  const [createdStudentData, setCreatedStudentData] = useState(null);
   const [refreshingRooms, setRefreshingRooms] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const printRef = useRef(null);
   const [hostelInfo, setHostelInfo] = useState(null);
   // Step 1: Student Details
   const [studentData, setStudentData] = useState({
@@ -118,6 +112,13 @@ const AddStudent = () => {
 
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const photoUrlRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    };
+  }, []);
 
   // Fee Type Options - NEW
   const feeTypeOptions = [
@@ -300,7 +301,7 @@ const AddStudent = () => {
     if (!value) return "";
 
     let formatted = value.trim().replace(/\s+/g, ' ');
-    formatted = formatted.replace(/(\d+)(?!th)/gi, '$1th');
+    formatted = formatted.replace(/(\d+)(?!(st|nd|rd|th)\b)/gi, '$1th');
 
     const uppercaseWords = ['neet', 'jee', 'iit', 'ca', 'cs', 'nda', 'upsc'];
     uppercaseWords.forEach(word => {
@@ -455,14 +456,6 @@ const AddStudent = () => {
     if (el) el.scrollTop = 0;
   };
 
-  const handlePrint = useReactToPrint({
-    contentRef: printRef,
-    documentTitle: `Student_Admission_Form_${createdStudentData?.student_id}`,
-    onAfterPrint: () => {
-      console.log("Print completed");
-    },
-  });
-
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -475,11 +468,16 @@ const AddStudent = () => {
         return;
       }
       setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
+      if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+      const newUrl = URL.createObjectURL(file);
+      photoUrlRef.current = newUrl;
+      setPhotoPreview(newUrl);
     }
   };
 
   const handleRemovePhoto = () => {
+    if (photoUrlRef.current) URL.revokeObjectURL(photoUrlRef.current);
+    photoUrlRef.current = null;
     setPhotoFile(null);
     setPhotoPreview(null);
   };
@@ -570,37 +568,12 @@ const AddStudent = () => {
       };
 
       // Create student (JSON)
-      console.log("📝 Sending Student Payload to Backend:", JSON.stringify(studentPayload, null, 2));
       const response = await studentAPI.createStudent(studentPayload);
 
       if (response.data.success) {
         const studentId = response.data.data.student_id;
         const feesCreated = response.data.data.fees_created;
         const feeError = response.data.data.fee_error;
-
-        // Save data for print form
-        const selectedRoom = getSelectedRoom();
-        const selectedBed = getAvailableBedsForRoom().find(
-          r => r.bed_id.toString() === allocationData.bed_id
-        );
-
-        setCreatedStudentData({
-          student_id: studentId,
-          ...studentPayload,
-          allocation: {
-            ...allocationData,
-            room_no: selectedRoom?.room_no || "N/A",
-            floor_no: selectedRoom?.floor_no || "N/A",
-            room_type: selectedRoom?.room_type || "N/A",
-            bed_no: selectedBed?.bed_no || "N/A",
-            bed_label: selectedBed?.bed_label || ""
-          },
-          fees: {
-            ...feeData,
-            monthly_fee: feeAmount,
-            security_deposit: Number(feeData.security_deposit || 0)
-          }
-        });
 
         // Allocate room
         if (allocationData.room_id && allocationData.bed_id) {
@@ -703,9 +676,6 @@ const AddStudent = () => {
     setPhotoPreview(null);
     setSuccessMessage("");
     setErrorMessage("");
-    // ✅ FIX: Reset modal states to prevent blocking overlay
-    setShowPrintModal(false);
-    setCreatedStudentData(null);
 
     setStudentData({
       form_date: new Date().toISOString().split('T')[0],
@@ -2128,66 +2098,6 @@ const AddStudent = () => {
         </Card>
       </div>
 
-      {/* Print Modal */}
-      {showPrintModal && createdStudentData && hostelInfo && (
-        <div className="modal-overlay">
-          <div className="modal-content print-modal">
-            <div className="modal-header">
-              <h3>✅ Student Added Successfully!</h3>
-              <button
-                className="close-btn"
-                onClick={() => {
-                  setShowPrintModal(false);
-                  navigate("/students");
-                }}
-                aria-label="Close"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>Student has been added successfully. You can now print the admission form.</p>
-
-              {/* Hidden print target */}
-              <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
-                <StudentAdmissionForm
-                  ref={printRef}
-                  studentData={createdStudentData}
-                  allocationData={createdStudentData.allocation}
-                  feeData={createdStudentData.fees}
-                  hostelInfo={hostelInfo}
-                />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setShowPrintModal(false);
-                  navigate("/students");
-                }}
-              >
-                Skip
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  if (printRef.current) {
-                    handlePrint();
-                  }
-                  setTimeout(() => {
-                    setShowPrintModal(false);
-                    navigate("/students");
-                  }, 1000);
-                }}
-              >
-                <Printer size={16} />
-                Print Form
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
